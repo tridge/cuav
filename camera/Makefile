@@ -1,4 +1,4 @@
-CFLAGS=-Wall
+CFLAGS=-Wall -g -O2
 LIBS=-ldc1394
 
 all: capture_images
