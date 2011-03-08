@@ -95,8 +95,12 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 {
 	int fd;
 	dc1394video_frame_t *frame;
-	uint32_t min_gain, max_gain;
-	uint32_t min_shutter, max_shutter;
+
+	CHECK(dc1394_camera_reset(camera));
+
+	CHECK(dc1394_video_set_iso_speed(camera, DC1394_ISO_SPEED_400));
+	CHECK(dc1394_video_set_mode(camera, DC1394_VIDEO_MODE_1280x960_MONO16));
+	CHECK(dc1394_video_set_framerate(camera, DC1394_FRAMERATE_7_5));
 
 	CHECK(dc1394_feature_set_power(camera, DC1394_FEATURE_EXPOSURE, DC1394_OFF));
 
@@ -108,6 +112,7 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 		CHECK(dc1394_feature_set_power(camera, DC1394_FEATURE_GAIN, DC1394_ON));
 		CHECK(dc1394_feature_set_mode(camera, DC1394_FEATURE_GAIN, DC1394_FEATURE_MODE_AUTO));
 	} else {
+		uint32_t min_gain, max_gain;
 		CHECK(dc1394_feature_set_power(camera, DC1394_FEATURE_GAIN, DC1394_ON));
 		CHECK(dc1394_feature_set_mode(camera, DC1394_FEATURE_GAIN, DC1394_FEATURE_MODE_MANUAL));
 		CHECK(dc1394_feature_get_boundaries(camera, DC1394_FEATURE_GAIN, &min_gain, &max_gain));
@@ -120,6 +125,7 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 		CHECK(dc1394_feature_set_power(camera, DC1394_FEATURE_SHUTTER, DC1394_ON));
 		CHECK(dc1394_feature_set_mode(camera, DC1394_FEATURE_SHUTTER, DC1394_FEATURE_MODE_AUTO));
 	} else {
+		uint32_t min_shutter, max_shutter;
 		CHECK(dc1394_feature_set_power(camera, DC1394_FEATURE_SHUTTER, DC1394_ON));
 		CHECK(dc1394_feature_set_mode(camera, DC1394_FEATURE_SHUTTER, DC1394_FEATURE_MODE_MANUAL));
 		CHECK(dc1394_feature_get_boundaries(camera, DC1394_FEATURE_SHUTTER, &min_shutter, &max_shutter));
@@ -128,6 +134,8 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 		CHECK(dc1394_feature_set_value(camera, DC1394_FEATURE_SHUTTER, *shutter));
 	}
 
+
+	CHECK(dc1394_capture_setup(camera, 1, DC1394_CAPTURE_FLAGS_DEFAULT));
 
 	CHECK(dc1394_video_set_transmission(camera, DC1394_ON));
 
@@ -151,6 +159,7 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 	CHECK(dc1394_capture_enqueue(camera,frame));
 
 	CHECK(dc1394_video_set_transmission(camera,DC1394_OFF));
+	CHECK(dc1394_capture_stop(camera));
 
 	close(fd);
 	return 0;
@@ -185,11 +194,14 @@ static int capture_loop(dc1394camera_t *camera, const char *basename, float dela
 		}
 		free(fname);
 
+
 		if (asprintf(&fname, "%s-%s-%02u.pgm", 
 			     basename, tstring, (unsigned)(tv.tv_usec/10000)) == -1) {
 			return -1;
 		}
-		capture_image(camera, fname, &shutter, &gain, &average, &num_saturated);
+		if (capture_image(camera, fname, &shutter, &gain, &average, &num_saturated) == -1) {
+			return -1;
+		}
 		printf("%s shutter=%u gain=%u average=%u num_saturated=%u\n", 
 		       fname, shutter, gain, average, num_saturated);
 		free(fname);
@@ -270,49 +282,12 @@ static void close_camera(dc1394camera_t *camera)
 static int run_capture(void)
 {
 	dc1394camera_t *camera;
-	dc1394framerate_t framerate;
-	dc1394video_mode_t video_mode;
-	dc1394error_t err;
 
 	while ((camera = open_camera()) == NULL) {
 		sleep(1);
 	}
 
-	video_mode = DC1394_VIDEO_MODE_1280x960_MONO16;
-
-	framerate = DC1394_FRAMERATE_1_875;
-	framerate = DC1394_FRAMERATE_7_5;
-	framerate = DC1394_FRAMERATE_3_75;
-
-	/* main setup */
-
-	/* set transfer rate */
-	err = dc1394_video_set_iso_speed(camera, DC1394_ISO_SPEED_400);
-	if (err != DC1394_SUCCESS) {
-		close_camera(camera);
-		return -1;
-	}
-
-	err=dc1394_video_set_mode(camera, video_mode);
-	if (err != DC1394_SUCCESS) {
-		close_camera(camera);
-		return -1;
-	}
-
-	err=dc1394_video_set_framerate(camera, framerate);
-	if (err != DC1394_SUCCESS) {
-		close_camera(camera);
-		return -1;
-	}
-
-	err=dc1394_capture_setup(camera,4, DC1394_CAPTURE_FLAGS_DEFAULT);
-	if (err != DC1394_SUCCESS) {
-		close_camera(camera);
-		return -1;
-	}
-
-	capture_loop(camera, "test", 0.0);
-
+	capture_loop(camera, "test", 0.01);
 	close_camera(camera);
 
 	return 0;
