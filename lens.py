@@ -21,6 +21,8 @@ parser.add_option("--height", dest='height', type='float', default='122',
                   help='height in meters')
 parser.add_option("--sensorwidth", dest='sensorwidth', type='float', default='4.8',
                   help='sensor width in mm')
+parser.add_option("--filterfactor", dest='filterfactor', type='float', default='1.0',
+                  help='filter pass ratio')
 parser.add_option("--xresolution", dest='xresolution', type='int', default='1280')
     
 (opts, args) = parser.parse_args()
@@ -66,7 +68,7 @@ def sunreflected():
 
 def apparentbrightness():
     '''apparent brightness of lamp over surroundings'''
-    return (lamppixelpower() + sunreflected()) / sunreflected()
+    return (lamppixelpower() + (opts.filterfactor*sunreflected())) / (opts.filterfactor*sunreflected())
 
 print("Inputs:")
 print("Lens: %.1f mm" % opts.lens)
@@ -78,6 +80,7 @@ print("Ground albedo: %.2f" % opts.albedo)
 print("Height: %.1f m" % opts.height)
 print("Sensor width: %.1f mm" % opts.sensorwidth)
 print("X resolution: %d px" % opts.xresolution)
+print("Filter pass ratio: %.1f" % opts.filterfactor)
 
 print("\nOutputs:")
 print("ground width: %.1f m" % groundwidth())
