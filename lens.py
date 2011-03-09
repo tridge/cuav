@@ -19,7 +19,7 @@ parser.add_option("--albedo",dest="albedo", type='float', default='0.2',
                   help="albedo of ground")
 parser.add_option("--height", dest='height', type='float', default='122',
                   help='height in meters')
-parser.add_option("--sensorwidth", dest='sensorwidth', type='float', default='4.8',
+parser.add_option("--sensorwidth", dest='sensorwidth', type='float', default='5.0',
                   help='sensor width in mm')
 parser.add_option("--filterfactor", dest='filterfactor', type='float', default='1.0',
                   help='filter pass ratio')
