@@ -50,6 +50,12 @@ def lamppower():
     '''return lamp power over its area'''
     return (opts.lampefficiency/100.0) * opts.lamppower;
 
+def lamppixelpower():
+    '''return lamp power in W over a pixel area'''
+    if pixelarea() > lamparea():
+        return lamppower()
+    return lamppower() * (pixelarea()/lamparea())
+
 def sunonlamp():
     '''return sunlight over lamp area in W'''
     return opts.illumination*lamparea()
@@ -60,7 +66,7 @@ def sunreflected():
 
 def apparentbrightness():
     '''apparent brightness of lamp over surroundings'''
-    return (lamppower() + sunreflected()) / sunreflected()
+    return (lamppixelpower() + sunreflected()) / sunreflected()
 
 print("Inputs:")
 print("Lens: %.1f mm" % opts.lens)
@@ -80,6 +86,7 @@ print("ground pixel width: %.1f cm" % (100*pixelwidth()))
 print("ground pixel area: %.1f cm^2" % (10000*pixelarea()))
 print("lamp area: %f cm^2" % (10000*lamparea()))
 print("lamp output power: %.1f W" % lamppower())
+print("lamp output power per pixel: %.1f W" % lamppixelpower())
 print("Sunlight power on lamp area: %.2f W" % sunonlamp())
 print("Reflected sunlight over pixel area: %.2f W" % sunreflected())
 print("Apparent brightness of lamp: %.2f" % apparentbrightness())
