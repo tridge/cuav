@@ -2,10 +2,6 @@
 
 import math
 
-sensorwidth=0.0048 # 4.8mm wide sensor
-lens=2.8           # lens size in mm
-distance=122       # height above ground
-
 from optparse import OptionParser
 parser = OptionParser("lens.py [options]")
 
