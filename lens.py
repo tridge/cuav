@@ -9,8 +9,8 @@ parser.add_option("--lens",dest="lens", type='float', default='2.8',
                   help="lens size in mm")
 parser.add_option("--illumination",dest="illumination", type='float', default='1500',
                   help="sunlight brightness in W/m^2")
-parser.add_option("--lampdiameter",dest="lampdiameter", type='float', default='0.065',
-                  help="lamp diameter in m")
+parser.add_option("--lampdiameter",dest="lampdiameter", type='float', default='6.5',
+                  help="lamp diameter in cm")
 parser.add_option("--lampefficiency",dest="lampefficiency", type='float', default='10',
                   help="lamp efficieny (percentage)")
 parser.add_option("--lamppower",dest="lamppower", type='float', default='50',
@@ -44,7 +44,7 @@ def pixelarea():
 
 def lamparea():
     '''return lamp area in m^2'''
-    return math.pi*math.pow(opts.lampdiameter/2, 2.0)
+    return math.pi*math.pow((opts.lampdiameter/100.0)/2.0, 2.0)
 
 def lamppower():
     '''return lamp power over its area'''
@@ -62,7 +62,18 @@ def apparentbrightness():
     '''apparent brightness of lamp over surroundings'''
     return (lamppower() + sunreflected()) / sunreflected()
 
+print("Inputs:")
+print("Lens: %.1f mm" % opts.lens)
+print("Illumination: %.0f W/m^2" % opts.illumination)
+print("Lamp diameter: %.1f cm" % opts.lampdiameter)
+print("Lamp efficieny: %.0f %%" % opts.lampefficiency)
+print("Lamp power: %.1f W" % opts.lamppower)
+print("Ground albedo: %.2f" % opts.albedo)
+print("Height: %.1f m" % opts.height)
+print("Sensor width: %.1f mm" % opts.sensorwidth)
+print("X resolution: %d px" % opts.xresolution)
 
+print("\nOutputs:")
 print("ground width: %.1f m" % groundwidth())
 print("angle of view: %.1f degrees" % aov())
 print("ground pixel width: %.1f cm" % (100*pixelwidth()))
