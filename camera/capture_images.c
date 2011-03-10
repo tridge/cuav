@@ -121,13 +121,18 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 {
 	int fd;
 	dc1394video_frame_t *frame;
+	uint64_t timestamp;
+	static uint16_t buf[IMAGE_HEIGHT*IMAGE_WIDTH];
 
 	CHECK(dc1394_feature_set_absolute_value(camera, DC1394_FEATURE_GAIN, gain));
 	CHECK(dc1394_feature_set_absolute_value(camera, DC1394_FEATURE_SHUTTER, shutter));
 	CHECK(dc1394_video_set_one_shot(camera, DC1394_ON));
 	CHECK(dc1394_capture_dequeue(camera, DC1394_CAPTURE_POLICY_WAIT, &frame));
+	timestamp = frame->timestamp;
+	memcpy(buf, frame->image, sizeof(buf));
+	CHECK(dc1394_capture_enqueue(camera,frame));
 
-	get_averages((uint16_t *)frame->image, average, num_saturated, num_half_saturated);
+	get_averages(buf, average, num_saturated, num_half_saturated);
 
 	if (*average == 0) {
 		/* bad frame */
@@ -142,15 +147,14 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 		}
 		
 		dprintf(fd,"P5\n%u %u\n#PARAM: t=%llu shutter=%f gain=%f average=%u saturated=%u\n65535\n", 
-			IMAGE_WIDTH, IMAGE_HEIGHT, (unsigned long long)frame->timestamp, shutter, gain,
+			IMAGE_WIDTH, IMAGE_HEIGHT, (unsigned long long)timestamp, shutter, gain,
 			*average, *num_saturated);
-		if (write(fd, frame->image, IMAGE_WIDTH*IMAGE_HEIGHT*2) != IMAGE_WIDTH*IMAGE_HEIGHT*2) {
+		if (write(fd, buf, sizeof(buf)) != sizeof(buf)) {
 			fprintf(stderr, "Write failed for %s\n", fname);
 		}
 		close(fd);
 	}
 
-	CHECK(dc1394_capture_enqueue(camera,frame));
 
 	return 0;
 }
