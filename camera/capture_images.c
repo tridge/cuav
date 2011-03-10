@@ -126,7 +126,6 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 
 	CHECK(dc1394_feature_set_absolute_value(camera, DC1394_FEATURE_GAIN, gain));
 	CHECK(dc1394_feature_set_absolute_value(camera, DC1394_FEATURE_SHUTTER, shutter));
-	CHECK(dc1394_video_set_one_shot(camera, DC1394_ON));
 	CHECK(dc1394_capture_dequeue(camera, DC1394_CAPTURE_POLICY_WAIT, &frame));
 	timestamp = frame->timestamp;
 	memcpy(buf, frame->image, sizeof(buf));
@@ -189,6 +188,10 @@ static int capture_loop(dc1394camera_t *camera, const char *basename, float dela
 	CHECK(dc1394_feature_set_value(camera, DC1394_FEATURE_SHUTTER, 500));
 	CHECK(dc1394_feature_set_absolute_control(camera, DC1394_FEATURE_SHUTTER, DC1394_ON));
 	CHECK(dc1394_feature_set_absolute_value(camera, DC1394_FEATURE_SHUTTER, SHUTTER_GOOD));
+
+	CHECK(dc1394_capture_setup(camera, 16, DC1394_CAPTURE_FLAGS_DEFAULT));
+	CHECK(dc1394_video_set_framerate(camera, DC1394_FRAMERATE_3_75));
+	CHECK(dc1394_video_set_transmission(camera, DC1394_ON));
 
 	while (true) {
 		char *fname;
