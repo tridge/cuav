@@ -197,6 +197,8 @@ static int capture_loop(dc1394camera_t *camera, const char *basename, float dela
 		time_t t;
 		char tstring[50];
 
+		alarm(10+(unsigned)delay);
+
 		gettimeofday(&tv, NULL);
 		t = tv.tv_sec;
 		tm = localtime(&t);
