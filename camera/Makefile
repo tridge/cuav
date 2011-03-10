@@ -1,5 +1,5 @@
-CFLAGS=-Wall -g 
-LIBS=-ldc1394
+CFLAGS=-Wall -g -I/usr/local/include
+LIBS=-L/usr/local/lib -ldc1394
 
 all: capture_images
 
