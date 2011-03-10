@@ -91,7 +91,13 @@ static void get_averages(uint16_t *image, uint16_t *average,
 	*average = total / (IMAGE_WIDTH*IMAGE_HEIGHT);
 }
 
-#define CHECK(x) do { if ((x) != DC1394_SUCCESS) return -1; } while (0)
+#define CHECK(x) do { \
+	dc1394error_t err = (x); \
+	if (err != DC1394_SUCCESS) {  \
+		fprintf(stderr, "call failed: %s : %d (line %u)\n", #x, err, __LINE__); \
+		return -1; \
+	} \
+} while (0)
 
 static float new_gain(float current_average, float target_average, float current_gain)
 {
@@ -112,7 +118,7 @@ static float new_shutter(float current_average, float target_average, float curr
 	return (0.7*current_shutter)+(0.3*shutter);
 }
 
-static int capture_image(dc1394camera_t *camera, const char *fname,
+static int capture_image(dc1394camera_t *camera, const char *basename,
 			 float shutter, float gain,
 			 uint16_t *average, 
 			 uint32_t *num_saturated, 
@@ -123,6 +129,11 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 	dc1394video_frame_t *frame;
 	uint64_t timestamp;
 	static uint16_t buf[IMAGE_HEIGHT*IMAGE_WIDTH];
+	struct tm *tm;
+	time_t t;
+	char tstring[50];
+	char *fname;
+	struct timeval tv;
 
 	CHECK(dc1394_feature_set_absolute_value(camera, DC1394_FEATURE_GAIN, gain));
 	CHECK(dc1394_feature_set_absolute_value(camera, DC1394_FEATURE_SHUTTER, shutter));
@@ -130,6 +141,8 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 	timestamp = frame->timestamp;
 	memcpy(buf, frame->image, sizeof(buf));
 	CHECK(dc1394_capture_enqueue(camera,frame));
+	
+	gettimeofday(&tv, NULL);
 
 	get_averages(buf, average, num_saturated, num_half_saturated);
 
@@ -138,10 +151,24 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 		return -1;
 	}
 
+	t = tv.tv_sec;
+	tm = localtime(&t);
+
+	strftime(tstring, sizeof(tstring), "%Y%m%d%H%M%S", tm);
+
+	if (asprintf(&fname, "%s-%s-%02u.pgm", 
+		     basename, tstring, (unsigned)(tv.tv_usec/10000)) == -1) {
+		return -1;
+	}
+
+	printf("%s shutter=%f gain=%f average=%u saturated=%u hsaturated=%u\n", 
+	       fname, shutter, gain, *average, *num_saturated, *num_half_saturated);
+
 	if (!testonly) {
 		fd = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0644);
 		if (fd == -1) {
 			fprintf(stderr, "Can't create imagefile '%s' - %s", fname, strerror(errno));
+			free(fname);
 			return -1;
 		}
 		
@@ -153,7 +180,7 @@ static int capture_image(dc1394camera_t *camera, const char *fname,
 		}
 		close(fd);
 	}
-
+	free(fname);
 
 	return 0;
 }
@@ -167,9 +194,9 @@ static int capture_loop(dc1394camera_t *camera, const char *basename, float dela
 
 	CHECK(dc1394_video_set_iso_speed(camera, DC1394_ISO_SPEED_400));
 	CHECK(dc1394_video_set_mode(camera, DC1394_VIDEO_MODE_1280x960_MONO16));
-	CHECK(dc1394_video_set_framerate(camera, DC1394_FRAMERATE_7_5));
+	CHECK(dc1394_video_set_framerate(camera, DC1394_FRAMERATE_3_75));
 
-	CHECK(dc1394_capture_setup(camera, 4, DC1394_CAPTURE_FLAGS_DEFAULT));
+	CHECK(dc1394_capture_setup(camera, 16, DC1394_CAPTURE_FLAGS_DEFAULT));
 
 	CHECK(dc1394_feature_set_power(camera, DC1394_FEATURE_EXPOSURE, DC1394_OFF));
 
@@ -189,36 +216,15 @@ static int capture_loop(dc1394camera_t *camera, const char *basename, float dela
 	CHECK(dc1394_feature_set_absolute_control(camera, DC1394_FEATURE_SHUTTER, DC1394_ON));
 	CHECK(dc1394_feature_set_absolute_value(camera, DC1394_FEATURE_SHUTTER, SHUTTER_GOOD));
 
-	CHECK(dc1394_capture_setup(camera, 16, DC1394_CAPTURE_FLAGS_DEFAULT));
-	CHECK(dc1394_video_set_framerate(camera, DC1394_FRAMERATE_3_75));
 	CHECK(dc1394_video_set_transmission(camera, DC1394_ON));
 
 	while (true) {
-		char *fname;
-		struct timeval tv;
-		struct tm *tm;
-		time_t t;
-		char tstring[50];
-
 		alarm(10+(unsigned)delay);
 
-		gettimeofday(&tv, NULL);
-		t = tv.tv_sec;
-		tm = localtime(&t);
-
-		strftime(tstring, sizeof(tstring), "%Y%m%d%H%M%S", tm);
-
-		if (asprintf(&fname, "%s-%s-%02u.pgm", 
-			     basename, tstring, (unsigned)(tv.tv_usec/10000)) == -1) {
-			return -1;
-		}
-		if (capture_image(camera, fname, shutter, gain, &average, 
+		if (capture_image(camera, basename, shutter, gain, &average, 
 				  &num_saturated, &num_half_saturated, testonly) == -1) {
 			return -1;
 		}
-		printf("%s shutter=%f gain=%f average=%u saturated=%u hsaturated=%u\n", 
-		       fname, shutter, gain, average, num_saturated, num_half_saturated);
-		free(fname);
 
 		if (num_saturated > SATURATED_HIGH) {
 			/* too much saturation */
