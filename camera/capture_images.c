@@ -314,6 +314,8 @@ static int run_capture(const char *basename, float delay, bool testonly)
 		sleep(1);
 	}
 
+	dc1394_camera_reset(camera);
+
 	capture_loop(camera, basename, delay, testonly);
 	close_camera(camera);
 
