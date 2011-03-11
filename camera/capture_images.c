@@ -65,6 +65,8 @@
 #define IMAGE_WIDTH 1280
 #define IMAGE_HEIGHT 960
 
+static const char *led_path = "/sys/devices/platform/leds-gpio/leds/pandaboard::status2/brightness";
+
 static void get_averages(uint16_t *image, uint16_t *average, 
 			 uint32_t *num_saturated, uint32_t *num_half_saturated)
 {
@@ -139,6 +141,9 @@ static int capture_image(dc1394camera_t *camera, const char *basename,
 	char tstring[50];
 	char *fname;
 	struct timeval tv;
+	int led;
+
+	led = open(led_path, O_WRONLY);
 
 	CHECK(dc1394_feature_set_absolute_value(camera, DC1394_FEATURE_GAIN, gain));
 	CHECK(dc1394_feature_set_absolute_value(camera, DC1394_FEATURE_SHUTTER, shutter));
@@ -146,6 +151,10 @@ static int capture_image(dc1394camera_t *camera, const char *basename,
 	timestamp = frame->timestamp;
 	memcpy(buf, frame->image, sizeof(buf));
 	CHECK(dc1394_capture_enqueue(camera,frame));
+
+	if (led != -1) {
+		dprintf(led, "255\n");
+	}
 	
 	gettimeofday(&tv, NULL);
 
@@ -186,6 +195,11 @@ static int capture_image(dc1394camera_t *camera, const char *basename,
 		close(fd);
 	}
 	free(fname);
+
+	if (led != -1) {
+		dprintf(led, "0\n");
+		close(led);
+	}
 
 	return 0;
 }
@@ -344,6 +358,8 @@ static void usage(void)
 	printf("capture_images [options]\n");
 	printf("\t-d delay       delay between images (seconds)\n");
 	printf("\t-b basename    base filename\n");
+	printf("\t-l LEDPATH     led brightness path\n");
+	printf("\t-t             test mode (no images saved)\n");
 }
 
 int main(int argc, char *argv[])
@@ -360,6 +376,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'b':
 			basename = optarg;
+			break;
+		case 'l':
+			led_path = optarg;
 			break;
 		case 't':
 			testonly = true;
