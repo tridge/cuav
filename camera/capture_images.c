@@ -324,7 +324,10 @@ static int run_capture(const char *basename, float delay, bool testonly)
 {
 	dc1394camera_t *camera;
 
+	printf("Waiting for camera\n");
 	while ((camera = open_camera()) == NULL) {
+		printf(".");
+		fflush(stdout);
 		sleep(1);
 	}
 
