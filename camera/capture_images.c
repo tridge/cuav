@@ -77,6 +77,11 @@ static void get_averages(uint16_t *image, uint16_t *average,
 
 	for (i=0; i<IMAGE_WIDTH*IMAGE_HEIGHT; i++) {
 		uint16_t v = ntohs(image[i]);
+#if 0
+		if (v & 0xF) {
+		  printf("Warning: low 4 bit set at %d: %02x\n", i, v);
+		}
+#endif
 		total += v;
 		if (v > SATURATION_THRESHOLD) {
 			(*num_saturated)++;
