@@ -11,13 +11,9 @@ if len(args) < 1:
     print("please supply an image file name")
     sys.exit(1)
 
-
 def show_edges(filename):
     '''show ediges in an image'''
     pgm = util.PGM(filename)
-
-    wname = 'Edges: %s' % filename
-    cv.NamedWindow(wname)
 
     # convert to 32 bit
     img8 = cv.CreateImage((1280,960), 8, 1)
@@ -36,9 +32,16 @@ def show_edges(filename):
 
     cv.AddWeighted(color_img, 1.0, edgecolor16, 1.0, 0.5, color_img)
 
-    cv.ShowImage(wname, color_img)
-    cv.WaitKey()
-    cv.DestroyWindow(wname)
+    cv.ShowImage('Edges', color_img)
+    return color_img
 
-for f in args:
-    show_edges(f)
+
+cv.NamedWindow('Edges')
+
+i = 0
+while True:
+    print(args[i])
+    image = show_edges(args[i])
+    i = util.key_menu(i, len(args), image, 'edges.png')
+
+cv.DestroyWindow('Edges')

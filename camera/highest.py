@@ -18,8 +18,6 @@ def circle_highest(filename):
     maxpoint = pgm.array.argmax()
     maxpos = (maxpoint%1280, maxpoint/1280)
 
-    wname = 'Highest: %s' % filename
-    cv.NamedWindow(wname)
     color_img = cv.CreateImage((1280,960), 16, 3)
 
     cv.CvtColor(pgm.img, color_img, cv.CV_GRAY2RGB)
@@ -31,9 +29,19 @@ def circle_highest(filename):
 
     cv.AddWeighted(color_img, 1.0, overlay, 1.0, 0.5, color_img)
 
-    cv.ShowImage(wname, color_img)
-    cv.WaitKey()
-    cv.DestroyWindow(wname)
+    cv.ShowImage('Highest', color_img)
+    return color_img
+
+
+cv.NamedWindow('Highest')
+
+i = 0
+while True:
+    print(args[i])
+    image = circle_highest(args[i])
+    i = util.key_menu(i, len(args), image, 'highest.png')
 
 for f in args:
     circle_highest(f)
+
+cv.DestroyWindow('Highest')

@@ -33,3 +33,26 @@ class PGM(object):
         self.img = cv.CreateImageHeader((1280, 960), 16, 1)
         cv.SetData(self.img, self.array.tostring(), self.array.dtype.itemsize*1*1280)
 
+def key_menu(i, n, image, filename):
+    '''simple keyboard menu'''
+    while True:
+        key = cv.WaitKey()
+        if not key in range(128):
+            continue
+        key = chr(key)
+        if key == 'q':
+            sys.exit(0)
+        if key == 's':
+            print("Saving %s" % filename)
+            cv.SaveImage(filename, image)
+        if key in ['n', '\n', ' ']:
+            if i == n-1:
+                print("At last image")
+            else:
+                return i+1
+        if key == 'b':
+            if i == 0:
+                print("At first image")
+            else:
+                return i-1
+
