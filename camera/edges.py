@@ -15,7 +15,7 @@ def show_edges(filename):
     '''show ediges in an image'''
     pgm = util.PGM(filename)
 
-    # convert to 32 bit
+    # convert to 8 bit
     img8 = cv.CreateImage((1280,960), 8, 1)
     cv.ConvertScale(pgm.img, img8, scale=1.0/256)
 
