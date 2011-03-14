@@ -32,8 +32,34 @@ def show_edges(filename):
 
     cv.AddWeighted(color_img, 1.0, edgecolor16, 1.0, 0.5, color_img)
 
+def circle_highest(filename):
+    '''circle the highest value pixel in an image'''
+    pgm = util.PGM(filename)
+    maxpoint = pgm.array.argmax()
+    maxpos = (maxpoint%1280, maxpoint/1280)
+
+    color_img = cv.CreateImage((1280,960), 16, 3)
+
+    cv.CvtColor(pgm.img, color_img, cv.CV_GRAY2RGB)
+
+    overlay = cv.CreateImage((1280,960), 16, 3)
+    cv.SetZero(overlay)
+
+    cv.Circle(overlay, maxpos, 10, cv.CV_RGB(65535, 0, 0))
+
+    cv.AddWeighted(color_img, 1.0, overlay, 1.0, 0.5, color_img)
+
+
 t1 = time.time()
 for f in args:
     image = show_edges(f)
 t2 = time.time()
-print("Processed %u images in %f seconds - %f fps" % (len(args), t2-t1, len(args)/(t2-t1)))
+print("Edges: Processed %u images in %f seconds - %f fps" % (len(args), t2-t1, len(args)/(t2-t1)))
+
+
+t1 = time.time()
+for f in args:
+    image = circle_highest(f)
+t2 = time.time()
+print("Highest: Processed %u images in %f seconds - %f fps" % (len(args), t2-t1, len(args)/(t2-t1)))
+
