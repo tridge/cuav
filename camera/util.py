@@ -1,6 +1,6 @@
 '''common utility functions'''
 
-import numpy, cv, math
+import numpy, cv, math, sys
 
 class PGMError(Exception):
 	'''PGMLink error class'''
