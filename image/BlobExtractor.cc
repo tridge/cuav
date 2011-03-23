@@ -41,6 +41,7 @@ blob_extractor::blob_extractor(int w, int h) :
 
   sample_size_ = DEFAULT_SAMPLE_SIZE;
   threshold_   = DEFAULT_THRESHOLD;
+  threshold_margin_ = DEFAULT_MARGIN;
   assoc_range_ = DEFAULT_ASSOC_RANGE;
   min_aspect_  = DEFAULT_MIN_ASPECT;
   max_aspect_  = DEFAULT_MAX_ASPECT;
@@ -79,13 +80,16 @@ void blob_extractor::do_stats()
                            sample_size_,
                            &stats_);
 
-  threshold_ = (int)(stats_.mean + (65535.0 - stats_.mean) * threshold_margin_);
+  //threshold_ = (int)(stats_.mean + (stats_.max - stats_.mean) * threshold_margin_);
+  threshold_ = (int)(stats_.mean + (65535 - stats_.mean) * threshold_margin_);
+  //threshold_ = (int)(stats_.mean + threshold_margin_*get_std());
 }
 
 void blob_extractor::print_stats()
 {
-  printf("mean=%f,variance=%f,std=%f\n",get_mean(), get_variance(), get_std());
-  printf("threshold=%d ",threshold_);
+  printf("mean=%f, variance=%f, std=%f\n",get_mean(), get_variance(), get_std());
+  printf("min=%d, max=%d\n", stats_.min, stats_.max);
+  printf("threshold=%d\n",threshold_);
 }
 
 void blob_extractor::extract_blobs()
@@ -211,8 +215,8 @@ void blob_extractor::cull_blobs()
   blob *last = bloblist_;
   while (bb)
   {
-    if((bb->mass > min_mass_) && (bb->mass < max_mass_) &&
-       (bb->aspect > min_aspect_) && (bb->aspect < max_aspect_) && (bb->sparse > min_sparse_))
+    if((bb->mass >= min_mass_) && (bb->mass <= max_mass_) &&
+       (bb->aspect >= min_aspect_) && (bb->aspect <= max_aspect_) && (bb->sparse >= min_sparse_))
     {
       last = bb;
       bb = bb->next;
