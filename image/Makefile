@@ -8,12 +8,20 @@ AR=ar
 CXXFLAGS=-Wall -g
 CFLAGS=-Wall -g
 
-objects = image_utils.o BlobExtractor.o
+objects = pgm_io.o image_utils.o BlobExtractor.o
 
-all: image
+all: image.lib blobtest
 
-image: $(objects)
-	$(AR) -r image.lib $(objects) 
+image.lib: $(objects)
+	$(AR) -r image.lib $(objects)
+	
+blobtest: image.lib blobtest.o
+	$(CXX) -o blobtest blobtest.o image.lib
 
 clean:
 	rm -f *.o *~ image.lib
+# DO NOT DELETE
+
+BlobExtractor.o: BlobExtractor.h image_utils.h
+blobtest.o: pgm_io.h BlobExtractor.h image_utils.h
+image_utils.o: image_utils.h
