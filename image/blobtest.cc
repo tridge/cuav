@@ -1,8 +1,27 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 
 #include "pgm_io.h"
 #include "BlobExtractor.h"
+
+// an 7x7 template of joe
+// use differing offsets for smaller template
+uint16_t joe_template[64] =
+{
+  0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
+  0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
+  0x0000,0x0000,0x22a5,0x5e2c,0x22a5,0x0000,0x0000,0x0000,
+  0x0000,0x0000,0x5e2c,0xffff,0x5e2c,0x0000,0x0000,0x0000,
+  0x0000,0x0000,0x22a5,0x5e2c,0x22a5,0x0000,0x0000,0x0000,
+  0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
+  0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
+  0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
+};
+
+const uint16_t* joe_7x7 = &joe_template[0];
+const uint16_t* joe_5x5 = &joe_template[9];
+const uint16_t* joe_3x3 = &joe_template[18];
 
 int main(int argc, char** argv)
 {
@@ -27,9 +46,17 @@ int main(int argc, char** argv)
     return -1;
   }
 
+  //convert template to network byte order
+  for (size_t i = 0; i < 64; ++i)
+  {
+    joe_template[i] = htons(joe_template[i]);
+  }
+
   blob_extractor b(w, h);
 
   b.set_image(image, w);
+  b.set_template(joe_7x7, 7, 8);
+  //b.set_template(joe_5x5, 5, 8);
 
   b.do_stats();
   b.print_stats();
@@ -40,6 +67,7 @@ int main(int argc, char** argv)
   //b.print_segs();
   printf("after culling\n");
   b.print_blobs();
+  b.pncc_blobs();
 
 
 

@@ -28,11 +28,11 @@
 
 #define DEFAULT_SAMPLE_SIZE 512
 #define DEFAULT_THRESHOLD   200
-#define DEFAULT_MARGIN      0.66
+#define DEFAULT_MARGIN      0.2
 #define DEFAULT_ASSOC_RANGE 5
 #define DEFAULT_MIN_ASPECT  0.5
 #define DEFAULT_MAX_ASPECT  2.0
-#define DEFAULT_MIN_SPARSE  0.9
+#define DEFAULT_MIN_SPARSE  0.5
 #define DEFAULT_MAX_MASS    6
 #define DEFAULT_MIN_MASS    1
 
@@ -68,10 +68,17 @@ public:
     image_ = i;
     stride_ = stride;
   }
+  void set_template(const uint16_t* t, size_t size, size_t stride)
+  {
+    template_ = t;
+    tstride_ = stride;
+    tsize_ = size;
+  }
   void do_stats();
   void print_stats();
   void extract_blobs();
   void cull_blobs();
+  void pncc_blobs();
   void print_segs();
   void print_blobs();
   void draw_crosshairs();
@@ -142,6 +149,10 @@ private:
   size_t   stride_;
   size_t   width_;
   size_t   height_;
+
+  const uint16_t *template_;
+  size_t   tstride_;
+  size_t   tsize_;
 
   image_stats_t stats_;
   int      threshold_;

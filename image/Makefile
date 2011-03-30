@@ -22,6 +22,6 @@ clean:
 	rm -f *.o *~ image.lib
 # DO NOT DELETE
 
-BlobExtractor.o: BlobExtractor.h image_utils.h
+BlobExtractor.o: BlobExtractor.h image_utils.h image_inlines.h
 blobtest.o: pgm_io.h BlobExtractor.h image_utils.h
 image_utils.o: image_utils.h

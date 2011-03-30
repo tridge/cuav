@@ -24,9 +24,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <assert.h>
 
 #include "BlobExtractor.h"
 #include "image_utils.h"
+#include "image_inlines.h"
 
 blob_extractor::blob_extractor(int w, int h) :
   width_(w),
@@ -73,11 +75,12 @@ blob_extractor::~blob_extractor()
 
 void blob_extractor::do_stats()
 {
-  get_sampled_stats_uint16(image_,
+  get_stats_uint16(image_,
+  //get_sampled_stats_uint16(image_,
                            width_,
                            stride_,
                            height_,
-                           sample_size_,
+                           //sample_size_,
                            &stats_);
 
   //threshold_ = (int)(stats_.mean + (stats_.max - stats_.mean) * threshold_margin_);
@@ -238,6 +241,37 @@ void blob_extractor::cull_blobs()
       }
     }
   }
+}
+
+void blob_extractor::pncc_blobs()
+{
+  assert(width_ > tsize_);
+  assert(height_ > tsize_);
+  blob *b = bloblist_;
+  while (b)
+  {
+    int x = int(b->x+0.5 - tsize_/2);
+    int y = int(b->y+0.5 - tsize_/2);
+    if ( x < 0 || y < 0 || x >= int(width_ - tsize_) || y >= int(height_ - tsize_) )
+    {
+    }
+    else
+    {
+      uint16_t* p = image_ + x + y * stride_;
+      float pncc = -1.0;
+      if(tsize_ == 3)
+        pncc = pncc_uint16<3>(p, stride_, template_, tstride_);
+      if(tsize_ == 5)
+        pncc = pncc_uint16<5>(p, stride_, template_, tstride_);
+      if(tsize_ == 7)
+        pncc = pncc_uint16<7>(p, stride_, template_, tstride_);
+        //pncc = pncc_uint16<7>(p, stride_, p, stride_);
+  
+      printf("x=%f,y=%f,pncc=%f\n", b->x, b->y, pncc);
+    }
+    b = b->next;
+  }
+
 }
 
 void blob_extractor::print_segs()
