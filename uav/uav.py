@@ -1,5 +1,6 @@
 from numpy import array, linalg, eye, zeros, dot
 from numpy import sin, cos, pi
+from matplotlib import pyplot
 
 def rotationMatrix(phi, theta, psi):
   out = zeros((3,3))
@@ -21,8 +22,12 @@ def rotationMatrix(phi, theta, psi):
 class uavxfer:
   
   def setCameraParams(self, fu, fv, cu, cv):
-    self.K  = array([[fu, 0.0, cu, 0.0],[0.0, fv, cv, 0.0],[0.0, 0.0, 1.0, 0.0]])
-    self.K_i = linalg.pinv(self.K)
+    K  = array([[fu, 0.0, cu],[0.0, fv, cv],[0.0, 0.0, 1.0]])
+    K_i = linalg.inv(K)
+    self.Tk = eye(4,4)
+    self.Tk[:3,:3] = K;
+    self.Tk_i = eye(4,4)
+    self.Tk_i[:3,:3] = K_i
 
   def setCameraOrientation(self, roll, pitch, yaw):
     self.Rc = array(eye(4,4))
@@ -40,36 +45,57 @@ class uavxfer:
 
   def worldToPlatform(self, north, east, down):
     x_w = array([north, east, down, 1.0])
-    return dot(self.Rp_i, x_w)[:3]
+    x_p = dot(self.Rp_i, x_w)[:3]
+    return x_p
 
   def worldToImage(self, north, east, down):
     x_w = array([north, east, down, 1.0])
     x_p = dot(self.Rp_i, x_w)
-    x_i = dot(self.K, x_p)
+    x_c = dot(self.Rc_i, x_p)
+    x_i = dot(self.Tk, x_c)
     return x_i[:3]/x_i[2]
 
   def platformToWorld(self, north, east, down):
-    return array([0.0, 0.0, 0.0])
+    x_p = array([north, east, down, 1.0])
+    x_w = dot(self.Rp, x_p)
+    return x_w
 
   def imageToWorld(self, u, v):
-    return array([0.0, 0.0, 0.0])
+    x_i = array([u, v, 1.0, 0.0])
+    print 'x_i', x_i
+    x_c = dot(self.Tk_i, x_i)
+    print 'x_c', x_c
+    x_p = dot(self.Rc, x_c)
+    print 'x_p', x_p
+    x_w = dot(self.Rp, x_p)
+    x_w = self.z_earth*x_w/x_w[2]
+    print 'x_w', x_w
+    return x_w
 
-  def __init__(self, fu, fv, cu, cv):
+  def __init__(self, fu=200, fv=200, cu=512, cv=480):
     self.setCameraParams(fu, fv, cu, cv)
     self.Rc = self.Rc_i = array(eye(4,4))
     self.Rp = self.Rp_i = array(eye(4,4))
-    self.z_earth = 0
+    self.z_earth = -600
 
 
 if __name__ == '__main__':
-  xfer = uavxfer(200.0, 200.0, 512, 480)
-  xfer.setCameraOrientation(0.0,0.0,0.0)
-  xfer.setPlatformPose(500.0, 1000.0, -700.0, 0.00, 0.0, 0.0)
+  xfer = uavxfer()
+  xfer.setCameraParams(200.0, 200.0, 512, 480)
+  xfer.setCameraOrientation(0.0, 0.0, pi/2)
+  xfer.setPlatformPose(500.0, 1000.0, -700.0, 0.00, 0.00, pi/2)
 
-  p_w = array([500, 1000.0, 0.0])
-  print xfer.worldToPlatform(p_w[0], p_w[1], p_w[2])
-  print xfer.worldToImage(p_w[0], p_w[1], p_w[2])
+  f = pyplot.figure(1)
+  f.show()
 
+  p_w = array([500. +00., 1000. -00., -600.0])
+  p_p = xfer.worldToPlatform(p_w[0], p_w[1], p_w[2])
+  p_i = xfer.worldToImage(p_w[0], p_w[1], p_w[2])
 
+  pyplot.plot(p_w[1], -p_w[0], 'bo')
+  pyplot.plot(p_p[1], -p_p[0], 'ro')
 
-  print('foo')
+  l_w = xfer.imageToWorld(p_i[0], p_i[1])
+
+  print l_w
+

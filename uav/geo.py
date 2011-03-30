@@ -155,7 +155,11 @@ class geodetic:
     tkr_ = (t_/(self.CSF*rho_))
     term1 = tkr_*(x*E_/2.)
     term2 = tkr_*(E_*x3/24.)*(-4.*psi2_ + 9.*psi_*(1.-t2_) + 12.*t2_)
-    term3 = tkr_*(E_*x5/720.)*(8.*psi4_*(11.-24.*t2_) - 12.*psi3_*(21.-71.*t2_) + 15.*psi2_*(15.-98.*t2_+15.*t4_) + 180.*psi_*(5.*t2_-3.*t4_) + 360.*t4_)
+    term3 = tkr_*(E_*x5/720.)*(8.*psi4_*(11.-24.*t2_)\
+              - 12.*psi3_*(21.-71.*t2_)\
+              + 15.*psi2_*(15.-98.*t2_+15.*t4_)\
+              + 180.*psi_*(5.*t2_-3.*t4_)\
+              + 360.*t4_)
     term4 = tkr_*(E_*x7/40320.)*(1385. + 3633.*t2_ + 4095.*t4_ + 1575.*t6_)
     phi = phi_ - term1 +term2 - term3 + term4
     lat = phi*180/pi
@@ -163,7 +167,8 @@ class geodetic:
     sec_phi_ = 1.0/cos(phi_)
     term1 = x * sec_phi_
     term2 = (x3/6.)*sec_phi_*(psi_ + 2.*t2_)
-    term3 = (x5/120.)*sec_phi_*(-4.*psi3_*(1.0-6*t2_) + psi2_*(9.-68.*t2_) + 72.*psi_*t2_ + 24.*t4_)
+    term3 = (x5/120.)*sec_phi_*(-4.*psi3_*(1.0-6*t2_) + psi2_*(9.-68.*t2_)\
+                                + 72.*psi_*t2_ + 24.*t4_)
     term4 = (x7/5040.)*sec_phi_*(61. + 662.*t2_ + 1320.*t4_ + 720.*t6_)
     w = term1 - term2 + term3 - term4
     lambda0 = (self.CMZ1+(zone-1)*self.ZoneWidth)*pi/180.0;
@@ -175,10 +180,11 @@ class geodetic:
 if __name__ == '__main__':
   g = geodetic()
 
-  # Buninyong (zone 55) E 228,854.052 N 5,828,259.038
-  # Buninyong (zone 54) E 228,854.052 N 5,828,259.038
+  # Buninyong (zone 54) E 758,173.797 N 5,828,674.340
   lat = -( 37.0 + 39.0/60.0 + 10.15610/3600.0)
   lon = +(143.0 + 55.0/60.0 + 35.38390/3600.0)
+  # When zone forced to 55
+  # Buninyong (zone 55) E 228,854.052 N 5,828,259.038
 
   # Flinders peak (zone 55) E 273,741.297 N 5,796,489.777
   #lat = -( 37.0 + 57.0/60.0 +  3.7203/3600.0)
