@@ -109,6 +109,7 @@ for line in f:
     i = find_msg(attitude, t)
     pitch = interpolate(attitude, t, i, 'pitch')
     roll  = interpolate(attitude, t, i, 'roll')
+    yaw   = interpolate(attitude, t, i, 'yaw')
 
     print("%s %s %s %f %f %f %f %f %f" % (
-        a[0], a[1], a[2], lat, lon, alt, hdg, math.degrees(pitch), math.degrees(roll)))
+        a[0], a[1], a[2], lat, lon, alt, math.degrees(yaw), math.degrees(pitch), math.degrees(roll)))
