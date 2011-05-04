@@ -4,11 +4,14 @@
 work out joe position for files in joepos.txt
 '''
 
-import util
+import util, os, math
 
 from optparse import OptionParser
 parser = OptionParser("joepos.py [options]")
 parser.add_option("--kml",dest="kml", action='store_true', default=False, help="output as kml")
+parser.add_option("--maxroll",dest="maxroll", type='float', default=90.0, help="maximum roll")
+parser.add_option("--maxpitch",dest="maxpitch", type='float', default=90.0, help="maximum pitch")
+parser.add_option("--border",dest="border", type='int', default=0, help="image border limit")
 (opts, args) = parser.parse_args()
 
 if len(args) < 1:
@@ -71,6 +74,13 @@ for line in f:
     pitch = float(a[7])
     roll = float(a[8])
 
+    if math.fabs(pitch) > opts.maxpitch or math.fabs(roll) > opts.maxroll:
+        continue
+
+    if (xpos < opts.border or xpos > 1280 - opts.border or
+        ypos < opts.border or ypos > 960 - opts.border):
+        continue
+
     (joe_lat, joe_lon) = util.pixel_coordinates(xpos, ypos, lat, lon, alt, pitch, roll, hdg)
     if opts.kml:
         print('''
@@ -80,7 +90,7 @@ for line in f:
 			<coordinates>%f,%f,0</coordinates>
 		</Point>
 	</Placemark>
-''' % (filename, joe_lon, joe_lat))
+''' % (os.path.basename(filename), joe_lon, joe_lat))
     else:
         print("%f %f %s" % (joe_lat, joe_lon, filename))
 
