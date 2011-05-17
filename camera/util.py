@@ -21,6 +21,7 @@ class PGM(object):
         if dims.strip() != '1280 960':
             raise PGMError('Expected 1280x960 image in %s' % filename)
         line = f.readline()
+	self.comment = None
         if line[0] == '#':
             self.comment = line
             line = f.readline()
@@ -28,8 +29,9 @@ class PGM(object):
             raise PGMError('Expected 16 bit image image in %s - got %s' % (filename, line.strip()))
         ofs = f.tell()
         f.close()
-        a = numpy.memmap(filename, dtype='uint16', mode='c', order='C', shape=(960,1280), offset=ofs)
-        self.array = a.byteswap(True)
+        rawdata = numpy.memmap(filename, dtype='uint16', mode='c', order='C', shape=(960,1280), offset=ofs)
+	self.rawdata = rawdata.copy()
+        self.array = self.rawdata.byteswap(True)
         self.img = cv.CreateImageHeader((1280, 960), 16, 1)
         cv.SetData(self.img, self.array.tostring(), self.array.dtype.itemsize*1*1280)
 
@@ -114,10 +116,10 @@ def ground_offset(height, pitch, roll, yaw):
     This is only correct for small values of pitch/roll
     '''
 
-    # x/y offsets assuming the plan is pointing north
-    xoffset = height * math.tan(math.radians(roll))
+    # x/y offsets assuming the plane is pointing north
+    xoffset = -height * math.tan(math.radians(roll))
     yoffset = height * math.tan(math.radians(pitch))
-    
+
     # convert to polar coordinates
     distance = math.hypot(xoffset, yoffset)
     angle    = math.atan2(yoffset, xoffset)
