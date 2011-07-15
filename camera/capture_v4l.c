@@ -91,7 +91,7 @@ process_image(struct device* dev, size_t idx)
   struct timeval tv = dev->buffers[idx].timestamp;
 
   char fname[256];
-  snprintf(fname, 255, "%s_%05d_%ld.%06ld.yuv", dev->base_name, dev->frame_cnt, tv.tv_sec, tv.tv_usec);
+  snprintf(fname, 255, "%s_%05d_%ld.%06ld.yuv", dev->base_name, (int)dev->frame_cnt, tv.tv_sec, tv.tv_usec);
   printf("%s %s %ld.%03ld\n", dev->dev_name, fname, tv.tv_sec, tv.tv_usec/1000);
   // display -size 640x480 -depth 8 -colorspace RGB -sampling-factor 4:2:0 -interlace plane foo00000.yuv
   int f = open(fname, O_CREAT|O_TRUNC|O_RDWR, S_IRUSR|S_IWUSR);
