@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <malloc.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -62,7 +63,7 @@ static struct device devices[MAX_DEVICES] =
 static unsigned int n_devices = 1;
 
 static void
-errno_exit(const char *           s)
+errno_exit(const char* s)
 {
   fprintf (stderr, "%s error %d, %s\n",
            s, errno, strerror (errno));
@@ -71,9 +72,7 @@ errno_exit(const char *           s)
 }
 
 static int
-xioctl(int                    fd,
-       int                    request,
-       void *                 arg)
+xioctl(int fd, int request, void* arg)
 {
   int r;
 
@@ -86,12 +85,14 @@ xioctl(int                    fd,
 static void
 process_image(struct device* dev, size_t idx)
 {
-  fputc ('.', stdout);
+  //fputc ('.', stdout);
   void* p = dev->buffers[idx].start;
   size_t len = dev->buffers[idx].length;
+  struct timeval tv = dev->buffers[idx].timestamp;
 
   char fname[256];
-  snprintf(fname, 255, dev->base_name, dev->frame_cnt);
+  snprintf(fname, 255, "%s_%05d_%ld.%06ld.yuv", dev->base_name, dev->frame_cnt, tv.tv_sec, tv.tv_usec);
+  printf("%s %s %ld.%03ld\n", dev->dev_name, fname, tv.tv_sec, tv.tv_usec/1000);
   // display -size 640x480 -depth 8 -colorspace RGB -sampling-factor 4:2:0 -interlace plane foo00000.yuv
   int f = open(fname, O_CREAT|O_TRUNC|O_RDWR, S_IRUSR|S_IWUSR);
   switch(dev->fmt.fmt.pix.pixelformat)
@@ -121,7 +122,7 @@ read_frame(struct device* dev)
     if (-1 == read(dev->fd, dev->buffers[0].start, dev->buffers[0].length)) {
       switch (errno) {
       case EAGAIN:
-        return 0;
+        return EAGAIN;
 
       case EIO:
         /* Could ignore EIO, see spec. */
@@ -133,8 +134,9 @@ read_frame(struct device* dev)
       }
     }
 
-    process_image(dev, 0);
+    //process_image(dev, 0);
 
+    return 0;
     break;
 
   case IO_METHOD_MMAP:
@@ -146,7 +148,7 @@ read_frame(struct device* dev)
     if (-1 == xioctl(dev->fd, VIDIOC_DQBUF, &buf)) {
       switch (errno) {
       case EAGAIN:
-        return 0;
+        return EAGAIN;
 
       case EIO:
         /* Could ignore EIO, see spec. */
@@ -158,28 +160,62 @@ read_frame(struct device* dev)
       }
     }
 
-    printf("%ld.%03ld\n", buf.timestamp.tv_sec, buf.timestamp.tv_usec/1000);
-
+    // time of DQ
+    //printf("timestamp %s buf: %d %ld.%03ld\n", dev->dev_name, buf.index, buf.timestamp.tv_sec, buf.timestamp.tv_usec/1000);
+    dev->buffers[buf.index].timestamp = buf.timestamp;
     assert(buf.index < dev->n_buffers);
 
     process_image(dev, buf.index);
 
-    struct timeval* tv = &(dev->buffers[buf.index].timestamp);
-    gettimeofday(tv, NULL);
-    printf("%ld.%03ld\n", tv->tv_sec, tv->tv_usec/1000);
-    if (-1 == xioctl(dev->fd, VIDIOC_QBUF, &buf))
-      errno_exit("VIDIOC_QBUF");
-
+    return buf.index;
     break;
   }
+  exit(EXIT_FAILURE);
+  return -1;
+}
 
-  return 1;
+struct thr_data
+{
+  pthread_t thr;
+  struct device* dev;
+  int rval;
+};
+
+void* read_frame_thr(void* data)
+{
+  struct thr_data* tdata = (struct thr_data*)data;
+  tdata->rval = read_frame(tdata->dev);
+  return data;
+}
+
+static void
+queue_buffer(struct device* dev, int idx)
+{
+  struct v4l2_buffer buf;
+  switch (dev->io) {
+  case IO_METHOD_READ:
+    // nuffin to do
+    break;
+
+  case IO_METHOD_MMAP:
+    CLEAR(buf);
+
+    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buf.memory = V4L2_MEMORY_MMAP;
+    buf.index = idx;
+    //struct timeval tv;
+    //gettimeofday(&tv, NULL);
+    //printf("queue %s buf: %d %ld.%03ld\n", dev->dev_name, buf.index, tv.tv_sec, tv.tv_usec/1000);
+    if (-1 == xioctl(dev->fd, VIDIOC_QBUF, &buf))
+      errno_exit("VIDIOC_QBUF");
+  }
 }
 
 static void
 mainloop(void)
 {
   unsigned int count;
+  int buf_idx[MAX_DEVICES];
 
   count = 100;
 
@@ -212,11 +248,31 @@ mainloop(void)
           fprintf(stderr, "select timeout\n");
           exit (EXIT_FAILURE);
         }
+        //gettimeofday(&tv, NULL);
+        //printf("buffer ready %s %ld.%03ld\n", devices[i].dev_name, tv.tv_sec, tv.tv_usec/1000);
+      }
+
+      struct thr_data tdata[MAX_DEVICES];
+      for (i = 0; i < n_devices; ++i)
+      {
+        //buf_idx[i] = read_frame(&devices[i]);
+        buf_idx[i] = -1;
+        tdata[i].dev = &devices[i];
+        pthread_create(&(tdata[i].thr), NULL, read_frame_thr, &tdata[i]);
       }
 
       for (i = 0; i < n_devices; ++i)
       {
-        read_frame(&devices[i]);
+        pthread_join(tdata[i].thr, NULL);
+        buf_idx[i] = tdata[i].rval;
+      }
+
+      for (i = 0; i < n_devices; ++i)
+      {
+        if (buf_idx[i] >= 0)
+        {
+          queue_buffer(&devices[i], buf_idx[i]);
+        }
       }
 
       /* EAGAIN - continue select loop. */
@@ -237,8 +293,8 @@ stop_capturing(struct device* dev)
   case IO_METHOD_MMAP:
     type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-    if (-1 == xioctl (dev->fd, VIDIOC_STREAMOFF, &type))
-      errno_exit ("VIDIOC_STREAMOFF");
+    if (-1 == xioctl(dev->fd, VIDIOC_STREAMOFF, &type))
+      errno_exit("VIDIOC_STREAMOFF");
 
     break;
   }
@@ -250,7 +306,7 @@ start_capturing(struct device* dev)
   unsigned int i;
   enum v4l2_buf_type type;
 
-  switch (dev->io) {
+  switch(dev->io) {
   case IO_METHOD_READ:
     /* Nothing to do. */
     break;
@@ -259,20 +315,23 @@ start_capturing(struct device* dev)
     for (i = 0; i < dev->n_buffers; ++i) {
       struct v4l2_buffer buf;
 
-      CLEAR (buf);
+      CLEAR(buf);
 
       buf.type        = V4L2_BUF_TYPE_VIDEO_CAPTURE;
       buf.memory      = V4L2_MEMORY_MMAP;
       buf.index       = i;
 
-      if (-1 == xioctl (dev->fd, VIDIOC_QBUF, &buf))
-        errno_exit ("VIDIOC_QBUF");
+      //struct timeval tv;
+      //gettimeofday(&tv, NULL);
+      //printf("queue %s buf: %d %ld.%03ld\n", dev->dev_name, buf.index, tv.tv_sec, tv.tv_usec/1000);
+      if (-1 == xioctl(dev->fd, VIDIOC_QBUF, &buf))
+        errno_exit("VIDIOC_QBUF");
     }
 
     type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-    if (-1 == xioctl (dev->fd, VIDIOC_STREAMON, &type))
-      errno_exit ("VIDIOC_STREAMON");
+    if (-1 == xioctl(dev->fd, VIDIOC_STREAMON, &type))
+      errno_exit("VIDIOC_STREAMON");
 
     break;
   }
@@ -285,13 +344,13 @@ uninit_device(struct device* dev)
 
   switch (dev->io) {
   case IO_METHOD_READ:
-    free (dev->buffers[0].start);
+    free(dev->buffers[0].start);
     break;
 
   case IO_METHOD_MMAP:
     for (i = 0; i < dev->n_buffers; ++i)
-      if (-1 == munmap (dev->buffers[i].start, dev->buffers[i].length))
-        errno_exit ("munmap");
+      if (-1 == munmap(dev->buffers[i].start, dev->buffers[i].length))
+        errno_exit("munmap");
     break;
   }
 
@@ -301,19 +360,19 @@ uninit_device(struct device* dev)
 static void
 init_read(struct device* dev, unsigned int buffer_size)
 {
-  dev->buffers = calloc (1, sizeof (struct buffer));
+  dev->buffers = calloc(1, sizeof(struct buffer));
 
   if (!dev->buffers) {
-    fprintf (stderr, "Out of memory\n");
-    exit (EXIT_FAILURE);
+    fprintf(stderr, "Out of memory\n");
+    exit(EXIT_FAILURE);
   }
 
   dev->buffers[0].length = buffer_size;
-  dev->buffers[0].start = malloc (buffer_size);
+  dev->buffers[0].start = malloc(buffer_size);
 
   if (!dev->buffers[0].start) {
-    fprintf (stderr, "Out of memory\n");
-    exit (EXIT_FAILURE);
+    fprintf(stderr, "Out of memory\n");
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -324,7 +383,7 @@ init_mmap(struct device* dev)
 
   CLEAR (req);
 
-  req.count               = 4;
+  req.count               = 1;
   req.type                = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   req.memory              = V4L2_MEMORY_MMAP;
 
@@ -337,8 +396,8 @@ init_mmap(struct device* dev)
       errno_exit ("VIDIOC_REQBUFS");
     }
   }
-
-  if (req.count < 2) {
+  //printf("%s: using %d buffers\n", dev->dev_name, req.count);
+  if (req.count < 1) {
     fprintf (stderr, "Insufficient buffer memory on %s\n",
              dev->dev_name);
     exit (EXIT_FAILURE);
