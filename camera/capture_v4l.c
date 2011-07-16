@@ -26,6 +26,15 @@
 
 #include <linux/videodev2.h>
 
+// stolen from       pwc-ioctl.h
+#define VIDIOCPWCSSHUTTER	_IOW('v', 201, int)
+#define PWC_FPS_SHIFT		16
+#define PWC_FPS_MASK		0x00FF0000
+#define PWC_FPS_FRMASK		0x003F0000
+#define PWC_QLT_MASK		0x03000000
+#define PWC_QLT_SHIFT		24
+
+
 #define CLEAR(x) memset (&(x), 0, sizeof (x))
 
 typedef enum {
@@ -508,16 +517,26 @@ init_device(struct device* dev)
 
   CLEAR(dev->fmt);
 
+
   dev->fmt.type                = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   dev->fmt.fmt.pix.width       = 640;
   dev->fmt.fmt.pix.height      = 480;
   dev->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
   dev->fmt.fmt.pix.field       = V4L2_FIELD_NONE;
 
+  // set default of 5 fps
+  dev->fmt.fmt.pix.priv        |= (5 << PWC_FPS_SHIFT) & PWC_FPS_FRMASK;
+  // try reducing compression
+  dev->fmt.fmt.pix.priv        |= (0 << PWC_QLT_SHIFT) & PWC_QLT_MASK;
+
   if (-1 == xioctl (dev->fd, VIDIOC_S_FMT, &dev->fmt))
     errno_exit("VIDIOC_S_FMT");
 
   /* Note VIDIOC_S_FMT may change width and height. */
+
+  //int shutter = -1;
+  //if (-1 == xioctl (dev->fd, VIDIOCPWCSSHUTTER, &shutter))
+  //  errno_exit("VIDIOCPWCSSHUTTER");
 
   /* Buggy driver paranoia. */
   min = dev->fmt.fmt.pix.width * 2;
