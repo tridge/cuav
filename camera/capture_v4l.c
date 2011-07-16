@@ -4,9 +4,11 @@
  *  This program can be used and distributed without restrictions.
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <assert.h>
 
 #include <getopt.h>             /* getopt_long() */
@@ -40,6 +42,7 @@ struct buffer {
 };
 
 struct device {
+  unsigned 	     dev_num;
   char*              dev_name;
   char*              base_name;
   size_t             frame_cnt;
@@ -54,13 +57,14 @@ struct device {
 
 static struct device devices[MAX_DEVICES] =
 {
-  {NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
-  {NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
-  {NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
-  {NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0}
+  {0, NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
+  {1, NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
+  {2, NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
+  {3, NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0}
 };
 
 static unsigned int n_devices = 1;
+static bool link_files;
 
 static void
 errno_exit(const char* s)
@@ -108,6 +112,14 @@ process_image(struct device* dev, size_t idx)
   dev->frame_cnt++;
   fsync(f);
   close(f);
+
+  if (link_files) {
+    char *link_name;
+    asprintf(&link_name, "device%u.yuv", dev->dev_num);
+    unlink(link_name);
+    link(fname, link_name);
+    free(link_name);
+  }
 
   fflush (stdout);
 }
@@ -585,11 +597,12 @@ usage(FILE*  fp,
           "-m | --mmap          Use memory mapped buffers\n"
           "-r | --read          Use read() calls\n"
           "-b | --base          Base file name\n"
+          "-L 		        create link files for display\n"
           "",
           argv[0]);
 }
 
-static const char short_options [] = "d:b:hmru";
+static const char short_options [] = "d:b:hmruL";
 
 static const struct option
 long_options [] = {
@@ -635,6 +648,7 @@ main(int argc,
       }
       dev_cnt++;
       devices[n_devices-1].dev_name = optarg;
+      devices[n_devices-1].dev_num = n_devices;
       break;
 
     case 'h':
@@ -651,6 +665,10 @@ main(int argc,
 
     case 'b':
       devices[n_devices-1].base_name = optarg;
+      break;
+
+    case 'L':
+      link_files = true;
       break;
 
     default:

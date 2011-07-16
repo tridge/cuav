@@ -1,4 +1,4 @@
-CFLAGS=-Wall -g -I/usr/local/include
+CFLAGS=-Wall -g -I/usr/local/include -std=gnu99
 LIBS=-L/usr/local/lib -ldc1394
 
 all: capture_images capture_v4l
