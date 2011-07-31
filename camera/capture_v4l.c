@@ -112,6 +112,8 @@ process_image(struct device* dev, size_t idx)
   dev->frame_cnt++;
   fsync(f);
   close(f);
+  unlink("img.yuv");
+  link(fname, "img.yuv");
 
   if (link_files) {
     char *link_name;
