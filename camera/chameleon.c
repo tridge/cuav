@@ -386,8 +386,8 @@ int chameleon_set_control_registers(struct chameleon_camera *c, uint64_t offset,
 	return chameleon_set_registers(c, c->command_registers_base + offset, value, num_regs);
 }
 
-static int chameleon_set_control_register(struct chameleon_camera *c,
-					  uint64_t offset, uint32_t value)
+int chameleon_set_control_register(struct chameleon_camera *c,
+				   uint64_t offset, uint32_t value)
 {
 	return chameleon_set_control_registers(c, offset, &value, 1);
 }
@@ -405,8 +405,8 @@ int chameleon_get_control_registers(struct chameleon_camera *camera, uint64_t of
 				       camera->command_registers_base + offset, value, num_regs);
 }
 
-static int chameleon_get_control_register(struct chameleon_camera *camera,
-					  uint64_t offset, uint32_t *value)
+int chameleon_get_control_register(struct chameleon_camera *camera,
+				   uint64_t offset, uint32_t *value)
 {
 	return chameleon_get_control_registers(camera, offset, value, 1);
 }
@@ -1437,6 +1437,73 @@ chameleon_video_set_one_shot(struct chameleon_camera *camera, dc1394switch_t pwr
         err=DC1394_INVALID_ARGUMENT_VALUE;
         DC1394_ERR_RTN(err, "Invalid switch value");
     }
+    return err;
+}
+
+dc1394error_t
+chameleon_external_trigger_set_mode(struct chameleon_camera *camera, dc1394trigger_mode_t mode)
+{
+    dc1394error_t err;
+    uint32_t curval;
+
+    if ( (mode < DC1394_TRIGGER_MODE_MIN) || (mode > DC1394_TRIGGER_MODE_MAX) ) {
+        return DC1394_INVALID_TRIGGER_MODE;
+    }
+
+    err=chameleon_get_control_register(camera, REG_CAMERA_TRIGGER_MODE, &curval);
+    DC1394_ERR_RTN(err, "Could not get trigger mode");
+
+    mode-= DC1394_TRIGGER_MODE_MIN;
+    if (mode>5)
+        mode+=8;
+    curval= (curval & 0xFFF0FFFFUL) | ((mode & 0xFUL) << 16);
+    err=chameleon_set_control_register(camera, REG_CAMERA_TRIGGER_MODE, curval);
+    DC1394_ERR_RTN(err, "Could not set trigger mode");
+    return err;
+}
+
+dc1394error_t
+chameleon_external_trigger_set_source(struct chameleon_camera *camera, dc1394trigger_source_t source)
+{
+    dc1394error_t err;
+    uint32_t curval;
+
+    if ( (source < DC1394_TRIGGER_SOURCE_MIN) || (source > DC1394_TRIGGER_SOURCE_MAX) ) {
+        return DC1394_INVALID_TRIGGER_SOURCE;
+    }
+
+    err=chameleon_get_control_register(camera, REG_CAMERA_TRIGGER_MODE, &curval);
+    DC1394_ERR_RTN(err, "Could not get trigger source");
+
+    source-= DC1394_TRIGGER_SOURCE_MIN;
+    if (source > 3)
+        source += 3;
+    curval= (curval & 0xFF1FFFFFUL) | ((source & 0x7UL) << 21);
+    err=chameleon_set_control_register(camera, REG_CAMERA_TRIGGER_MODE, curval);
+    DC1394_ERR_RTN(err, "Could not set trigger source");
+    return err;
+}
+
+dc1394error_t
+chameleon_external_trigger_set_parameter(struct chameleon_camera *camera, uint32_t parameter)
+{
+    dc1394error_t err;
+    uint32_t curval;
+
+    err=chameleon_get_control_register(camera, REG_CAMERA_TRIGGER_MODE, &curval);
+    DC1394_ERR_RTN(err, "Could not get trigger mode");
+
+    curval= (curval & 0x000FFFFFUL) | (parameter<<20);
+    err=chameleon_set_control_register(camera, REG_CAMERA_TRIGGER_MODE, curval);
+    DC1394_ERR_RTN(err, "Could not set trigger parameter");
+    return err;
+}
+
+dc1394error_t
+chameleon_external_trigger_set_power(struct chameleon_camera *camera, dc1394switch_t pwr)
+{
+    dc1394error_t err=chameleon_feature_set_power(camera, DC1394_FEATURE_TRIGGER, pwr);
+    DC1394_ERR_RTN(err, "Could not set external trigger");
     return err;
 }
 

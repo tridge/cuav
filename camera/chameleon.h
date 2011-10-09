@@ -230,6 +230,38 @@ typedef enum {
 #define REG_CAMERA_ABS_MAX                  0x004U
 #define REG_CAMERA_ABS_VALUE                0x008U
 
+
+/**
+ * Enumeration of trigger modes
+ */
+typedef enum {
+    DC1394_TRIGGER_MODE_0= 384,
+    DC1394_TRIGGER_MODE_1,
+    DC1394_TRIGGER_MODE_2,
+    DC1394_TRIGGER_MODE_3,
+    DC1394_TRIGGER_MODE_4,
+    DC1394_TRIGGER_MODE_5,
+    DC1394_TRIGGER_MODE_14,
+    DC1394_TRIGGER_MODE_15
+} dc1394trigger_mode_t;
+#define DC1394_TRIGGER_MODE_MIN     DC1394_TRIGGER_MODE_0
+#define DC1394_TRIGGER_MODE_MAX     DC1394_TRIGGER_MODE_15
+#define DC1394_TRIGGER_MODE_NUM    (DC1394_TRIGGER_MODE_MAX - DC1394_TRIGGER_MODE_MIN + 1)
+
+/**
+ * Enumeration of trigger sources
+ */
+typedef enum {
+    DC1394_TRIGGER_SOURCE_0= 576,
+    DC1394_TRIGGER_SOURCE_1,
+    DC1394_TRIGGER_SOURCE_2,
+    DC1394_TRIGGER_SOURCE_3,
+    DC1394_TRIGGER_SOURCE_SOFTWARE
+} dc1394trigger_source_t;
+#define DC1394_TRIGGER_SOURCE_MIN      DC1394_TRIGGER_SOURCE_0
+#define DC1394_TRIGGER_SOURCE_MAX      DC1394_TRIGGER_SOURCE_SOFTWARE
+#define DC1394_TRIGGER_SOURCE_NUM     (DC1394_TRIGGER_SOURCE_MAX - DC1394_TRIGGER_SOURCE_MIN + 1)
+
 /**
  * Yet another boolean data type, a bit more oriented towards electrical-engineers
  */
@@ -404,10 +436,24 @@ chameleon_capture_dequeue(struct chameleon_camera * craw,
 			  dc1394capture_policy_t policy, struct chameleon_frame **frame_return);
 dc1394error_t chameleon_capture_enqueue(struct chameleon_camera * craw,
 					struct chameleon_frame * frame);
-int chameleon_wait_events(struct chameleon *c, struct timeval *tv);
-int chameleon_wait_image(struct chameleon_camera *camera, unsigned timeout);
 dc1394error_t
 chameleon_video_set_one_shot(struct chameleon_camera *camera, dc1394switch_t pwr);
+dc1394error_t
+chameleon_external_trigger_set_mode(struct chameleon_camera *camera, dc1394trigger_mode_t mode);
+dc1394error_t
+chameleon_external_trigger_set_source(struct chameleon_camera *camera, dc1394trigger_source_t source);
+dc1394error_t
+chameleon_external_trigger_set_power(struct chameleon_camera *camera, dc1394switch_t pwr);
+dc1394error_t
+chameleon_external_trigger_set_parameter(struct chameleon_camera *camera, uint32_t parameter);
 int chameleon_capture_stop(struct chameleon_camera *c);
+int chameleon_set_control_register(struct chameleon_camera *c,
+				   uint64_t offset, uint32_t value);
+int chameleon_get_control_register(struct chameleon_camera *camera,
+				   uint64_t offset, uint32_t *value);
+
+
+int chameleon_wait_events(struct chameleon *c, struct timeval *tv);
+int chameleon_wait_image(struct chameleon_camera *camera, unsigned timeout);
 
 #endif
