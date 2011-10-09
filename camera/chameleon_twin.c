@@ -41,11 +41,11 @@
 #include <chameleon.h>
 
 #define SHUTTER_MIN     0.000010
-#define SHUTTER_MAX     0.010000
+#define SHUTTER_MAX     0.10000
 #define SHUTTER_GOOD    0.001000
 
 #define GAIN_MIN      0.0
-#define GAIN_MAX      20.0
+#define GAIN_MAX      25.0
 #define GAIN_GOOD     1
 
 #define SHUTTER_63US    9
@@ -303,15 +303,15 @@ static void capture_loop(struct chameleon_camera *c1, struct chameleon_camera *c
 	asprintf(&basenames[0], "%s-0", basename);
 	asprintf(&basenames[1], "%s-1", basename);
 
-	CHECK(chameleon_feature_set_absolute_value(c1, DC1394_FEATURE_GAIN, gain[0]));
-	CHECK(chameleon_feature_set_absolute_value(c1, DC1394_FEATURE_SHUTTER, shutter[0]));
-
-	CHECK(chameleon_feature_set_absolute_value(c2, DC1394_FEATURE_GAIN, gain[1]));
-	CHECK(chameleon_feature_set_absolute_value(c2, DC1394_FEATURE_SHUTTER, shutter[1]));
-
 	while (true) {
 		struct timeval tv;
 		uint32_t trigger_v1, trigger_v2;
+
+		CHECK(chameleon_feature_set_absolute_value(c1, DC1394_FEATURE_GAIN, gain[0]));
+		CHECK(chameleon_feature_set_absolute_value(c1, DC1394_FEATURE_SHUTTER, shutter[0]));
+
+		CHECK(chameleon_feature_set_absolute_value(c2, DC1394_FEATURE_GAIN, gain[1]));
+		CHECK(chameleon_feature_set_absolute_value(c2, DC1394_FEATURE_SHUTTER, shutter[1]));
 
 		do {
 			CHECK(chameleon_get_control_register(c1, 0x62C, &trigger_v1));
