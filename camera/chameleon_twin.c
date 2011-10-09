@@ -167,6 +167,7 @@ static void adjust_gains(float *gain, float *shutter, uint16_t average, uint32_t
 static void camera_setup(struct chameleon_camera *camera)
 {
 	CHECK(chameleon_camera_reset(camera));
+	//CHECK(chameleon_set_control_register(camera, 0x618, 0xDEAFBEEF)); // factory defaults
 	CHECK(chameleon_video_set_transmission(camera, DC1394_OFF));
 	CHECK(chameleon_video_set_iso_speed(camera, DC1394_ISO_SPEED_400));
 	CHECK(chameleon_video_set_mode(camera, DC1394_VIDEO_MODE_1280x960_MONO16));
@@ -191,7 +192,27 @@ static void camera_setup(struct chameleon_camera *camera)
 	CHECK(chameleon_feature_set_absolute_control(camera, DC1394_FEATURE_SHUTTER, DC1394_ON));
 	CHECK(chameleon_feature_set_absolute_value(camera, DC1394_FEATURE_SHUTTER, SHUTTER_GOOD));
 
-	CHECK(chameleon_video_set_transmission(camera, DC1394_OFF));
+	uint32_t v;
+	CHECK(chameleon_get_control_register(camera, 0x830, &v));
+	printf("reg 0x830=0x%x\n", v);
+
+#if 0
+	CHECK(chameleon_external_trigger_set_mode(camera, DC1394_TRIGGER_MODE_0));
+	CHECK(chameleon_external_trigger_set_source(camera, DC1394_TRIGGER_SOURCE_SOFTWARE));
+	CHECK(chameleon_external_trigger_set_power(camera, DC1394_ON));
+	CHECK(chameleon_external_trigger_set_parameter(camera, 0));
+#endif
+
+	CHECK(chameleon_set_control_register(camera, 0x830, 0x82F00000));
+//	CHECK(chameleon_set_control_register(camera, 0x830, 0x00000000));
+
+	CHECK(chameleon_get_control_register(camera, 0x530, &v));
+	printf("reg 0x530=0x%x\n", v);
+
+	CHECK(chameleon_get_control_register(camera, 0x830, &v));
+	printf("reg 0x830=0x%x\n", v);
+
+	CHECK(chameleon_video_set_transmission(camera, DC1394_ON)); 
 }
 
 static struct chameleon_camera *open_camera(bool colour_chameleon)
@@ -304,11 +325,19 @@ static void capture_loop(struct chameleon_camera *c1, struct chameleon_camera *c
 
 	while (true) {
 		struct timeval tv;
+		uint32_t trigger_v1, trigger_v2;
 
- 		gettimeofday(&tv, NULL);
+		gettimeofday(&tv, NULL);
 
-		CHECK(chameleon_video_set_one_shot(c1, DC1394_ON));
-		CHECK(chameleon_video_set_one_shot(c2, DC1394_ON));
+		printf("waiting for trigger ready\n");
+		do {
+			CHECK(chameleon_get_control_register(c1, 0x62C, &trigger_v1));
+			CHECK(chameleon_get_control_register(c2, 0x62C, &trigger_v2));
+		} while ((trigger_v1 & 0x80000000) || (trigger_v2 & 0x80000000));
+
+		printf("triggering\n");
+		CHECK(chameleon_set_control_register(c1, 0x62C, 0x80000000));
+		CHECK(chameleon_set_control_register(c2, 0x62C, 0x80000000));
 
 		capture_wait(c1, &gain[0], &shutter[0], basenames[0], testonly, &tv);
 		capture_wait(c2, &gain[1], &shutter[1], basenames[1], testonly, &tv);
@@ -317,10 +346,16 @@ static void capture_loop(struct chameleon_camera *c1, struct chameleon_camera *c
 
 static void twin_capture(const char *basename, bool testonly)
 {
-	struct chameleon_camera *c1, *c2=NULL;
-	c1 = open_camera(true);
-	c2 = open_camera(false);
-	printf("Got camera c1=%p c2=%p\n", c1, c2);
+	struct chameleon_camera *c1=NULL, *c2=NULL;
+	do {
+		if (c1) chameleon_camera_free(c1);
+		if (c2) chameleon_camera_free(c2);
+		c1 = open_camera(true);
+		c2 = open_camera(false);
+		printf("Got camera c1=%p c2=%p\n", c1, c2);
+		if (!c1 || !c2) sleep(1);
+	} while (c1 == NULL || c2 == NULL);
+
 	capture_loop(c1, c2, basename, testonly);
 	chameleon_camera_free(c1);
 	chameleon_camera_free(c2);
