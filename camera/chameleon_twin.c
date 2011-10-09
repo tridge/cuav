@@ -173,7 +173,7 @@ static void camera_setup(struct chameleon_camera *camera)
 	CHECK(chameleon_video_set_mode(camera, DC1394_VIDEO_MODE_1280x960_MONO16));
 	CHECK(chameleon_video_set_framerate(camera, DC1394_FRAMERATE_7_5));
 
-	CHECK(chameleon_capture_setup(camera, 4, DC1394_CAPTURE_FLAGS_DEFAULT));
+	CHECK(chameleon_capture_setup(camera, 1, DC1394_CAPTURE_FLAGS_DEFAULT));
 
 	CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_EXPOSURE, DC1394_OFF));
 	CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_BRIGHTNESS, DC1394_ON));
@@ -192,26 +192,12 @@ static void camera_setup(struct chameleon_camera *camera)
 	CHECK(chameleon_feature_set_absolute_control(camera, DC1394_FEATURE_SHUTTER, DC1394_ON));
 	CHECK(chameleon_feature_set_absolute_value(camera, DC1394_FEATURE_SHUTTER, SHUTTER_GOOD));
 
-	uint32_t v;
-	CHECK(chameleon_get_control_register(camera, 0x830, &v));
-	printf("reg 0x830=0x%x\n", v);
-
-#if 0
-	CHECK(chameleon_external_trigger_set_mode(camera, DC1394_TRIGGER_MODE_0));
-	CHECK(chameleon_external_trigger_set_source(camera, DC1394_TRIGGER_SOURCE_SOFTWARE));
-	CHECK(chameleon_external_trigger_set_power(camera, DC1394_ON));
-	CHECK(chameleon_external_trigger_set_parameter(camera, 0));
-#endif
-
+	// this sets the external trigger:
+	//    power on
+	//    trigger source 7
+	//    trigger mode 0
+	//    trigger param 0 (continuous)
 	CHECK(chameleon_set_control_register(camera, 0x830, 0x82F00000));
-//	CHECK(chameleon_set_control_register(camera, 0x830, 0x00000000));
-
-	CHECK(chameleon_get_control_register(camera, 0x530, &v));
-	printf("reg 0x530=0x%x\n", v);
-
-	CHECK(chameleon_get_control_register(camera, 0x830, &v));
-	printf("reg 0x830=0x%x\n", v);
-
 	CHECK(chameleon_video_set_transmission(camera, DC1394_ON)); 
 }
 
@@ -327,15 +313,13 @@ static void capture_loop(struct chameleon_camera *c1, struct chameleon_camera *c
 		struct timeval tv;
 		uint32_t trigger_v1, trigger_v2;
 
-		gettimeofday(&tv, NULL);
-
-		printf("waiting for trigger ready\n");
 		do {
 			CHECK(chameleon_get_control_register(c1, 0x62C, &trigger_v1));
 			CHECK(chameleon_get_control_register(c2, 0x62C, &trigger_v2));
 		} while ((trigger_v1 & 0x80000000) || (trigger_v2 & 0x80000000));
 
-		printf("triggering\n");
+		gettimeofday(&tv, NULL);
+
 		CHECK(chameleon_set_control_register(c1, 0x62C, 0x80000000));
 		CHECK(chameleon_set_control_register(c2, 0x62C, 0x80000000));
 
