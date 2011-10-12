@@ -35,6 +35,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <signal.h>
 #include <arpa/inet.h>
 #include <math.h>
 #include <getopt.h>
@@ -77,6 +78,13 @@ static void get_averages(uint16_t *image, uint16_t *average,
 	double total = 0;
 	int i;
 	uint16_t highest=0;
+
+#if 0
+	*average = 3000;
+	*num_saturated = 0;
+	*num_half_saturated = 0;
+	return;
+#endif
 
 	*num_saturated = 0;
 	*num_half_saturated = 0;
@@ -171,7 +179,7 @@ static void camera_setup(struct chameleon_camera *camera)
 	CHECK(chameleon_video_set_transmission(camera, DC1394_OFF));
 	CHECK(chameleon_video_set_iso_speed(camera, DC1394_ISO_SPEED_400));
 	CHECK(chameleon_video_set_mode(camera, DC1394_VIDEO_MODE_1280x960_MONO16));
-	CHECK(chameleon_video_set_framerate(camera, DC1394_FRAMERATE_7_5));
+	CHECK(chameleon_video_set_framerate(camera, DC1394_FRAMERATE_3_75));
 
 	CHECK(chameleon_capture_setup(camera, 1, DC1394_CAPTURE_FLAGS_DEFAULT));
 
@@ -201,19 +209,22 @@ static void camera_setup(struct chameleon_camera *camera)
 	CHECK(chameleon_video_set_transmission(camera, DC1394_ON)); 
 }
 
+
+static struct chameleon *d = NULL;	
+
 static struct chameleon_camera *open_camera(bool colour_chameleon)
 {
-	struct chameleon *d;
 	struct chameleon_camera *camera;
 
-	d = chameleon_new();
+	if (!d) {
+		d = chameleon_new();
+	}
 	if (!d) {
 		return NULL;
 	}
 
 	camera = chameleon_camera_new(d, colour_chameleon);
 	if (!camera) {
-		chameleon_free(d);
 		return NULL;
 	}
 
@@ -228,7 +239,7 @@ static void capture_wait(struct chameleon_camera *c, float *gain, float *shutter
 			 const char *basename, bool testonly, struct timeval *tv)
 {
 	struct chameleon_frame *frame;
-	static uint16_t buf[IMAGE_HEIGHT*IMAGE_WIDTH];
+	uint16_t buf[IMAGE_HEIGHT*IMAGE_WIDTH];
 	uint16_t average;
 	uint32_t num_saturated, num_half_saturated;
 	struct tm *tm;
@@ -236,22 +247,32 @@ static void capture_wait(struct chameleon_camera *c, float *gain, float *shutter
 	char *fname;
 	time_t t;
 	uint64_t timestamp;
+	unsigned i;
 
-	chameleon_wait_image(c, 600);
+	chameleon_wait_image(c, 300);
 	chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_WAIT, &frame);
 	if (!frame) {
-//		camera_setup(c);
 		return;
 	}
 	if (frame->total_bytes != sizeof(buf)) {
+		memset(frame->image+frame->total_bytes-8, 0xff, 8);
 		CHECK(chameleon_capture_enqueue(c, frame));
 		return;
 	}
 	timestamp = frame->timestamp;
 	memcpy(buf, frame->image, sizeof(buf));
-	get_averages(buf, &average, &num_saturated, &num_half_saturated);
-	CHECK(chameleon_capture_enqueue(c, frame));
 
+	// mark the last 8 bytes with 0xFF, so we can detect incomplete images
+	memset(frame->image+frame->total_bytes-8, 0xff, 8);
+
+	CHECK(chameleon_capture_enqueue(c, frame));
+	
+	for (i=0; i<4; i++) {
+		if (buf[(sizeof(buf)/2)-(i+1)] == 0xFFFF) {
+			printf("Warning: incomplete image\n");
+			return;
+		}
+	}
 	get_averages(buf, &average, &num_saturated, &num_half_saturated);
 
 	if (average == 0) {
@@ -272,12 +293,12 @@ static void capture_wait(struct chameleon_camera *c, float *gain, float *shutter
 	printf("%s shutter=%f gain=%f average=%u saturated=%u hsaturated=%u\n", 
 	       fname, *shutter, *gain, average, num_saturated, num_half_saturated);
 
-	if (!testonly) {
+	if (!testonly && fork() == 0) {
 		int fd = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0644);
 		if (fd == -1) {
 			fprintf(stderr, "Can't create imagefile '%s' - %s", fname, strerror(errno));
 			free(fname);
-			return;
+			_exit(0);
 		}
 		
 		dprintf(fd,"P5\n%u %u\n#PARAM: t=%llu shutter=%f gain=%f average=%u saturated=%u\n65535\n", 
@@ -287,6 +308,7 @@ static void capture_wait(struct chameleon_camera *c, float *gain, float *shutter
 			fprintf(stderr, "Write failed for %s\n", fname);
 		}
 		close(fd);
+		_exit(0);
 	}
 	free(fname);
 
@@ -294,55 +316,108 @@ static void capture_wait(struct chameleon_camera *c, float *gain, float *shutter
 
 }
 
-static void capture_loop(struct chameleon_camera *c1, struct chameleon_camera *c2, const char *basename, bool testonly)
+static struct timeval tp1,tp2;
+
+static void start_timer()
+{
+	gettimeofday(&tp1,NULL);
+}
+
+static double end_timer()
+{
+	gettimeofday(&tp2,NULL);
+	return (tp2.tv_sec + (tp2.tv_usec*1.0e-6)) - 
+		(tp1.tv_sec + (tp1.tv_usec*1.0e-6));
+}
+
+static void capture_loop(struct chameleon_camera *c1, struct chameleon_camera *c2, float framerate, const char *basename, bool testonly)
 {
 	float shutter[2] = { SHUTTER_GOOD, SHUTTER_GOOD };
 	float gain[2] = { GAIN_GOOD, GAIN_GOOD };
 	char *basenames[2];
-
+	unsigned count=0;
+	
 	asprintf(&basenames[0], "%s-0", basename);
 	asprintf(&basenames[1], "%s-1", basename);
 
+	start_timer();
+
 	while (true) {
 		struct timeval tv;
-		uint32_t trigger_v1, trigger_v2;
+		uint32_t trigger_v;
 
-		CHECK(chameleon_feature_set_absolute_value(c1, DC1394_FEATURE_GAIN, gain[0]));
-		CHECK(chameleon_feature_set_absolute_value(c1, DC1394_FEATURE_SHUTTER, shutter[0]));
+		count++;
 
-		CHECK(chameleon_feature_set_absolute_value(c2, DC1394_FEATURE_GAIN, gain[1]));
-		CHECK(chameleon_feature_set_absolute_value(c2, DC1394_FEATURE_SHUTTER, shutter[1]));
+		if (c1 != NULL) {
+			CHECK(chameleon_feature_set_absolute_value(c1, DC1394_FEATURE_GAIN, gain[0]));
+			CHECK(chameleon_feature_set_absolute_value(c1, DC1394_FEATURE_SHUTTER, shutter[0]));
+		}
 
-		do {
-			CHECK(chameleon_get_control_register(c1, 0x62C, &trigger_v1));
-			CHECK(chameleon_get_control_register(c2, 0x62C, &trigger_v2));
-		} while ((trigger_v1 & 0x80000000) || (trigger_v2 & 0x80000000));
+		if (c2 != NULL) {
+			CHECK(chameleon_feature_set_absolute_value(c2, DC1394_FEATURE_GAIN, gain[1]));
+			CHECK(chameleon_feature_set_absolute_value(c2, DC1394_FEATURE_SHUTTER, shutter[1]));
+		}
+
+		if (c1) {
+			do {
+				CHECK(chameleon_get_control_register(c1, 0x62C, &trigger_v));
+			} while (trigger_v & 0x80000000);
+		}
+		if (c2) {
+			do {
+				CHECK(chameleon_get_control_register(c2, 0x62C, &trigger_v));
+			} while (trigger_v & 0x80000000);
+		}
+
+		while (end_timer() < 1.0/framerate) {
+			usleep(100);
+		}
 
 		gettimeofday(&tv, NULL);
 
-		CHECK(chameleon_set_control_register(c1, 0x62C, 0x80000000));
-		CHECK(chameleon_set_control_register(c2, 0x62C, 0x80000000));
+		if (c1) {
+			CHECK(chameleon_set_control_register(c1, 0x62C, 0x80000000));
+		}
+		if (c2) {
+			CHECK(chameleon_set_control_register(c2, 0x62C, 0x80000000));
+		}
 
-		capture_wait(c1, &gain[0], &shutter[0], basenames[0], testonly, &tv);
-		capture_wait(c2, &gain[1], &shutter[1], basenames[1], testonly, &tv);
+		start_timer();
+
+		if (c1) {
+			capture_wait(c1, &gain[0], &shutter[0], basenames[0], testonly, &tv);
+		}
+		if (c2) {
+			capture_wait(c2, &gain[1], &shutter[1], basenames[1], testonly, &tv);
+		}
 	}
 }
 
-static void twin_capture(const char *basename, bool testonly)
+static void twin_capture(const char *basename, float framerate, int cam, bool testonly)
 {
 	struct chameleon_camera *c1=NULL, *c2=NULL;
 	do {
 		if (c1) chameleon_camera_free(c1);
 		if (c2) chameleon_camera_free(c2);
-		c1 = open_camera(true);
-		c2 = open_camera(false);
+		if (cam == -1 || cam == 0) {
+			c1 = open_camera(true);
+		}
+		if (cam == -1 || cam == 1) {
+			c2 = open_camera(false);
+		}
 		printf("Got camera c1=%p c2=%p\n", c1, c2);
 		if (!c1 || !c2) sleep(1);
-	} while (c1 == NULL || c2 == NULL);
+	} while (c1 == NULL && c2 == NULL);
 
-	capture_loop(c1, c2, basename, testonly);
-	chameleon_camera_free(c1);
-	chameleon_camera_free(c2);
+	signal(SIGCHLD, SIG_IGN);
+
+	capture_loop(c1, c2, framerate, basename, testonly);
+	if (c1) {
+		chameleon_camera_free(c1);
+	}
+	if (c2) {
+		chameleon_camera_free(c2);
+	}
 }
 
 static void usage(void)
@@ -352,6 +427,8 @@ static void usage(void)
 	printf("\t-b basename    base filename\n");
 	printf("\t-l LEDPATH     led brightness path\n");
 	printf("\t-t             test mode (no images saved)\n");
+	printf("\t-c cameranum   camera 0/1 (both default)\n");
+	printf("\t-r framerate   framerate (frames per second)\n");
 }
 
 int main(int argc, char *argv[])
@@ -359,8 +436,10 @@ int main(int argc, char *argv[])
 	int opt;
 	const char *basename = "cap";
 	bool testonly = false;
+	int cam = -1;
+	float framerate = 2.0;
 
-	while ((opt = getopt(argc, argv, "b:th")) != -1) {
+	while ((opt = getopt(argc, argv, "b:thc:r:")) != -1) {
 		switch (opt) {
 		case 'h':
 			usage();
@@ -368,6 +447,12 @@ int main(int argc, char *argv[])
 			break;
 		case 'b':
 			basename = optarg;
+			break;
+		case 'r':
+			framerate = atof(optarg);
+			break;
+		case 'c':
+			cam = atoi(optarg);
 			break;
 		case 't':
 			testonly = true;
@@ -383,6 +468,6 @@ int main(int argc, char *argv[])
 	argc -= optind;
 
 	printf("Starting test\n");
-	twin_capture(basename, testonly);
+	twin_capture(basename, framerate, cam, testonly);
 	return 0;
 }
