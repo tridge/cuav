@@ -49,10 +49,6 @@ struct buffer {
 };
 
 struct device {
-<<<<<<< HEAD
-  unsigned 	     dev_num;
-=======
->>>>>>> matt/master
   char*              dev_name;
   char*              base_name;
   size_t             frame_cnt;
@@ -67,16 +63,6 @@ struct device {
 
 static struct device devices[MAX_DEVICES] =
 {
-<<<<<<< HEAD
-  {0, NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
-  {1, NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
-  {2, NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
-  {3, NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0}
-};
-
-static unsigned int n_devices = 1;
-static bool link_files;
-=======
   {NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
   {NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
   {NULL, NULL, 0, IO_METHOD_MMAP, -1, NULL, 0},
@@ -84,7 +70,6 @@ static bool link_files;
 };
 
 static unsigned int n_devices = 1;
->>>>>>> matt/master
 
 static void
 errno_exit(const char* s)
@@ -132,19 +117,6 @@ process_image(struct device* dev, size_t idx)
   dev->frame_cnt++;
   fsync(f);
   close(f);
-<<<<<<< HEAD
-  unlink("img.yuv");
-  link(fname, "img.yuv");
-
-  if (link_files) {
-    char *link_name;
-    asprintf(&link_name, "device%u.yuv", dev->dev_num);
-    unlink(link_name);
-    link(fname, link_name);
-    free(link_name);
-  }
-=======
->>>>>>> matt/master
 
   fflush (stdout);
 }
@@ -545,36 +517,26 @@ init_device(struct device* dev)
 
   CLEAR(dev->fmt);
 
-<<<<<<< HEAD
-=======
-
->>>>>>> matt/master
   dev->fmt.type                = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   dev->fmt.fmt.pix.width       = 640;
   dev->fmt.fmt.pix.height      = 480;
   dev->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
   dev->fmt.fmt.pix.field       = V4L2_FIELD_NONE;
 
-<<<<<<< HEAD
-=======
   // set default of 5 fps
   dev->fmt.fmt.pix.priv        |= (5 << PWC_FPS_SHIFT) & PWC_FPS_FRMASK;
   // try reducing compression
   dev->fmt.fmt.pix.priv        |= (0 << PWC_QLT_SHIFT) & PWC_QLT_MASK;
 
->>>>>>> matt/master
   if (-1 == xioctl (dev->fd, VIDIOC_S_FMT, &dev->fmt))
     errno_exit("VIDIOC_S_FMT");
 
   /* Note VIDIOC_S_FMT may change width and height. */
 
-<<<<<<< HEAD
-=======
   //int shutter = -1;
   //if (-1 == xioctl (dev->fd, VIDIOCPWCSSHUTTER, &shutter))
   //  errno_exit("VIDIOCPWCSSHUTTER");
 
->>>>>>> matt/master
   /* Buggy driver paranoia. */
   min = dev->fmt.fmt.pix.width * 2;
   if (dev->fmt.fmt.pix.bytesperline < min)
@@ -641,19 +603,11 @@ usage(FILE*  fp,
           "-m | --mmap          Use memory mapped buffers\n"
           "-r | --read          Use read() calls\n"
           "-b | --base          Base file name\n"
-<<<<<<< HEAD
-          "-L 		        create link files for display\n"
-=======
->>>>>>> matt/master
           "",
           argv[0]);
 }
 
-<<<<<<< HEAD
-static const char short_options [] = "d:b:hmruL";
-=======
 static const char short_options [] = "d:b:hmru";
->>>>>>> matt/master
 
 static const struct option
 long_options [] = {
@@ -699,10 +653,6 @@ main(int argc,
       }
       dev_cnt++;
       devices[n_devices-1].dev_name = optarg;
-<<<<<<< HEAD
-      devices[n_devices-1].dev_num = n_devices;
-=======
->>>>>>> matt/master
       break;
 
     case 'h':
@@ -721,13 +671,6 @@ main(int argc,
       devices[n_devices-1].base_name = optarg;
       break;
 
-<<<<<<< HEAD
-    case 'L':
-      link_files = true;
-      break;
-
-=======
->>>>>>> matt/master
     default:
       usage(stderr, argc, argv);
       exit(EXIT_FAILURE);
