@@ -39,6 +39,7 @@ def key_menu(i, n, image, filename):
     '''simple keyboard menu'''
     while True:
         key = cv.WaitKey()
+	key &= 0xFF
         if not key in range(128):
             continue
         key = chr(key)
