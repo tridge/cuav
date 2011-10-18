@@ -24,13 +24,37 @@ def debayer(filename):
     cv.ShowImage('Bayer', color_img)
     return color_img
 
+def mouse_event(event, x, y, flags, data):
+    '''called on mouse events'''
+    global idx, image
+    if flags & cv.CV_EVENT_FLAG_LBUTTON:
+        print("[%u, %u] : %s" % (x, y, image[y, x]))
+    if flags & cv.CV_EVENT_FLAG_RBUTTON:
+        f = open('joe.txt', mode='a')
+        f.write('%s %u %u\n' % (args[idx], x, y))
+        f.close()
+        print("Joe at %u,%u of %s" % (x, y, args[idx]))
+
+
+def change_image(i):
+    '''show image idx'''
+    global idx, image
+    idx = i
+    image = debayer(args[idx])
+    cv.ShowImage('Bayer', image)
 
 cv.NamedWindow('Bayer')
+tbar = cv.CreateTrackbar('Image', 'Bayer', 0, len(args)-1, change_image)
+cv.SetMouseCallback('Bayer', mouse_event, None)
 
-i = 0
+idx = 0
+pgm = None
 while True:
-    print(args[i])
-    image = debayer(args[i])
-    i = util.key_menu(i, len(args), image, 'edges.png')
+    print(args[idx])
+    change_image(idx)
+    oldidx = idx
+    newidx = util.key_menu(oldidx, len(args), None, None)
+    idx += (newidx - oldidx)
+    cv.SetTrackbarPos('Image', 'Bayer', idx)
 
 cv.DestroyWindow('Bayer')
