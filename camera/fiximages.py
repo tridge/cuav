@@ -2,14 +2,16 @@
 
 import util, os
 
+extra=(1280-256)*2
+
 leader = ""
-for i in range(0, 512):
+for i in range(0, extra):
     leader += chr(0)
 
 def fix_image(f):
     '''fix one image'''
     img = util.PGM(f)
-    if img.comment and img.comment.find("FIXED1024") != -1:
+    if img.comment and img.comment.find("OFFSET%u"%extra) != -1:
         return
     print("Fixing image %s" % f)
     os.rename(f, f+'.old')
