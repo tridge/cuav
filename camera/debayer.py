@@ -42,6 +42,7 @@ def change_image(i):
     idx = i
     image = debayer(args[idx])
     cv.ShowImage('Bayer', image)
+    return image
 
 cv.NamedWindow('Bayer')
 tbar = cv.CreateTrackbar('Image', 'Bayer', 0, len(args)-1, change_image)
@@ -51,9 +52,10 @@ idx = 0
 pgm = None
 while True:
     print(args[idx])
-    change_image(idx)
+    image = change_image(idx)
     oldidx = idx
-    newidx = util.key_menu(oldidx, len(args), None, None)
+    newidx = util.key_menu(oldidx, len(args), image,
+                           '%s.png' % args[idx][:-4])
     idx += (newidx - oldidx)
     cv.SetTrackbarPos('Image', 'Bayer', idx)
 
