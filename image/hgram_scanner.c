@@ -20,8 +20,25 @@
 #define WIDTH 1280
 #define HEIGHT 960
 
-struct rgb {
+#define PACKED __attribute__((__packed__))
+
+struct PACKED rgb {
 	uint8_t r, g, b;
+};
+
+/*
+  full size greyscale 16 bit image
+ */
+struct grey_image16 {
+	uint16_t data[HEIGHT][WIDTH];
+};
+
+
+/*
+  half size colour 8 bit per channel RGB image
+ */
+struct rgb_image8 {
+	struct rgb data[HEIGHT/2][WIDTH/2];
 };
 
 
@@ -32,8 +49,7 @@ struct rgb {
 
   The resulting 16 bit data in in machine byte order
  */
-static bool pgm_load_chameleon(const char *filename, 
-			       uint16_t image[HEIGHT][WIDTH])
+static bool pgm_load_chameleon(const char *filename, struct grey_image16 *image)
 {
 	int fd;
 	char hdr[128];
@@ -73,14 +89,14 @@ static bool pgm_load_chameleon(const char *filename,
 		return false;
 	}
 	p += 7;
-	if (pread(fd, image, WIDTH*HEIGHT*2, p-hdr) != WIDTH*HEIGHT*2) {
+	if (pread(fd, image->data, WIDTH*HEIGHT*2, p-hdr) != WIDTH*HEIGHT*2) {
 		close(fd);
 		return false;
 	}
 	close(fd);
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-	swab(image, image, WIDTH*HEIGHT*2);
+	swab(image, &image->data[0][0], WIDTH*HEIGHT*2);
 #endif
 
 	return true;
@@ -90,18 +106,13 @@ static bool pgm_load_chameleon(const char *filename,
 /*
   save a 640x480 rgb image as a P6 pnm file
  */
-static bool colour_save_pnm(const char *filename, struct rgb image[480][640])
+static bool colour_save_pnm(const char *filename, const struct rgb_image8 *image)
 {
 	int fd;
-	unsigned x, y;
 	fd = open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666);
 	if (fd == -1) return false;
 	dprintf(fd, "P6\n640 480\n255\n");
-	for (y=0; y<480; y++) {
-		for (x=0; x<640; x++) {
-			write(fd, &image[y][x], 3);
-		}
-	}
+	write(fd, &image->data[0][0], sizeof(image->data));
 	close(fd);
 	return true;
 }
@@ -110,8 +121,7 @@ static bool colour_save_pnm(const char *filename, struct rgb image[480][640])
   roughly convert a 16 bit colour chameleon image to colour at half
   the resolution. No smoothing is done
  */
-static void colour_convert_chameleon(uint16_t in[HEIGHT][WIDTH],
-				     struct rgb out[HEIGHT/2][WIDTH/2])
+static void colour_convert_chameleon(const struct grey_image16 *in, struct rgb_image8 *out)
 {
 	unsigned x, y;
 	/*
@@ -122,9 +132,10 @@ static void colour_convert_chameleon(uint16_t in[HEIGHT][WIDTH],
 	 */
 	for (y=0; y<HEIGHT/2; y++) {
 		for (x=0; x<WIDTH/2; x++) {
-			out[y][x].g = (in[y*2+0][x*2+0] + (uint32_t)in[y*2+1][x*2+1]) / 512;
-			out[y][x].b = in[y*2+0][x*2+1] / 256;
-			out[y][x].r = in[y*2+1][x*2+0] / 256;
+			out->data[y][x].g = (in->data[y*2+0][x*2+0] + 
+					     (uint32_t)in->data[y*2+1][x*2+1]) / 512;
+			out->data[y][x].b = in->data[y*2+0][x*2+1] / 256;
+			out->data[y][x].r = in->data[y*2+1][x*2+0] / 256;
 		}
 	}
 
@@ -132,12 +143,22 @@ static void colour_convert_chameleon(uint16_t in[HEIGHT][WIDTH],
 }
 
 
+struct image_stats {
+	struct rgb min, max;
+};
+
+struct hisogram_map {
+	
+};
+
+//static void colour_histogram(
+
+
 int main(int argc, char** argv)
 {
-	uint16_t image[HEIGHT][WIDTH];
-	struct rgb cimage[HEIGHT/2][WIDTH/2];
+	struct grey_image16 image;
+	struct rgb_image8 cimage;
 	const char *filename;
-	int i;
 
 	if (argc < 2){
 		printf("usage: hgram_scanner file.pgm\n");
@@ -146,13 +167,12 @@ int main(int argc, char** argv)
 	
 	filename = argv[1];
 
-	if (!pgm_load_chameleon(filename, image)) {
+	if (!pgm_load_chameleon(filename, &image)) {
 		printf("Failed to load %s - %s\n", filename, strerror(errno));
 		exit(1);
 	}
 
-	for (i=0; i<100; i++) 
-	colour_convert_chameleon(&image[0], cimage);
+	colour_convert_chameleon(&image, &cimage);
 
 	return 0;
 }
