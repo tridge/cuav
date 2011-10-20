@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 from PIL import Image
 from numpy import array, reshape, zeros, ones, histogramdd, sqrt, sum, transpose
@@ -7,8 +8,16 @@ bsize = 16
 
 if __name__ == '__main__':
 
-  ii_file = '../../../data/2011-07-10/ppm/joe/c2_08841_1310281215.998229.yuv.ppm'
-  ri_file = '../../../data/2011-07-10/ppm/c2_08800_1310281209.598113.yuv.ppm'
+  from optparse import OptionParser
+  parser = OptionParser("hist.py [options] <filename>")
+  (opts, args) = parser.parse_args()
+
+  if len(args) < 2:
+    print("Usage: hist.py FILE1 FILE2")
+    sys.exit(1)
+
+  ii_file = args[0]
+  ri_file = args[1]
 
   ii = Image.open(ii_file);
   ii_rgb = array(ii.getdata());
@@ -33,12 +42,11 @@ if __name__ == '__main__':
   pyplot.figure(1)
   pyplot.imshow(out)
   pyplot.imsave('p_notjoe.png', out);
-  pyplot.show()
 
   pyplot.figure(2)
   pyplot.imshow(ii_rgb.astype('uint8'))
-  pyplot.show()
   ii.save('i_hasjoe.jpg');
+  pyplot.show()
 
 
 
