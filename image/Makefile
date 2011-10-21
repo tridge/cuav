@@ -6,7 +6,7 @@ AR=ar
 #AR=arm-linux-gnueabi-ar
 
 CXXFLAGS=-Wall -g
-CFLAGS=-Wall -g
+CFLAGS=-Wall -g -std=gnu99 
 
 objects = pgm_io.o image_utils.o BlobExtractor.o
 
