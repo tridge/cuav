@@ -1,7 +1,9 @@
+#define _XOPEN_SOURCE
 #include <string.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 
 
@@ -30,7 +32,7 @@ int parse_pgm(FILE* f, size_t* w, size_t* h, size_t* bpp)
   }
 
   // read width height
-  sscanf(line,"%u %u", w, h);
+  sscanf(line,"%lu %lu", w, h);
 
   // read next non comment line
   do
@@ -48,7 +50,7 @@ int parse_pgm(FILE* f, size_t* w, size_t* h, size_t* bpp)
   return 0;
 }
 
-int size_pgm(char* path, size_t* w, size_t* h, size_t* bpp)
+int size_pgm(const char* path, size_t* w, size_t* h, size_t* bpp)
 {
   FILE* f = fopen(path, "rb");
   if (f == NULL)
@@ -61,12 +63,12 @@ int size_pgm(char* path, size_t* w, size_t* h, size_t* bpp)
   return ret;
 }
 
-int load_pgm_uint8(char* path, uint8_t* image, size_t w, size_t stride, size_t h, size_t bpp)
+int load_pgm_uint8(const char* path, uint8_t* image, size_t w, size_t stride, size_t h, size_t bpp)
 {
   return -1;
 }
 
-int load_pgm_uint16(char* path, uint16_t* image, size_t w, size_t stride, size_t h, size_t bpp)
+int load_pgm_uint16(const char* path, uint16_t* image, size_t w, size_t stride, size_t h, size_t bpp)
 {
   FILE* f = fopen(path, "rb");
   if (f == NULL)
@@ -84,7 +86,7 @@ int load_pgm_uint16(char* path, uint16_t* image, size_t w, size_t stride, size_t
   }
   if (bpp != _bpp || w != _w || h != _h)
   {
-    fprintf(stderr, "mismatch expected %dx%dx%d but file is %dx%dx%d\n",
+    fprintf(stderr, "mismatch expected %ldx%ldx%ld but file is %ldx%ldx%ld\n",
             w,h,bpp, _w,_h,_bpp);
     fclose(f);
     return -1;
@@ -103,18 +105,42 @@ int load_pgm_uint16(char* path, uint16_t* image, size_t w, size_t stride, size_t
       fclose(f);
       return -1;
     }
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    swab(image, image, n);
+#endif
     image += stride;
   }
   fclose(f);
+
   return 0;
 }
 
-int save_pgm_uint8(char* path, const uint8_t* image, size_t w, size_t stride, size_t h)
+int save_pgm_uint8(const char* path, const uint8_t* image, size_t w, size_t stride, size_t h)
 {
   return -1;
 }
 
-int save_pgm_uint16(char* path, const uint8_t* image, size_t w, size_t stride, size_t h)
+int save_pgm_uint16(const char* path, const uint8_t* image, size_t w, size_t stride, size_t h)
 {
   return -1;
+}
+
+int save_pnm_uint8(const char* path, const uint8_t* image, size_t w, size_t stride, size_t h)
+{
+  FILE* f = fopen(path, "wb");
+  if (f == NULL)
+  {
+    perror("open");
+    return -1;
+  }
+  fprintf(f, "P6\n");
+  fprintf(f, "%lu %lu\n", w, h);
+  fprintf(f, "255\n");
+  for( size_t y = 0; y < h; ++ y)
+  {
+    fwrite(image+stride*y, w*3, 1, f);
+  }
+  fclose(f);
+
+  return 0;
 }
