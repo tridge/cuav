@@ -280,7 +280,7 @@ void blob_extractor::print_segs()
   {
     for (size_t m = 0; m < segcount_[k]; m++)
     {
-      printf("%d %d %d %d\n", segcount_[k], k, lsegs_[k][m].x1, lsegs_[k][m].x2);
+      printf("%ld %ld %d %d\n", segcount_[k], k, lsegs_[k][m].x1, lsegs_[k][m].x2);
     }
   }
 }
