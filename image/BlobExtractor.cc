@@ -83,8 +83,8 @@ void blob_extractor::do_stats()
                            //sample_size_,
                            &stats_);
 
-  //threshold_ = (int)(stats_.mean + (stats_.max - stats_.mean) * threshold_margin_);
-  threshold_ = (int)(stats_.mean + (65535 - stats_.mean) * threshold_margin_);
+  threshold_ = (int)(stats_.mean + (stats_.max - stats_.mean) * threshold_margin_);
+  //threshold_ = (int)(stats_.mean + (65535 - stats_.mean) * threshold_margin_);
   //threshold_ = (int)(stats_.mean + threshold_margin_*get_std());
 }
 
@@ -95,10 +95,8 @@ void blob_extractor::print_stats()
   printf("threshold=%d\n",threshold_);
 }
 
-void blob_extractor::extract_blobs()
+void blob_extractor::rle_uint16_image()
 {
-  memset(segcount_, 0, height_ * sizeof(int));
-
   // segment the image based on a threshold
   // AKA run length encode pixels after thresholding
   for (size_t j = 0; j < height_; j++)
@@ -109,10 +107,10 @@ void blob_extractor::extract_blobs()
     while (i < width_ )
     {
       uint16_t* p = image_ + stride_ * j;
-      if (ntohs(p[i]) > threshold_)
+      if (p[i] > threshold_)
       {
         startx = i;
-        while (ntohs(p[i]) > threshold_)
+        while (p[i] > threshold_)
         {
           i++;
         }
@@ -124,6 +122,47 @@ void blob_extractor::extract_blobs()
       }
       i++;
     }
+  }
+}
+
+void blob_extractor::rle_uint8_image()
+{
+  /*
+  // segment the image based on a threshold
+  // AKA run length encode pixels after thresholding
+  for (size_t j = 0; j < height_; j++)
+  {
+    size_t i = 0;
+    int startx, stopx;
+    int seg = 0;
+    while (i < width_ )
+    {
+      uint8_t* p = image_ + stride_ * j;
+      if (p[i] > threshold_)
+      {
+        startx = i;
+        while (p[i] > threshold_)
+        {
+          i++;
+        }
+        stopx = i-1;
+        lsegs_[j][seg].x1=startx;
+        lsegs_[j][seg].x2=stopx;
+        seg++;
+        segcount_[j]++;
+      }
+      i++;
+    }
+  } */
+}
+
+void blob_extractor::extract_blobs()
+{
+  memset(segcount_, 0, height_ * sizeof(int));
+
+  if (image_)
+  {
+    rle_uint16_image();
   }
 
   // create blobs and match segments
@@ -308,7 +347,7 @@ void blob_extractor::draw_crosshairs()
       if( (x + off_x) > 0 && (x + off_x) < (int)width_)
       {
         uint16_t *p = image_ + stride_ * y + x + off_x;
-        *p = ((ntohs(*p) > 0x7fff) ? 0 : 0xffff);
+        *p = ((*p > 0x7fff) ? 0 : 0xffff);
       }
     }
 
@@ -317,7 +356,7 @@ void blob_extractor::draw_crosshairs()
       if ((y + off_y) > 0 && (y + off_y) < (int)height_)
       {
         uint16_t *p = image_ + stride_ * (y + off_y) + x;
-        *p = ((ntohs(*p) > 0x7fff) ? 0 : 0xffff);
+        *p = ((*p > 0x7fff) ? 0 : 0xffff);
       }
     }
 

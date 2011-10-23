@@ -16,11 +16,18 @@ extern "C" {
  */
 
 void compute_histogram3d_uint8(uint8_t* image,
-			       size_t stride,
-			       size_t width,
-			       size_t height,
-			       uint32_t* hist,
-			       size_t N);
+                               size_t stride,
+                               size_t width,
+                               size_t height,
+                               uint32_t* hist,
+                               size_t N);
+
+void print_histogram3d(const uint32_t* hist,
+		       size_t N);
+
+double compare_histogram3d(const uint32_t* hist0,
+                           const uint32_t* hist1,
+                           size_t N);
 
 #ifdef __cplusplus
 }
