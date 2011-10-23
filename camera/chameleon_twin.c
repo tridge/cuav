@@ -46,7 +46,7 @@
 #define SHUTTER_GOOD    0.001000
 
 #define GAIN_MIN      0.0
-#define GAIN_MAX      25.0
+#define GAIN_MAX      2.0
 #define GAIN_GOOD     1
 
 #define SHUTTER_63US    9
