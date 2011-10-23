@@ -372,9 +372,6 @@ static void capture_loop(struct chameleon_camera *c1, struct chameleon_camera *c
 
 		count++;
 
-		if (count % 3 == 0) {
-			camera_setup(c1);
-		}
 		if (c1 && c1->bad_frames > 10) {
 			printf("RESETTING CAMERA 1\n");
 			camera_setup(c1);
