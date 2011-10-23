@@ -5,8 +5,8 @@ AR=ar
 #CXX=arm-linux-gnueabi-g++
 #AR=arm-linux-gnueabi-ar
 
-CXXFLAGS=-Wall -g
-CFLAGS=-Wall -g -std=gnu99 
+CXXFLAGS=-Wall -g -O2
+CFLAGS=-Wall -g -std=gnu99 -O2
 
 objects = pgm_io.o debayer.o histogram.o image_utils.o BlobExtractor.o
 
@@ -25,7 +25,7 @@ hgram_scanner: hgram_scanner.o
 	$(CC) -o hgram_scanner hgram_scanner.o
 
 clean:
-	rm -f *.o *~ hgram_scanner image.lib
+	rm -f *.o *~ *.bak hgram_scanner blobtest histtest image.lib
 	
 depend:
 	makedepend -Y. *.cc *.c 2> /dev/null

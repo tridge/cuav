@@ -28,13 +28,13 @@
 
 #define DEFAULT_SAMPLE_SIZE 512
 #define DEFAULT_THRESHOLD   200
-#define DEFAULT_MARGIN      0.2
+#define DEFAULT_MARGIN      0.0
 #define DEFAULT_ASSOC_RANGE 5
 #define DEFAULT_MIN_ASPECT  0.5
 #define DEFAULT_MAX_ASPECT  2.0
 #define DEFAULT_MIN_SPARSE  0.5
-#define DEFAULT_MAX_MASS    6
-#define DEFAULT_MIN_MASS    1
+#define DEFAULT_MAX_MASS    25
+#define DEFAULT_MIN_MASS    2
 
 typedef struct
 {
@@ -139,6 +139,8 @@ public:
     sample_size_ = ss;
   }
 private:
+  void rle_uint8_image();
+  void rle_uint16_image();
 
   lseg     **lsegs_;
   size_t   *segcount_;
