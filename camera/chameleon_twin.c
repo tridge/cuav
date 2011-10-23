@@ -181,7 +181,7 @@ static void camera_setup(struct chameleon_camera *camera)
 	CHECK(chameleon_video_set_mode(camera, DC1394_VIDEO_MODE_1280x960_MONO16));
 	CHECK(chameleon_video_set_framerate(camera, DC1394_FRAMERATE_3_75));
 
-	CHECK(chameleon_capture_setup(camera, 1, DC1394_CAPTURE_FLAGS_DEFAULT));
+	chameleon_capture_setup(camera, 1, DC1394_CAPTURE_FLAGS_DEFAULT);
 
 	CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_EXPOSURE, DC1394_OFF));
 	CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_BRIGHTNESS, DC1394_ON));
@@ -210,6 +210,9 @@ static void camera_setup(struct chameleon_camera *camera)
 	//    trigger param 0 (continuous)
 	CHECK(chameleon_set_control_register(camera, 0x830, 0x82F00000));
 	CHECK(chameleon_video_set_transmission(camera, DC1394_ON)); 
+
+	// let the camera settle a bit
+	usleep(300000);
 }
 
 
@@ -369,6 +372,9 @@ static void capture_loop(struct chameleon_camera *c1, struct chameleon_camera *c
 
 		count++;
 
+		if (count % 3 == 0) {
+			camera_setup(c1);
+		}
 		if (c1 && c1->bad_frames > 10) {
 			printf("RESETTING CAMERA 1\n");
 			camera_setup(c1);
