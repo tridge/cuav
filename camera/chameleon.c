@@ -45,6 +45,8 @@
 
 #define CHAMELEON_COMMAND_REGISTER_BASE 0xf00000
 
+#define IMAGE_EXTRA_FETCH 512
+
 /* Command registers offsets */
 
 #define REG_CAMERA_INITIALIZE               0x000U
@@ -1060,16 +1062,16 @@ callback(struct libusb_transfer * transfer)
 	    return;	    
     }
 
-    if (transfer->actual_length == transfer->length) {
-	    f->status = BUFFER_FILLED;
-	    craw->frames_ready++;
-	    return;
-    }
-
 #if 0
     printf("usb: Bulk transfer %d complete, %d of %d bytes recv=%u (cam=%p)\n",
 	   f->frame.id, transfer->actual_length, transfer->length, f->received_bytes, craw);
 #endif
+
+    if (transfer->actual_length + IMAGE_EXTRA_FETCH >= transfer->length) {
+	    f->status = BUFFER_FILLED;
+	    craw->frames_ready++;
+	    return;
+    }
 
     /* we got a partial transfer. Quite common when operating more than
        one USB device */
@@ -1080,8 +1082,8 @@ callback(struct libusb_transfer * transfer)
     libusb_fill_bulk_transfer(transfer, craw->h,
 			      0x81, 
 			      f->frame.image + f->received_bytes, 
-			      f->frame.total_bytes - f->received_bytes,
-					  callback, f, 0);
+			      (f->frame.total_bytes - f->received_bytes) + IMAGE_EXTRA_FETCH,
+			      callback, f, 0);
     
     if (libusb_submit_transfer(f->transfer) == 0) {
 	    //printf("Resubmit for %u more bytes at %u OK\n",
@@ -1139,7 +1141,8 @@ int chameleon_capture_setup(struct chameleon_camera *c, uint32_t num_dma_buffers
 	for (i = 0; i < c->num_frames; i++) {
 		struct usb_frame *f = c->frames + i;
 		libusb_fill_bulk_transfer(f->transfer, c->h,
-					  0x81, f->frame.image, f->frame.total_bytes,
+					  0x81, f->frame.image, 
+					  f->frame.total_bytes + IMAGE_EXTRA_FETCH,
 					  callback, f, 0);
 	}
 	for (i = 0; i < c->num_frames; i++) {
@@ -1577,5 +1580,27 @@ int chameleon_wait_image(struct chameleon_camera *c, unsigned timeout)
 	    printf("WAIT_IMAGE -> status %u timeout=%u cam=%p\n", f->status, timeout, c);
     }
     return 0;
+}
+
+void chameleon_drain_queue(struct chameleon_camera *c, unsigned timeout)
+{
+    int next = NEXT_BUFFER(c, c->current);
+    struct usb_frame * f = c->frames + next;
+    struct chameleon_frame *frame = NULL;
+    struct timeval tv0;
+
+    gettimeofday(&tv0, NULL);
+
+    do {
+	    struct timeval tv;
+	    tv.tv_usec = 1000;
+	    tv.tv_sec = 0;
+	    chameleon_wait_events(c->d, &tv);
+    } while (f->status == BUFFER_EMPTY && telapsed_msec(&tv0) < timeout);
+
+    chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_WAIT, &frame);
+    if (frame) {
+	    chameleon_capture_enqueue(c, frame);
+    }
 }
 
