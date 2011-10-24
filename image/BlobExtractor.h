@@ -28,7 +28,7 @@
 
 #define DEFAULT_SAMPLE_SIZE 512
 #define DEFAULT_THRESHOLD   200
-#define DEFAULT_MARGIN      0.0
+#define DEFAULT_MARGIN      0.5
 #define DEFAULT_ASSOC_RANGE 5
 #define DEFAULT_MIN_ASPECT  0.5
 #define DEFAULT_MAX_ASPECT  2.0
@@ -87,6 +87,17 @@ public:
   const blob *get_blobs() const
   {
     return bloblist_;
+  }
+  const size_t get_numblobs() const
+  {
+    const blob* b = bloblist_;
+    size_t n = 0;
+    while (b)
+    {
+      ++n;
+      b = b->next;
+    }
+    return n;
   }
   float get_mean() const
   {
