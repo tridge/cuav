@@ -2,7 +2,7 @@
 
 import util, os
 
-extra=(1280-256)*2
+extra=((1280*2)-256)*2
 
 leader = ""
 for i in range(0, extra):
@@ -18,9 +18,9 @@ def fix_image(f):
     f2 = open(f, mode='w')
     f2.write('''P5
 1280 960
-%s (FIXED1024)
+%s (OFFSET%u)
 65535
-''' % img.comment.strip())
+''' % (img.comment.strip()), extra)
     global leader
     f2.write(leader)
     img.rawdata.byteswap(True)

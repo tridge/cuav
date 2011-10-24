@@ -5,6 +5,7 @@ import util
 
 from optparse import OptionParser
 parser = OptionParser("debayer.py [options] <filename>")
+parser.add_option("--batch", dest="batch", action='store_true', help="batch convert to png")
 (opts, args) = parser.parse_args()
 
 if len(args) < 1:
@@ -44,19 +45,36 @@ def change_image(i):
     cv.ShowImage('Bayer', image)
     return image
 
-cv.NamedWindow('Bayer')
-tbar = cv.CreateTrackbar('Image', 'Bayer', 0, len(args)-1, change_image)
-cv.SetMouseCallback('Bayer', mouse_event, None)
+def show_images(args):
+    '''show all images'''
+    global image, idx
 
-idx = 0
-pgm = None
-while True:
-    print(args[idx])
-    image = change_image(idx)
-    oldidx = idx
-    newidx = util.key_menu(oldidx, len(args), image,
-                           '%s.png' % args[idx][:-4])
-    idx += (newidx - oldidx)
-    cv.SetTrackbarPos('Image', 'Bayer', idx)
+    cv.NamedWindow('Bayer')
+    tbar = cv.CreateTrackbar('Image', 'Bayer', 0, len(args)-1, change_image)
+    cv.SetMouseCallback('Bayer', mouse_event, None)
 
-cv.DestroyWindow('Bayer')
+    idx = 0
+    pgm = None
+    while True:
+        print(args[idx])
+        image = change_image(idx)
+        oldidx = idx
+        newidx = util.key_menu(oldidx, len(args), image,
+                               '%s.png' % args[idx][:-4])
+        idx += (newidx - oldidx)
+        cv.SetTrackbarPos('Image', 'Bayer', idx)
+    cv.DestroyWindow('Bayer')
+
+def convert_images(args):
+    '''convert all images'''
+    for f in args:
+        png = f[:-4] + '.png'
+        print("Saving %s" % png)
+        img = debayer(f)
+        cv.SaveImage(png, img)
+
+if opts.batch:
+    convert_images(args)
+else:
+    show_images(args)
+    

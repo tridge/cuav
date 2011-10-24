@@ -403,6 +403,7 @@ struct chameleon_camera {
 	int capture_is_set;
 	int iso_auto_started;
 	struct chameleon_frame proto;
+	unsigned bad_frames;
 };
 
 
@@ -455,5 +456,6 @@ int chameleon_get_control_register(struct chameleon_camera *camera,
 
 int chameleon_wait_events(struct chameleon *c, struct timeval *tv);
 int chameleon_wait_image(struct chameleon_camera *camera, unsigned timeout);
+void chameleon_drain_queue(struct chameleon_camera *c, unsigned timeout);
 
 #endif

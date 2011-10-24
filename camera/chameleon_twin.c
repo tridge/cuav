@@ -46,7 +46,7 @@
 #define SHUTTER_GOOD    0.001000
 
 #define GAIN_MIN      0.0
-#define GAIN_MAX      25.0
+#define GAIN_MAX      2.0
 #define GAIN_GOOD     1
 
 #define SHUTTER_63US    9
@@ -181,7 +181,7 @@ static void camera_setup(struct chameleon_camera *camera)
 	CHECK(chameleon_video_set_mode(camera, DC1394_VIDEO_MODE_1280x960_MONO16));
 	CHECK(chameleon_video_set_framerate(camera, DC1394_FRAMERATE_3_75));
 
-	CHECK(chameleon_capture_setup(camera, 1, DC1394_CAPTURE_FLAGS_DEFAULT));
+	chameleon_capture_setup(camera, 1, DC1394_CAPTURE_FLAGS_DEFAULT);
 
 	CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_EXPOSURE, DC1394_OFF));
 	CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_BRIGHTNESS, DC1394_ON));
@@ -200,6 +200,9 @@ static void camera_setup(struct chameleon_camera *camera)
 	CHECK(chameleon_feature_set_absolute_control(camera, DC1394_FEATURE_SHUTTER, DC1394_ON));
 	CHECK(chameleon_feature_set_absolute_value(camera, DC1394_FEATURE_SHUTTER, SHUTTER_GOOD));
 
+	// enable FRAME_INFO
+	CHECK(chameleon_set_control_register(camera, 0x12F8, 0x80000002));
+
 	// this sets the external trigger:
 	//    power on
 	//    trigger source 7
@@ -207,6 +210,9 @@ static void camera_setup(struct chameleon_camera *camera)
 	//    trigger param 0 (continuous)
 	CHECK(chameleon_set_control_register(camera, 0x830, 0x82F00000));
 	CHECK(chameleon_video_set_transmission(camera, DC1394_ON)); 
+
+	// let the camera settle a bit
+	usleep(300000);
 }
 
 
@@ -248,15 +254,18 @@ static void capture_wait(struct chameleon_camera *c, float *gain, float *shutter
 	time_t t;
 	uint64_t timestamp;
 	unsigned i;
+	uint32_t gain_csr;
 
 	chameleon_wait_image(c, 300);
 	chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_WAIT, &frame);
 	if (!frame) {
+		c->bad_frames++;
 		return;
 	}
 	if (frame->total_bytes != sizeof(buf)) {
 		memset(frame->image+frame->total_bytes-8, 0xff, 8);
 		CHECK(chameleon_capture_enqueue(c, frame));
+		c->bad_frames++;
 		return;
 	}
 	timestamp = frame->timestamp;
@@ -266,10 +275,24 @@ static void capture_wait(struct chameleon_camera *c, float *gain, float *shutter
 	memset(frame->image+frame->total_bytes-8, 0xff, 8);
 
 	CHECK(chameleon_capture_enqueue(c, frame));
+
+	CHECK(chameleon_get_control_register(c, 0x820, &gain_csr));
+
+	if (ntohl(*(uint32_t *)&buf[0]) != gain_csr) {
+		printf("Warning: bad frame info 0x%08x should be 0x%08x\n",
+		       ntohl(*(uint32_t *)&buf[0]), gain_csr);
+		c->bad_frames++;
+		return;
+	}
+
+	// overwrite the gain value with the next 2 pixels, so we
+	// don't skew the image stats
+	memcpy(&buf[0], &buf[4], 4);
 	
 	for (i=0; i<4; i++) {
 		if (buf[(sizeof(buf)/2)-(i+1)] == 0xFFFF) {
 			printf("Warning: incomplete image\n");
+			c->bad_frames++;
 			return;
 		}
 	}
@@ -277,6 +300,7 @@ static void capture_wait(struct chameleon_camera *c, float *gain, float *shutter
 
 	if (average == 0) {
 		/* bad frame */
+		c->bad_frames++;
 		return;
 	}
 
@@ -348,6 +372,18 @@ static void capture_loop(struct chameleon_camera *c1, struct chameleon_camera *c
 
 		count++;
 
+		if (c1 && c1->bad_frames > 10) {
+			printf("RESETTING CAMERA 1\n");
+			camera_setup(c1);
+			c1->bad_frames = 0;
+		}
+
+		if (c2 && c2->bad_frames > 10) {
+			printf("RESETTING CAMERA 2\n");
+			camera_setup(c2);
+			c2->bad_frames = 0;
+		}
+
 		if (c1 != NULL) {
 			CHECK(chameleon_feature_set_absolute_value(c1, DC1394_FEATURE_GAIN, gain[0]));
 			CHECK(chameleon_feature_set_absolute_value(c1, DC1394_FEATURE_SHUTTER, shutter[0]));
@@ -357,6 +393,7 @@ static void capture_loop(struct chameleon_camera *c1, struct chameleon_camera *c
 			CHECK(chameleon_feature_set_absolute_value(c2, DC1394_FEATURE_GAIN, gain[1]));
 			CHECK(chameleon_feature_set_absolute_value(c2, DC1394_FEATURE_SHUTTER, shutter[1]));
 		}
+
 
 		if (c1) {
 			do {
