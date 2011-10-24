@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <arpa/inet.h>
 
 #include "image_utils.h"
 
@@ -66,8 +65,7 @@ void get_sampled_stats_uint16(const uint16_t* image, size_t width, size_t stride
     assert(y < height);
     const uint16_t* p = image + y * stride + x;
     assert(p < (image + height * stride));
-    uint16_t s = ntohs(*p);
-    update_stats(s, stats);
+    update_stats(*p, stats);
   }
 }
 
@@ -84,7 +82,7 @@ void get_stats_uint16(const uint16_t* image, size_t width, size_t stride, size_t
     size_t x;
     for (x = 0; x < width; ++x)
     {
-      update_stats(ntohs(*p++), stats);
+      update_stats(*p++, stats);
     }
   }
 }

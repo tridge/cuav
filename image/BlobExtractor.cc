@@ -35,6 +35,7 @@ blob_extractor::blob_extractor(int w, int h) :
   height_(h)
 {
   segcount_ = new size_t[h];
+  memset(segcount_, 0, h*sizeof(size_t));
   lsegs_ = new lseg*[h];
   for (int i = 0; i < h; i++)
   {
@@ -83,8 +84,8 @@ void blob_extractor::do_stats()
                            //sample_size_,
                            &stats_);
 
-  threshold_ = (int)(stats_.mean + (stats_.max - stats_.mean) * threshold_margin_);
-  //threshold_ = (int)(stats_.mean + (65535 - stats_.mean) * threshold_margin_);
+  //threshold_ = (int)(stats_.mean + (stats_.max - stats_.mean) * threshold_margin_);
+  threshold_ = (int)(stats_.mean + (65535 - stats_.mean) * threshold_margin_);
   //threshold_ = (int)(stats_.mean + threshold_margin_*get_std());
 }
 
