@@ -369,7 +369,7 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 #define MAX_REGIONS 200
 #define MIN_REGION_SIZE 8
 #define MAX_REGION_SIZE 400
-#define MIN_REGION_SIZE_XY 3
+#define MIN_REGION_SIZE_XY 2
 #define MAX_REGION_SIZE_XY 30
 
 #define REGION_UNKNOWN -2
