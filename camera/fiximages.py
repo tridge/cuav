@@ -20,7 +20,7 @@ def fix_image(f):
 1280 960
 %s (OFFSET%u)
 65535
-''' % (img.comment.strip()), extra)
+''' % (img.comment.strip(), extra))
     global leader
     f2.write(leader)
     img.rawdata.byteswap(True)

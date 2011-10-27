@@ -66,5 +66,3 @@ double compare_histogram3d(const uint32_t* hist0,
   }
   return -log(sqrtsum);
 }
-
-

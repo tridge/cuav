@@ -26,7 +26,7 @@ hgram_scanner: hgram_scanner.o
 
 clean:
 	rm -f *.o *~ *.bak hgram_scanner blobtest histtest image.lib
-	
+
 depend:
 	makedepend -Y. *.cc *.c 2> /dev/null
 # DO NOT DELETE

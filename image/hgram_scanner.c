@@ -367,8 +367,10 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 }
 
 #define MAX_REGIONS 200
-#define MIN_REGION_SIZE 10
+#define MIN_REGION_SIZE 8
 #define MAX_REGION_SIZE 400
+#define MIN_REGION_SIZE_XY 2
+#define MAX_REGION_SIZE_XY 30
 
 #define REGION_UNKNOWN -2
 #define REGION_NONE -1
@@ -479,7 +481,11 @@ static void prune_regions(struct regions *in)
 	unsigned i;
 	for (i=0; i<in->num_regions; i++) {
 		if (in->region_size[i] < MIN_REGION_SIZE ||
-		    in->region_size[i] > MAX_REGION_SIZE) {
+		    in->region_size[i] > MAX_REGION_SIZE ||
+		    (in->bounds[i].maxx - in->bounds[i].minx) > MAX_REGION_SIZE_XY ||
+		    (in->bounds[i].maxx - in->bounds[i].minx) < MIN_REGION_SIZE_XY ||
+		    (in->bounds[i].maxy - in->bounds[i].miny) > MAX_REGION_SIZE_XY ||
+		    (in->bounds[i].maxy - in->bounds[i].miny) < MIN_REGION_SIZE_XY) {
 			memmove(&in->region_size[i], &in->region_size[i+1], 
 				sizeof(in->region_size[i])*(in->num_regions-(i+1)));
 			memmove(&in->bounds[i], &in->bounds[i+1], 
