@@ -17,6 +17,7 @@ int save_pgm_uint8(const char* path, const uint8_t* image, size_t w, size_t stri
 int save_pgm_uint16(const char* path, const uint16_t* image, size_t w, size_t stride, size_t h);
 
 int save_pnm_uint8(const char* path, const uint8_t* image, size_t w, size_t stride, size_t h);
+int save_yuv_uint8(const char* path, const uint8_t* image, size_t w, size_t stride, size_t h);
 
 #ifdef __cplusplus
 }

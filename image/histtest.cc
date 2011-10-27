@@ -15,7 +15,7 @@
 const size_t RGB_PIXEL_SIZE = 3;
 const size_t STEP_SIZE = 1;
 const size_t PATCH_SIZE = 3;
-const size_t N = 4; // histgram dimensions
+const size_t N = 4; // histgram bins in each dimension
 
 
 template <typename T>
@@ -117,8 +117,11 @@ int process_file(const char* filename)
 
   uint8_t* cimage = (uint8_t*)malloc(3 * o_w * o_h);
 
-  debayer_half_16_8(image, w, w, h, cimage, o_w);
-  //save_pnm_uint8("test.pnm", cimage, o_w, o_stride, o_h);
+  //debayer_half_16u_8u(image, w, w, h, cimage, o_w, &pixop_half_16u_8u_rgb);
+  //save_pnm_uint8("debayer_rgb.pnm", cimage, o_w, o_stride, o_h);
+  debayer_half_16u_8u(image, w, w, h, cimage, o_w, &pixop_half_16u_8u_yuv);
+  //save_pnm_uint8("debayer_yuv.pnm", cimage, o_w, o_stride, o_h);
+  //save_yuv_uint8("debayer.yuv", cimage, o_w, o_stride, o_h);
 
 
   uint16_t* rimage = (uint16_t*)malloc(o_w * o_h * 2);
@@ -150,15 +153,15 @@ int process_file(const char* filename)
       k += 1;
       if (d > 1.5)
       {
-	//printf("early canditate @ x = %ld y = %ld dist = %f\n", x, y, d);
+        //printf("early canditate @ x = %ld y = %ld dist = %f\n", x, y, d);
         struct joe j(x,y,d);
-	joes.push_back(j);
+        joes.push_back(j);
       }
 
       if( d > max_d)
       {
-	max_d = d;
-	max_x = x;
+        max_d = d;
+        max_x = x;
         max_y = y;
       }
     }
@@ -178,6 +181,9 @@ int process_file(const char* filename)
   }
 */
   //save_pgm_uint16("resp.pgm", rimage, o_w, o_w, o_h);
+
+  // ok we are done with funny colourspace redebayer to RGB before saving output
+  debayer_half_16u_8u(image, w, w, h, cimage, o_w, &pixop_half_16u_8u_rgb);
 
   blob_extractor b(o_w, o_h);
 
@@ -203,7 +209,7 @@ int process_file(const char* filename)
     if (p) *p = 0;
     uint8_t* jimage = cimage;
     mark_regions(jimage, o_stride, o_w, o_h, bb);
-    asprintf(&joename, "%s-joe.pnm", basename);
+    asprintf(&joename, "%s-yuv-joe.pnm", basename);
     save_pnm_uint8(joename, jimage, o_w, o_stride, o_h);
     printf("Saved %s\n", joename);
 

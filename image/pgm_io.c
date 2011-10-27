@@ -187,3 +187,39 @@ int save_pnm_uint8(const char* path, const uint8_t* image, size_t w, size_t stri
 
   return 0;
 }
+
+int save_yuv_uint8(const char* path, const uint8_t* image, size_t w, size_t stride, size_t h)
+{
+  FILE* f = fopen(path, "wb");
+  if (f == NULL)
+  {
+    perror("open");
+    return -1;
+  }
+  for( size_t y = 0; y < h; ++y)
+  {
+    for( size_t x = 0; x < w; ++x)
+    {
+      fwrite(image+stride*y + x*3    , 1, 1, f);
+    }
+  }
+  for( size_t y = 0; y < h; ++y)
+  {
+    for( size_t x = 0; x < w; ++x)
+    {
+      fwrite(image+stride*y + x*3 + 1, 1, 1, f);
+    }
+  }
+  for( size_t y = 0; y < h; ++y)
+  {
+    for( size_t x = 0; x < w; ++x)
+    {
+      fwrite(image+stride*y + x*3 + 2, 1, 1, f);
+    }
+  }
+
+  fclose(f);
+
+  return 0;
+}
+
