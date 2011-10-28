@@ -50,7 +50,8 @@ def show_images(args):
     global image, idx
 
     cv.NamedWindow('Bayer')
-    tbar = cv.CreateTrackbar('Image', 'Bayer', 0, len(args)-1, change_image)
+    if len(args) > 1:
+        tbar = cv.CreateTrackbar('Image', 'Bayer', 0, len(args)-1, change_image)
     cv.SetMouseCallback('Bayer', mouse_event, None)
 
     idx = 0

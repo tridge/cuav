@@ -30,7 +30,8 @@ def change_image(i):
     cv.ShowImage('CanberraUAV', pgm.img)
 
 cv.NamedWindow('CanberraUAV')
-tbar = cv.CreateTrackbar('Image', 'CanberraUAV', 0, len(args)-1, change_image)
+if len(args) > 1:
+    tbar = cv.CreateTrackbar('Image', 'CanberraUAV', 0, len(args)-1, change_image)
 cv.SetMouseCallback('CanberraUAV', mouse_event, None)
 
 idx = 0
