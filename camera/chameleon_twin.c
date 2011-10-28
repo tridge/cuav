@@ -304,6 +304,9 @@ static void capture_wait(struct chameleon_camera *c, float *gain, float *shutter
 		return;
 	}
 
+	/* we got a good frame, reduce the bad frame count. */
+	c->bad_frames /= 2;
+
 	t = tv->tv_sec;
 	tm = localtime(&t);
 
