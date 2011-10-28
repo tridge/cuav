@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include <getopt.h>
 
 
 #define WIDTH 1280
@@ -26,6 +27,8 @@
 
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
+
+static bool save_intermediate;
 
 struct PACKED rgb {
 	uint8_t r, g, b;
@@ -144,7 +147,9 @@ static void colour_convert_chameleon(const struct grey_image16 *in, struct rgb_i
 		}
 	}
 
-	colour_save_pnm("test.pnm", out);
+	if (save_intermediate) {
+		colour_save_pnm("test.pnm", out);
+	}
 }
 
 #define HISTOGRAM_BITS_PER_COLOR 3
@@ -342,20 +347,26 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 
 	quantise_image(in, quantised, &min, &bin_spacing);
 	unquantise_image(quantised, unquantised, &min, &bin_spacing);
-	colour_save_pnm("unquantised.pnm", unquantised);
+	if (save_intermediate) {
+		colour_save_pnm("unquantised.pnm", unquantised);
+	}
 
 	build_histogram(quantised, histogram);
 	*qsaved = *quantised;
 
-	histogram_threshold(quantised, histogram, HISTOGRAM_COUNT_THRESHOLD);
-	unquantise_image(quantised, unquantised, &min, &bin_spacing);
-	colour_save_pnm("thresholded.pnm", unquantised);
+	if (save_intermediate) {
+		histogram_threshold(quantised, histogram, HISTOGRAM_COUNT_THRESHOLD);
+		unquantise_image(quantised, unquantised, &min, &bin_spacing);
+		colour_save_pnm("thresholded.pnm", unquantised);
+	}
 
 	*quantised = *qsaved;
 
 	histogram_threshold_neighbours(quantised, neighbours, histogram, HISTOGRAM_COUNT_THRESHOLD);
 	unquantise_image(neighbours, unquantised, &min, &bin_spacing);
-	colour_save_pnm("neighbours.pnm", unquantised);
+	if (save_intermediate) {
+		colour_save_pnm("neighbours.pnm", unquantised);
+	}
 
 	*out = *neighbours;
 
@@ -576,7 +587,9 @@ static void process_file(const char *filename)
 		*jimage = *cimage;
 		mark_regions(jimage, regions);
 
-		colour_save_pnm("joe.pnm", jimage);
+		if (save_intermediate) {
+			colour_save_pnm("joe.pnm", jimage);
+		}
 		asprintf(&joename, "%s-joe.pnm", basename);
 		colour_save_pnm(joename, jimage);
 		printf("Saved %s\n", joename);
@@ -592,12 +605,36 @@ static void process_file(const char *filename)
 	free(jimage);
 }
 
+static void show_help(void)
+{
+	printf("hgram_scanner <options> [PGM_FILES...]\n");
+	printf("\toptions:\n");
+	printf("\t\t -i     keep intermediate files\n");
+	printf("\t\t -h     show help\n");
+}
+
 int main(int argc, char** argv)
 {
 	int i;
+	int opt;
 
-	if (argc < 2){
-		printf("usage: hgram_scanner file.pgm\n");
+	while ((opt = getopt(argc, argv, "ih")) != -1) {
+		switch (opt) {
+		case 'i':
+			save_intermediate = true;
+			break;
+		case 'h':
+			show_help();
+			exit(0);
+			break;
+		}
+	}
+
+	argv += optind;
+	argc -= optind;
+
+	if (argc < 1) {
+		show_help();
 		return -1;
 	}
 
