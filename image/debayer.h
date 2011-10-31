@@ -4,9 +4,15 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+#define DEBAYER_TOP_AVAIL      0x01
+#define DEBAYER_BOTTOM_AVAIL   0x02
+#define DEBAYER_LEFT_AVAIL     0x04
+#define DEBAYER_RIGHT_AVAIL    0x08
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
   /*
    Four pixels to 1
@@ -17,7 +23,7 @@ extern "C" {
   /*
    Four pixels to Four pixels
    */
-  typedef void (*pixop_full_16u_8u)(const uint16_t* in, size_t in_stride, uint8_t* out, size_t stride);
+  typedef void (*pixop_full_16u_8u)(const uint16_t* in, size_t in_stride, uint8_t* out, size_t stride, int edge_mask);
   //typedef void (*pixop_full_8u_8u)(const uint16_t* in, size_t in_stride, uint8_t* out, size_t stride);
 
   /*
@@ -53,6 +59,7 @@ extern "C" {
 
   void pixop_half_16u_8u_yuv(const uint16_t* in, size_t in_stride, uint8_t* out);
   void pixop_half_16u_8u_rgb(const uint16_t* in, size_t in_stride, uint8_t* out);
+  void pixop_full_16u_8u_rgb(const uint16_t* in, size_t in_stride, uint8_t* out, size_t out_stride, int mask);
 
 #ifdef __cplusplus
 }
