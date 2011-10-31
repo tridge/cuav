@@ -77,9 +77,6 @@ void pixop_half_16u_8u_yuv(const uint16_t* in, size_t in_stride, uint8_t* out)
   rgb[2] = *(in + 1);
   rgb[0] = *(in + in_stride);
 
-  uint8_t yuv[3];
-  rgb_to_yuv_16u_8u(rgb, yuv);
-
   rgb_to_yuv_16u_8u(rgb, out);
 }
 
@@ -105,4 +102,32 @@ void debayer_half_16u_8u(uint16_t* in_image,
       pixop(p, in_stride, q);
     }
   }
+}
+
+inline uint16_t interp_pixel_16u(const uint16_t* p, size_t stride, int mask)
+{
+  uint32_t T = *(p - stride) * (mask&DEBAYER_TOP_AVAIL);
+  uint32_t B = *(p + stride) * ((mask&DEBAYER_BOTTOM_AVAIL) >> 1);
+  uint32_t L = *(p - 1) * ((mask&DEBAYER_LEFT_AVAIL) >> 2);
+  uint32_t R = *(p + 1) * ((mask&DEBAYER_RIGHT_AVAIL) >> 3);
+  return (uint16_t)((T + L + R + B) >> 2);
+}
+
+void pixop_full_16u_8u_rgb(const uint16_t* in, size_t in_stride, uint8_t* out, size_t out_stride, int mask)
+{
+  uint16_t G_00 = *(in);
+  uint16_t G_11 = *(in + in_stride + 1);
+  uint16_t B_10 = *(in + 1);
+  uint16_t R_01 = *(in + in_stride);
+}
+
+void debayer_full_16u_8u(uint16_t* in_image,
+                         size_t in_stride,
+                         size_t in_width,
+                         size_t in_height,
+                         uint8_t* out_image,
+                         size_t out_stride,
+                         pixop_full_16u_8u pixop)
+{
+
 }
