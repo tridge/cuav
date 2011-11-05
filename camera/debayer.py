@@ -16,8 +16,11 @@ def debayer(filename):
     '''debayer an image'''
     pgm = util.PGM(filename)
 
-    img8 = cv.CreateImage((1280,960), 8, 1)
-    cv.ConvertScale(pgm.img, img8, scale=1.0/256)
+    if pgm.eightbit:
+        img8 = pgm.img
+    else:
+        img8 = cv.CreateImage((1280,960), 8, 1)
+        cv.ConvertScale(pgm.img, img8, scale=1.0/256)
     
     color_img = cv.CreateImage((1280,960), 8, 3)
     cv.CvtColor(img8, color_img, cv.CV_BayerGR2BGR)
