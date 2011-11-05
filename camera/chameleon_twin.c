@@ -62,7 +62,11 @@ static void camera_setup(struct chameleon_camera *camera, bool eight_bit_mode)
 	} else {
 		CHECK(chameleon_video_set_mode(camera, DC1394_VIDEO_MODE_1280x960_MONO16));
 	}
-	CHECK(chameleon_video_set_framerate(camera, DC1394_FRAMERATE_3_75));
+	if (eight_bit_mode) {
+		CHECK(chameleon_video_set_framerate(camera, DC1394_FRAMERATE_7_5));
+	} else {
+		CHECK(chameleon_video_set_framerate(camera, DC1394_FRAMERATE_3_75));
+	}
 
 	chameleon_capture_setup(camera, 1, DC1394_CAPTURE_FLAGS_DEFAULT);
 
