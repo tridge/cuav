@@ -10,7 +10,7 @@ CFLAGS=-Wall -g -std=gnu99 -O2
 
 objects = pgm_io.o debayer.o histogram.o image_utils.o BlobExtractor.o
 
-all: image.lib blobtest histtest hgram_scanner
+all: image.lib blobtest histtest hgram_scanner hgram_scanner8
 
 image.lib: $(objects)
 	$(AR) -r image.lib $(objects)
@@ -23,6 +23,9 @@ histtest: image.lib histtest.o
 
 hgram_scanner: hgram_scanner.o
 	$(CC) -o hgram_scanner hgram_scanner.o
+
+hgram_scanner8: hgram_scanner8.o
+	$(CC) -o hgram_scanner8 hgram_scanner8.o
 
 clean:
 	rm -f *.o *~ *.bak hgram_scanner blobtest histtest image.lib
