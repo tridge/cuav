@@ -70,12 +70,18 @@ static void camera_setup(struct chameleon_camera *camera, bool eight_bit_mode)
 
 	chameleon_capture_setup(camera, 1, DC1394_CAPTURE_FLAGS_DEFAULT);
 
-	CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_EXPOSURE, DC1394_OFF));
+	CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_EXPOSURE, DC1394_ON));
+	CHECK(chameleon_feature_set_mode(camera, DC1394_FEATURE_EXPOSURE, DC1394_FEATURE_MODE_AUTO));
+
 	CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_BRIGHTNESS, DC1394_ON));
 	CHECK(chameleon_feature_set_mode(camera, DC1394_FEATURE_BRIGHTNESS, DC1394_FEATURE_MODE_AUTO));
 
-	CHECK(chameleon_set_control_register(camera, 0x81C, 0x01000000)); // auto shutter
-	CHECK(chameleon_set_control_register(camera, 0x820, 0x01000000)); // auto gain
+	CHECK(chameleon_set_control_register(camera, 0x800, 0x00000000)); // auto brightness
+	CHECK(chameleon_set_control_register(camera, 0x804, 0x02000170)); // auto exposure
+	CHECK(chameleon_set_control_register(camera, 0x81C, 0x03000000)); // auto shutter
+	CHECK(chameleon_set_control_register(camera, 0x820, 0x03000000)); // auto gain
+
+//	CHECK(chameleon_set_control_register(camera, 0x1088, 0x00000000)); // auto shutter range
 
 	// enable FRAME_INFO
 	CHECK(chameleon_set_control_register(camera, 0x12F8, 0x80000002));
@@ -90,6 +96,27 @@ static void camera_setup(struct chameleon_camera *camera, bool eight_bit_mode)
 
 	// let the camera settle a bit
 	usleep(300000);
+}
+
+
+static uint16_t get_average8(uint8_t *buf)
+{
+	int i;
+	uint32_t sum=0;
+	for (i=0; i<IMAGE_WIDTH*IMAGE_HEIGHT; i++) {
+		sum += buf[i];
+	}
+	return sum/i;		
+}
+
+static uint16_t get_average16(uint16_t *buf)
+{
+	int i;
+	uint64_t sum=0;
+	for (i=0; i<IMAGE_WIDTH*IMAGE_HEIGHT; i++) {
+		sum += buf[i];
+	}
+	return sum/i;		
 }
 
 
@@ -131,8 +158,15 @@ static void capture_wait(struct chameleon_camera *c, const char *basename, bool 
 	uint32_t gain_csr;
 	uint32_t bufsize = (IMAGE_HEIGHT*IMAGE_WIDTH)*(eight_bit_mode?1:2);
 	uint8_t buf[bufsize];
+	uint16_t average;
+	float shutter, gain;
 
 	chameleon_wait_image(c, 300);
+	CHECK(chameleon_get_control_register(c, 0x820, &gain_csr));
+
+	CHECK(chameleon_feature_get_absolute_value(c, DC1394_FEATURE_SHUTTER, &shutter));
+	CHECK(chameleon_feature_get_absolute_value(c, DC1394_FEATURE_GAIN, &gain));
+
 	chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_WAIT, &frame);
 	if (!frame) {
 		c->bad_frames++;
@@ -152,8 +186,6 @@ static void capture_wait(struct chameleon_camera *c, const char *basename, bool 
 
 	CHECK(chameleon_capture_enqueue(c, frame));
 
-	CHECK(chameleon_get_control_register(c, 0x820, &gain_csr));
-
 	if (ntohl(*(uint32_t *)&buf[0]) != gain_csr) {
 		printf("Warning: bad frame info 0x%08x should be 0x%08x\n",
 		       ntohl(*(uint32_t *)&buf[0]), gain_csr);
@@ -161,7 +193,7 @@ static void capture_wait(struct chameleon_camera *c, const char *basename, bool 
 		return;
 	}
 
-	// overwrite the gain value with the next 4 bytes, so we
+	// overwrite the gain/shutter value with the next bytes, so we
 	// don't skew the image stats
 	memcpy(&buf[0], &buf[4], 4);
 	
@@ -172,6 +204,12 @@ static void capture_wait(struct chameleon_camera *c, const char *basename, bool 
 		printf("Warning: bad frame bytes\n");
 		c->bad_frames++;
 		return;
+	}
+	
+	if (eight_bit_mode) {
+		average = get_average8(buf);
+	} else {
+		average = get_average16((uint16_t *)buf);
 	}
 
 	/* we got a good frame, reduce the bad frame count. */
@@ -187,7 +225,7 @@ static void capture_wait(struct chameleon_camera *c, const char *basename, bool 
 		return;
 	}
 
-	printf("%s\n", fname);
+	printf("%s average=%u shutter=%f gain=%f\n", fname, average, shutter, gain);
 
 	if (!testonly && fork() == 0) {
 		int fd = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0644);
@@ -197,8 +235,9 @@ static void capture_wait(struct chameleon_camera *c, const char *basename, bool 
 			_exit(0);
 		}
 		
-		dprintf(fd,"P5\n%u %u\n#PARAM: t=%llu\n%u\n", 
+		dprintf(fd,"P5\n%u %u\n#PARAM: t=%llu average=%u shutter=%f gain=%f\n%u\n", 
 			IMAGE_WIDTH, IMAGE_HEIGHT, (unsigned long long)timestamp,
+			average, shutter, gain,
 			eight_bit_mode?255:65535);
 		if (write(fd, buf, sizeof(buf)) != sizeof(buf)) {
 			fprintf(stderr, "Write failed for %s\n", fname);
@@ -330,8 +369,8 @@ int main(int argc, char *argv[])
 	const char *basename = "cap";
 	bool testonly = false;
 	int cam = -1;
-	float framerate = 2.0;
-	bool eight_bit_mode = false;
+	float framerate = 8.0;
+	bool eight_bit_mode = true;
 
 	while ((opt = getopt(argc, argv, "b:t8hc:r:")) != -1) {
 		switch (opt) {
