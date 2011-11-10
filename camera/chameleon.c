@@ -1384,6 +1384,34 @@ chameleon_feature_set_absolute_value(struct chameleon_camera *camera, dc1394feat
 }
 
 
+dc1394error_t
+chameleon_get_absolute_register(struct chameleon_camera *camera, unsigned int feature,
+				uint64_t offset, uint32_t *value)
+{
+    uint64_t absoffset;
+    if (camera == NULL)
+        return DC1394_CAMERA_NOT_INITIALIZED;
+
+    QueryAbsoluteCSROffset(camera, feature, &absoffset);
+
+    return chameleon_get_registers (camera, absoffset + offset, value, 1);
+}
+
+dc1394error_t
+chameleon_feature_get_absolute_value(struct chameleon_camera *camera, dc1394feature_t feature, float *value)
+{
+    dc1394error_t err=DC1394_SUCCESS;
+
+    if ( (feature > DC1394_FEATURE_MAX) || (feature < DC1394_FEATURE_MIN) ) {
+        return DC1394_INVALID_FEATURE;
+    }
+    err=chameleon_get_absolute_register(camera, feature, REG_CAMERA_ABS_VALUE, (uint32_t*)value);
+    DC1394_ERR_RTN(err,"Could not get current absolute value");
+
+    return err;
+}
+
+
 #define NEXT_BUFFER(c,i) (((i) == -1) ? 0 : ((i)+1)%(c)->num_frames)
 
 

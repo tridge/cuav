@@ -452,6 +452,8 @@ int chameleon_set_control_register(struct chameleon_camera *c,
 				   uint64_t offset, uint32_t value);
 int chameleon_get_control_register(struct chameleon_camera *camera,
 				   uint64_t offset, uint32_t *value);
+dc1394error_t
+chameleon_feature_get_absolute_value(struct chameleon_camera *camera, dc1394feature_t feature, float *value);
 
 
 int chameleon_wait_events(struct chameleon *c, struct timeval *tv);
