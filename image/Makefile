@@ -28,7 +28,7 @@ hgram_scanner8: hgram_scanner8.o
 	$(CC) -o hgram_scanner8 hgram_scanner8.o
 
 clean:
-	rm -f *.o *~ *.bak hgram_scanner blobtest histtest image.lib
+	rm -f *.o *~ *.bak hgram_scanner hgram_scanner8 blobtest histtest image.lib
 
 depend:
 	makedepend -Y. *.cc *.c 2> /dev/null
@@ -36,7 +36,7 @@ depend:
 
 BlobExtractor.o: BlobExtractor.h image_utils.h image_inlines.h
 blobtest.o: pgm_io.h BlobExtractor.h image_utils.h
-histtest.o: pgm_io.h debayer.h histogram.h
+histtest.o: pgm_io.h debayer.h histogram.h BlobExtractor.h image_utils.h
 debayer.o: debayer.h
 histogram.o: histogram.h
 image_utils.o: image_utils.h

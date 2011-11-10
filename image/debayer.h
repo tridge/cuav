@@ -23,8 +23,8 @@ extern "C" {
   /*
    Four pixels to Four pixels
    */
-  typedef void (*pixop_full_16u_8u)(const uint16_t* in, size_t in_stride, uint8_t* out, size_t stride, int edge_mask);
-  //typedef void (*pixop_full_8u_8u)(const uint16_t* in, size_t in_stride, uint8_t* out, size_t stride);
+  typedef void (*pixop_2x2_16u_8u)(const uint16_t* in, size_t in_stride, uint8_t* out, size_t stride);
+  //typedef void (*pixop_2x2_8u_8u)(const uint16_t* in, size_t in_stride, uint8_t* out, size_t stride);
 
   /*
    Simple debayering image size reduced by 2
@@ -54,12 +54,13 @@ extern "C" {
                            size_t in_height,
                            uint8_t* out_image,
                            size_t out_stride,
-                           pixop_full_16u_8u pixop);
+                           pixop_2x2_16u_8u pixop);
 
 
   void pixop_half_16u_8u_yuv(const uint16_t* in, size_t in_stride, uint8_t* out);
   void pixop_half_16u_8u_rgb(const uint16_t* in, size_t in_stride, uint8_t* out);
-  void pixop_full_16u_8u_rgb(const uint16_t* in, size_t in_stride, uint8_t* out, size_t out_stride, int mask);
+  void pixop_2x2_16u_8u_rgb(const uint16_t* in, size_t in_stride, uint8_t* out, size_t out_stride);
+  void pixop_2x2_16u_8u_yuv(const uint16_t* in, size_t in_stride, uint8_t* out, size_t out_stride);
 
 #ifdef __cplusplus
 }

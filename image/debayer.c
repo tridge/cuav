@@ -1,4 +1,5 @@
 #include "debayer.h"
+#include <assert.h>
 
 static const size_t PIXEL_SIZE = 3;
 
@@ -12,6 +13,73 @@ static const int rgb_yuv_mat[3][3] =
 static const int yuv_shift[3] =
 {
   16, 128, 128
+};
+
+enum chan
+{
+  RED,
+  GREEN,
+  BLUE
+};
+
+int pix_x[4] = { 0, 1, 0, 1};
+int pix_y[4] = { 0, 0, 1, 1};
+
+/**
+  GB
+  RG
+  */
+struct bayer
+{
+  // the pixel in question [0 - 4]
+  int px;
+  int py;
+  // the channel
+  enum chan ch;
+  // the offsets relative to the src pixel in the 4x4 bayer block
+  int dx;
+  int dy;
+};
+
+struct bayer bayertab[28] =
+{
+  // the zero offset pixels
+  {0, 0, GREEN, 0, 0},
+  {1, 0, BLUE,  0, 0},
+  {0, 1, RED,   0, 0},
+  {1, 1, GREEN, 0, 0},
+
+  // top left
+  {0, 0, RED,   0,-1},
+  {0, 0, RED,   0, 1},
+  {0, 0, BLUE, -1, 0},
+  {0, 0, BLUE,  1, 0},
+
+  // top right
+  {1, 0, RED,   1, 1},
+  {1, 0, RED,  -1, 1},
+  {1, 0, RED,  -1, 1},
+  {1, 0, RED,   1,-1},
+  {1, 0, GREEN, 1, 0},
+  {1, 0, GREEN,-1, 0},
+  {1, 0, GREEN, 0, 1},
+  {1, 0, GREEN, 0,-1},
+
+  // bottom left
+  {0, 1, BLUE,  1, 1},
+  {0, 1, BLUE, -1, 1},
+  {0, 1, BLUE, -1, 1},
+  {0, 1, BLUE,  1,-1},
+  {0, 1, GREEN, 1, 0},
+  {0, 1, GREEN,-1, 0},
+  {0, 1, GREEN, 0, 1},
+  {0, 1, GREEN, 0,-1},
+
+  // bottom right
+  {1, 1, RED, -1,  0},
+  {1, 1, RED,  1,  0},
+  {1, 1, BLUE, 0, -1},
+  {1, 1, BLUE, 0,  1}
 };
 
 void debayer_half_16u_8u_rgb(uint16_t* in_image,
@@ -104,22 +172,63 @@ void debayer_half_16u_8u(uint16_t* in_image,
   }
 }
 
-inline uint16_t interp_pixel_16u(const uint16_t* p, size_t stride, int mask)
+void pixop_2x2_16u_8u_rgb(const uint16_t* in, size_t in_stride, uint8_t* out, size_t out_stride)
 {
-  uint32_t T = *(p - stride) * (mask&DEBAYER_TOP_AVAIL);
-  uint32_t B = *(p + stride) * ((mask&DEBAYER_BOTTOM_AVAIL) >> 1);
-  uint32_t L = *(p - 1) * ((mask&DEBAYER_LEFT_AVAIL) >> 2);
-  uint32_t R = *(p + 1) * ((mask&DEBAYER_RIGHT_AVAIL) >> 3);
-  return (uint16_t)((T + L + R + B) >> 2);
+  int i;
+  int tmp[4][3] = {{0,0,0},{0,0,0},{0,0,0},{0,0,0}};
+  int cnt[4][3] = {{0,0,0},{0,0,0},{0,0,0},{0,0,0}};
+  int n = sizeof(bayertab)/sizeof(struct bayer);
+  int shift[5] = {8, 8, 9, 9, 10};
+  for (i=0; i < n; ++i)
+  {
+    int idx = bayertab[i].py << 1 | bayertab[i].px;
+    tmp[idx][bayertab[i].ch] += *(in + in_stride*(bayertab[i].py + bayertab[i].dy) + bayertab[i].px + bayertab[i].dx);
+    cnt[idx][bayertab[i].ch] += 1;
+  }
+  for (i=0; i < 4; ++i)
+  {
+    int dy = pix_y[i];
+    int dx = pix_x[i];
+
+    int r = tmp[i][0] >> shift[cnt[i][0]];
+    int g = tmp[i][1] >> shift[cnt[i][1]];
+    int b = tmp[i][2] >> shift[cnt[i][2]];
+
+    *(out + out_stride*dy + dx*PIXEL_SIZE ) = (uint8_t)r;
+    *(out + out_stride*dy + dx*PIXEL_SIZE + 1) = (uint8_t)g;
+    *(out + out_stride*dy + dx*PIXEL_SIZE + 2) = (uint8_t)b;
+  }
 }
 
-void pixop_full_16u_8u_rgb(const uint16_t* in, size_t in_stride, uint8_t* out, size_t out_stride, int mask)
+void pixop_2x2_16u_8u_yuv(const uint16_t* in, size_t in_stride, uint8_t* out, size_t out_stride)
 {
-  uint16_t G_00 = *(in);
-  uint16_t G_11 = *(in + in_stride + 1);
-  uint16_t B_10 = *(in + 1);
-  uint16_t R_01 = *(in + in_stride);
+  int i;
+  int tmp[4][3] = {{0,0,0},{0,0,0},{0,0,0},{0,0,0}};
+  int cnt[4][3] = {{0,0,0},{0,0,0},{0,0,0},{0,0,0}};
+  int n = sizeof(bayertab)/sizeof(struct bayer);
+  int shift[5] = {0, 0, 1, 1, 2};
+  for (i=0; i < n; ++i)
+  {
+    int idx = bayertab[i].py << 1 | bayertab[i].px;
+    tmp[idx][bayertab[i].ch] += *(in + in_stride*(bayertab[i].py + bayertab[i].dy) + bayertab[i].px + bayertab[i].dx);
+    cnt[idx][bayertab[i].ch] += 1;
+  }
+  for (i=0; i < 4; ++i)
+  {
+    int dy = pix_y[i];
+    int dx = pix_x[i];
+
+    uint16_t rgb16[3];
+    rgb16[0] = tmp[i][0] >> shift[cnt[i][0]];
+    rgb16[1] = tmp[i][1] >> shift[cnt[i][1]];
+    rgb16[2] = tmp[i][2] >> shift[cnt[i][2]];
+
+    uint8_t* yuv8 = out + out_stride*dy + dx*PIXEL_SIZE;
+
+    rgb_to_yuv_16u_8u(rgb16, yuv8);
+  }
 }
+
 
 void debayer_full_16u_8u(uint16_t* in_image,
                          size_t in_stride,
@@ -127,7 +236,15 @@ void debayer_full_16u_8u(uint16_t* in_image,
                          size_t in_height,
                          uint8_t* out_image,
                          size_t out_stride,
-                         pixop_full_16u_8u pixop)
+                         pixop_2x2_16u_8u pixop)
 {
-
+  for (size_t y = 2; y < in_height - 3; y += 2)
+  {
+    for (size_t x = 2; x < in_width - 3; x += 2)
+    {
+      uint16_t* p = in_image + in_stride * y + x;
+      uint8_t* q = out_image + y*out_stride + x*PIXEL_SIZE;
+      pixop(p, in_stride, q, out_stride);
+    }
+  }
 }
