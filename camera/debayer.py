@@ -26,7 +26,7 @@ def debayer(filename):
     cv.CvtColor(img8, color_img, cv.CV_BayerGR2BGR)
 
     cv.ShowImage('Bayer', color_img)
-    return color_img
+    return (color_img, pgm)
 
 def mouse_event(event, x, y, flags, data):
     '''called on mouse events'''
@@ -42,11 +42,9 @@ def mouse_event(event, x, y, flags, data):
 
 def change_image(i):
     '''show image idx'''
-    global idx, image
+    global idx
     idx = i
-    image = debayer(args[idx])
-    cv.ShowImage('Bayer', image)
-    return image
+    return debayer(args[idx])
 
 def show_images(args):
     '''show all images'''
@@ -61,10 +59,11 @@ def show_images(args):
     pgm = None
     while True:
         print(args[idx])
-        image = change_image(idx)
+        (image, pgm) = change_image(idx)
         oldidx = idx
         newidx = util.key_menu(oldidx, len(args), image,
-                               '%s.png' % args[idx][:-4])
+                               '%s.png' % args[idx][:-4],
+                               pgm=pgm)
         idx += (newidx - oldidx)
         cv.SetTrackbarPos('Image', 'Bayer', idx)
     cv.DestroyWindow('Bayer')
@@ -74,7 +73,7 @@ def convert_images(args):
     for f in args:
         png = f[:-4] + '.png'
         print("Saving %s" % png)
-        img = debayer(f)
+        (img, pgm) = debayer(f)
         cv.SaveImage(png, img)
 
 if opts.batch:

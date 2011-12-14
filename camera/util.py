@@ -40,12 +40,12 @@ class PGM(object):
 		else:
 			rawdata = numpy.memmap(filename, dtype='uint16', mode='c', order='C', shape=(960,1280), offset=ofs)
 			self.img = cv.CreateImageHeader((1280, 960), 16, 1)
-	    
 		self.rawdata = rawdata.copy()
+		del(rawdata)
 		self.array = self.rawdata.byteswap(True)
 		cv.SetData(self.img, self.array.tostring(), self.array.dtype.itemsize*1*1280)
 
-def key_menu(i, n, image, filename):
+def key_menu(i, n, image, filename, pgm=None):
     '''simple keyboard menu'''
     while True:
         key = cv.WaitKey()
@@ -58,6 +58,8 @@ def key_menu(i, n, image, filename):
         if key == 's':
             print("Saving %s" % filename)
             cv.SaveImage(filename, image)
+        if key == 'c' and pgm is not None:
+            print("Comment: %s" % pgm.comment)
         if key in ['n', '\n', ' ']:
             if i == n-1:
                 print("At last image")
