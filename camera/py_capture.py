@@ -14,9 +14,8 @@ f = pyplot.figure(1)
 
 for i in range(0,10):
   try:
-    sts = chameleon.trigger(h)
-    if (sts == 0):
-      (shutter, ftime) = chameleon.capture(h, im)
+    chameleon.trigger(h)
+    (shutter, ftime) = chameleon.capture(h, im)
   except chameleon.error:
     print('failed to capture')
 
