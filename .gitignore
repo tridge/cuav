@@ -2,3 +2,6 @@
 *~
 *.png
 *.pnm
+*.pgm
+*.jpg
+*.yuv
