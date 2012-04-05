@@ -255,15 +255,37 @@ struct chameleon_camera *open_camera(bool colour_chameleon, int depth)
   return camera;
 }
 
+
+int trigger_capture(struct chameleon_camera *c, float shutter)
+{
+  if(!c)
+  {
+    printf("Invalid camera\n");
+    return -1;
+  }
+
+  CHECK(chameleon_feature_set_absolute_value(c, DC1394_FEATURE_SHUTTER, shutter));
+
+  uint32_t trigger_v;
+  do {
+          CHECK(chameleon_get_control_register(c, 0x62C, &trigger_v));
+  } while (trigger_v & 0x80000000);
+
+  //usleep(200000);
+
+  CHECK(chameleon_set_control_register(c, 0x62C, 0x80000000));
+
+  //usleep(200000);
+
+  return 0;
+}
+
 int capture_wait(struct chameleon_camera *c, float *shutter,
-                  void* buf, size_t stride, size_t size,
-                  struct timeval *tv)
+                  void* buf, size_t stride, size_t size)
 {
   struct chameleon_frame *frame;
   float average;
   uint32_t num_saturated, num_half_saturated;
-  struct tm *tm;
-  time_t t;
   uint64_t timestamp;
   uint32_t gain_csr;
 
@@ -331,9 +353,6 @@ int capture_wait(struct chameleon_camera *c, float *shutter,
 
   /* we got a good frame, reduce the bad frame count. */
   c->bad_frames /= 2;
-
-  t = tv->tv_sec;
-  tm = localtime(&t);
 
   printf("shutter=%f average=%.1f saturated=%u hsaturated=%u\n",
          *shutter, average, num_saturated, num_half_saturated);

@@ -9,6 +9,8 @@ chameleon_open(PyObject *self, PyObject *args);
 static PyObject *
 chameleon_close(PyObject *self, PyObject *args);
 static PyObject *
+chameleon_trigger(PyObject *self, PyObject *args);
+static PyObject *
 chameleon_capture(PyObject *self, PyObject *args);
 
 static PyObject *ChameleonError;
@@ -16,6 +18,7 @@ static PyObject *ChameleonError;
 static PyMethodDef ChameleonMethods[] = {
   {"open", chameleon_open, METH_VARARGS, "Open a lizard like device. Returns handle"},
   {"close", chameleon_close, METH_VARARGS, "Close device."},
+  {"trigger", chameleon_trigger, METH_VARARGS, "Trigger capture of an image"},
   {"capture", chameleon_capture, METH_VARARGS, "Capture an image"},
   {NULL, NULL, 0, NULL}        /* Terminus */
 };
@@ -47,12 +50,11 @@ initchameleon(void)
 static PyObject *
 chameleon_open(PyObject *self, PyObject *args)
 {
-  const char *dev;
   int colour = 0;
   int depth = 0;
   int sts = -1;
 
-  if (!PyArg_ParseTuple(args, "sii", &dev, &colour, &depth))
+  if (!PyArg_ParseTuple(args, "ii", &colour, &depth))
     return NULL;
 
   int i = 0;
@@ -82,6 +84,33 @@ chameleon_open(PyObject *self, PyObject *args)
     PyErr_SetString(ChameleonError, "Failed to open device");
     return NULL;
   }
+  return PyLong_FromLong(sts);
+}
+
+static PyObject *
+chameleon_trigger(PyObject *self, PyObject *args)
+{
+  int handle = -1;
+  struct chameleon_camera* cam = NULL;
+  PyArrayObject* array;
+  if (!PyArg_ParseTuple(args, "i", &handle, &array))
+    return NULL;
+
+  if (handle >= 0 && handle < NUM_CAMERA_HANDLES && cameras[handle]) {
+    cam = cameras[handle];
+  }
+  else {
+    PyErr_SetString(ChameleonError, "Invalid handle");
+    return NULL;
+  }
+
+  int sts = trigger_capture(cam, shutters[handle]);
+
+  if (sts < 0) {
+    PyErr_SetString(ChameleonError, "Failed to capture");
+    return NULL;
+  }
+
   return PyLong_FromLong(sts);
 }
 
@@ -120,7 +149,7 @@ chameleon_capture(PyObject *self, PyObject *args)
 
   void* buf = PyArray_DATA(array);
   struct timeval tv;
-  int sts = capture_wait(cam, &shutters[handle], buf, stride, stride*h, &tv);
+  int sts = capture_wait(cam, &shutters[handle], buf, stride, stride*h);
 
   if (sts < 0) {
     PyErr_SetString(ChameleonError, "Failed to capture");

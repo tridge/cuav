@@ -1,11 +1,27 @@
 #!/usr/bin/python
 
 from numpy import array,zeros
+from matplotlib import pyplot
+
 import chameleon
 
-colour = 1
+colour = 0
 depth = 8
-h = chameleon.open('/dev/chameleon', colour, depth)
+h = chameleon.open(colour, depth)
 im = zeros((960,1280),dtype='uint8')
-(shutter, ftime) = chameleon.capture(h, im)
-chameleon.close()
+f = pyplot.figure(1)
+
+for i in range(0,10):
+  try:
+    sts = chameleon.trigger(h)
+    if (sts == 0):
+      (shutter, ftime) = chameleon.capture(h, im)
+  except chameleon.error:
+    print('failed to capture')
+
+pyplot.imshow(im)
+f.show()
+
+k = raw_input()
+
+chameleon.close(h)
