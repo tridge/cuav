@@ -92,8 +92,7 @@ chameleon_trigger(PyObject *self, PyObject *args)
 {
   int handle = -1;
   struct chameleon_camera* cam = NULL;
-  PyArrayObject* array;
-  if (!PyArg_ParseTuple(args, "i", &handle, &array))
+  if (!PyArg_ParseTuple(args, "i", &handle))
     return NULL;
 
   if (handle >= 0 && handle < NUM_CAMERA_HANDLES && cameras[handle]) {
@@ -119,7 +118,7 @@ chameleon_capture(PyObject *self, PyObject *args)
 {
   int handle = -1;
   struct chameleon_camera* cam = NULL;
-  PyArrayObject* array;
+  PyArrayObject* array = NULL;
   if (!PyArg_ParseTuple(args, "iO", &handle, &array))
     return NULL;
 
@@ -168,7 +167,7 @@ chameleon_close(PyObject *self, PyObject *args)
     return NULL;
 
   if (handle >= 0 && handle < NUM_CAMERA_HANDLES && cameras[handle]) {
-    chameleon_camera_free(cameras[handle]);
+    close_camera(cameras[handle]);
     cameras[handle] = NULL;
     sts = 0;
   }

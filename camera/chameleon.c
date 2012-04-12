@@ -991,7 +991,7 @@ int chameleon_capture_stop(struct chameleon_camera *c)
     int i;
 
     if (c->capture_is_set == 0)
-	    return -1;
+        return -1;
 
     // stop ISO if it was started automatically
     if (c->iso_auto_started > 0) {
@@ -1001,15 +1001,20 @@ int chameleon_capture_stop(struct chameleon_camera *c)
 
     if (c->frames) {
         for (i = 0; i < c->num_frames; i++) {
+            //printf("libusb_free_transfer()\n");
+            libusb_cancel_transfer(c->frames[i].transfer);
             libusb_free_transfer(c->frames[i].transfer);
         }
+        //printf("free(c->frames, %p)\n", c->frames);
         free(c->frames);
         c->frames = NULL;
     }
 
-    free(c->buffer);
-    c->buffer = NULL;
-
+    if (c->buffer) {
+      //printf("free(c->buffer, %p)\n", c->buffer);
+      free(c->buffer);
+      c->buffer = NULL;
+    }
     c->capture_is_set = 0;
 
     return 0;
@@ -1121,18 +1126,20 @@ int chameleon_capture_setup(struct chameleon_camera *c, uint32_t num_dma_buffers
 	c->current = -1;
 	c->frames_ready = 0;
 	c->queue_broken = 0;
-	c->buffer_size = c->proto.total_bytes * num_dma_buffers;
+	c->buffer_size = (c->proto.total_bytes + IMAGE_EXTRA_FETCH) * num_dma_buffers;
 	c->buffer = malloc(c->buffer_size);
 	if (c->buffer == NULL) {
 		chameleon_capture_stop(c);
 		return -1;
 	}
 
+	//printf("c->buffer is %p\n", c->buffer);
 	c->frames = calloc(num_dma_buffers, sizeof(*c->frames));
 	if (c->frames == NULL) {
 		chameleon_capture_stop(c);
 		return -1;
 	}
+	//printf("c->frames is %p\n", c->frames);
 
 	for (i = 0; i < num_dma_buffers; i++) {
 		init_frame(c, i, &c->proto);

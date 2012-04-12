@@ -231,6 +231,23 @@ static void camera_setup(struct chameleon_camera *camera, int depth)
 
 
 static struct chameleon *d = NULL;
+static unsigned int d_count = 0;
+
+void close_camera(struct chameleon_camera* camera)
+{
+  if (!camera || !d_count)
+    return;
+
+  chameleon_capture_stop(camera);
+  chameleon_camera_free(camera);
+
+  if (!--d_count) {
+	if (d) {
+	  chameleon_free(d);
+	  d = NULL;
+	}
+  }
+}
 
 struct chameleon_camera *open_camera(bool colour_chameleon, int depth)
 {
@@ -245,8 +262,14 @@ struct chameleon_camera *open_camera(bool colour_chameleon, int depth)
 
   camera = chameleon_camera_new(d, colour_chameleon);
   if (!camera) {
+    if (!d_count) {
+      chameleon_free(d);
+      d = NULL;
+    }
     return NULL;
   }
+
+  d_count++;
 
   printf("Using camera with GUID %"PRIx64"\n", camera->guid);
 
@@ -254,7 +277,6 @@ struct chameleon_camera *open_camera(bool colour_chameleon, int depth)
 
   return camera;
 }
-
 
 int trigger_capture(struct chameleon_camera *c, float shutter)
 {

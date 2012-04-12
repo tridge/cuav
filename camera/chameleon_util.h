@@ -10,5 +10,6 @@ int trigger_capture(struct chameleon_camera* c, float shutter);
 
 struct chameleon_camera *open_camera(bool colour_chameleon, int depth);
 
+void close_camera(struct chameleon_camera *);
 
 #endif
