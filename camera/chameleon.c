@@ -171,6 +171,8 @@ struct usb_frame {
     struct chameleon_camera * pcam;
     unsigned received_bytes;
     usb_frame_status status;
+    bool closing;
+    bool active;
 };
 
 #define DC1394_ERR_RTN(err,message)                       \
@@ -373,6 +375,9 @@ void chameleon_camera_free(struct chameleon_camera *c)
 {
 	libusb_release_interface(c->h, 0);
 	libusb_close(c->h);
+	if (c->frames) {
+	  free(c->frames);
+	}
 	memset(c, 0, sizeof(*c));
 	free(c);
 }
@@ -1001,11 +1006,18 @@ int chameleon_capture_stop(struct chameleon_camera *c)
 
     if (c->frames) {
         for (i = 0; i < c->num_frames; i++) {
-            //printf("libusb_free_transfer()\n");
-            libusb_cancel_transfer(c->frames[i].transfer);
-            libusb_free_transfer(c->frames[i].transfer);
+		c->frames[i].closing = true;
+		libusb_cancel_transfer(c->frames[i].transfer);
+	}
+        for (i = 0; i < c->num_frames; i++) {
+		if (c->frames[i].active) {
+			chameleon_drain_queue(c, 500);
+		}
+	}
+        for (i = 0; i < c->num_frames; i++) {
+		libusb_free_transfer(c->frames[i].transfer);
+		c->frames[i].transfer = NULL;
         }
-        //printf("free(c->frames, %p)\n", c->frames);
         free(c->frames);
         c->frames = NULL;
     }
@@ -1029,7 +1041,9 @@ init_frame(struct chameleon_camera *craw, int index, struct chameleon_frame *pro
     memcpy (&f->frame, proto, sizeof f->frame);
     f->frame.image = craw->buffer + index * proto->total_bytes;
     f->frame.id = index + craw->base_id;
-    f->transfer = libusb_alloc_transfer (0);
+    if (f->transfer == NULL) {
+      f->transfer = libusb_alloc_transfer (0);
+    }
     f->received_bytes = 0;
     f->pcam = craw;
     f->status = BUFFER_EMPTY;
@@ -1044,13 +1058,20 @@ callback(struct libusb_transfer * transfer)
     struct usb_frame * f = transfer->user_data;
     struct chameleon_camera * craw = f->pcam;
 
+    if (f->closing) {
+	    f->active = false;
+	    return;
+    }
+    
     if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
 	    printf("usb: Bulk transfer %d cancelled\n", f->frame.id);
 	    if (libusb_submit_transfer(f->transfer) == 0) {
 		    printf("cancel resubmit OK for cam=%p\n", craw);
+		    f->active = true;
 	    } else {
 		    printf("resubmit failed\n");
 		    f->status = BUFFER_ERROR;
+		    f->active = false;
 	    }
 	    return;
     }
@@ -1060,9 +1081,11 @@ callback(struct libusb_transfer * transfer)
 		   f->frame.id, transfer->status, craw);
 	    if (libusb_submit_transfer(f->transfer) == 0) {
 		    printf("resubmit OK\n");
+		    f->active = true;
 	    } else {
 		    printf("resubmit failed\n");
 		    f->status = BUFFER_ERROR;
+		    f->active = false;
 	    }
 	    return;	    
     }
@@ -1093,11 +1116,13 @@ callback(struct libusb_transfer * transfer)
     if (libusb_submit_transfer(f->transfer) == 0) {
 	    //printf("Resubmit for %u more bytes at %u OK\n",
 	    //f->transfer->length, f->received_bytes);
+            f->active = true;
 	    return;
     }
     printf("Failed to re-submit transfer buffer for remaining %u bytes\n",
 	   (unsigned)(f->frame.total_bytes - f->received_bytes));
     f->status = BUFFER_CORRUPT;
+    f->active = false;
 }
 
 
@@ -1127,14 +1152,16 @@ int chameleon_capture_setup(struct chameleon_camera *c, uint32_t num_dma_buffers
 	c->frames_ready = 0;
 	c->queue_broken = 0;
 	c->buffer_size = (c->proto.total_bytes + IMAGE_EXTRA_FETCH) * num_dma_buffers;
-	c->buffer = malloc(c->buffer_size);
+	c->buffer = calloc(1, c->buffer_size);
 	if (c->buffer == NULL) {
 		chameleon_capture_stop(c);
 		return -1;
 	}
 
 	//printf("c->buffer is %p\n", c->buffer);
-	c->frames = calloc(num_dma_buffers, sizeof(*c->frames));
+	if (c->frames == NULL) {
+	  c->frames = calloc(num_dma_buffers, sizeof(*c->frames));
+	}
 	if (c->frames == NULL) {
 		chameleon_capture_stop(c);
 		return -1;
@@ -1153,13 +1180,15 @@ int chameleon_capture_setup(struct chameleon_camera *c, uint32_t num_dma_buffers
 					  callback, f, 0);
 	}
 	for (i = 0; i < c->num_frames; i++) {
-		printf("Submitting frame %p transfer=%p id=%d for cam=%p\n", 
-		       &c->frames[i], c->frames[i].transfer, c->frames[i].frame.id, c);
+		printf("Submitting frame i=%d %p transfer=%p id=%d for cam=%p\n", 
+		       i, &c->frames[i], c->frames[i].transfer, c->frames[i].frame.id, c);
 		if (libusb_submit_transfer (c->frames[i].transfer) != 0) {
 			printf("Failed libusb_submit_transfer\n");
+			c->frames[i].active = false;
 			chameleon_capture_stop(c);
 			return -1;
 		}
+		c->frames[i].active = true;
 	}
 
 	// if auto iso is requested, start ISO
@@ -1447,8 +1476,10 @@ chameleon_capture_dequeue(struct chameleon_camera * craw,
         return DC1394_FAILURE;
 
     if (f->status == BUFFER_EMPTY) {
-        dc1394_log_error("usb: Expected filled buffer, got status EMPTY");
-        return DC1394_FAILURE;
+	    if (f->closing == false) {
+		    dc1394_log_error("usb: Expected filled buffer, got status EMPTY");
+	    }
+	    return DC1394_FAILURE;
     }
     craw->frames_ready--;
     f->frame.frames_behind = craw->frames_ready;
@@ -1486,11 +1517,17 @@ chameleon_capture_enqueue(struct chameleon_camera * craw,
     f->transfer->buffer = f->frame.image;
     f->transfer->length = f->frame.total_bytes;
 
+    if (f->closing) {
+	    return DC1394_SUCCESS;	    
+    }
+
     if (libusb_submit_transfer(f->transfer) != LIBUSB_SUCCESS) {
 	    printf("Failed to enqueue packet\n");
 	    craw->queue_broken = 1;
+	    f->active = false;
 	    return DC1394_FAILURE;
     }
+    f->active = true;
 
     return DC1394_SUCCESS;
 }
