@@ -1,6 +1,6 @@
 
-#include <python2.6/Python.h>
-#include <python2.6/numpy/arrayobject.h>
+#include <Python.h>
+#include <numpy/arrayobject.h>
 #include "chameleon.h"
 #include "chameleon_util.h"
 
