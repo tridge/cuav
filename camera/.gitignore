@@ -1,2 +1,13 @@
+/calibrate_gain
+/calibrate_shutter
 /capture_images
 /capture_images.o
+/capture_v4l
+/chameleon.so
+/chameleon_test
+/chameleon_test.c
+/chameleon_test2
+/chameleon_twin
+/chameleon_twin16
+/chameleon_twin8
+/two_cameras
