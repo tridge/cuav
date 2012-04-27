@@ -638,8 +638,8 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	for (i=0; i<argc-1; i++) {
-		const char *filename = argv[i+1];
+	for (i=0; i<argc; i++) {
+		const char *filename = argv[i];
 
 		process_file(filename);
 	}
