@@ -271,7 +271,7 @@ struct chameleon_camera *open_camera(bool colour_chameleon, int depth)
 
   d_count++;
 
-  printf("Using camera with GUID %"PRIx64"\n", camera->guid);
+  //printf("Using camera with GUID %"PRIx64"\n", camera->guid);
 
   camera_setup(camera, depth);
 
@@ -376,8 +376,8 @@ int capture_wait(struct chameleon_camera *c, float *shutter,
   /* we got a good frame, reduce the bad frame count. */
   c->bad_frames /= 2;
 
-  printf("shutter=%f average=%.1f saturated=%u hsaturated=%u\n",
-         *shutter, average, num_saturated, num_half_saturated);
+  //printf("shutter=%f average=%.1f saturated=%u hsaturated=%u\n",
+  //         *shutter, average, num_saturated, num_half_saturated);
 
   adjust_shutter(shutter, average, num_saturated, num_half_saturated, frame->data_depth);
 
