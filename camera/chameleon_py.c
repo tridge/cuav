@@ -4,24 +4,7 @@
 #include "chameleon.h"
 #include "chameleon_util.h"
 
-static PyObject *
-chameleon_open(PyObject *self, PyObject *args);
-static PyObject *
-chameleon_close(PyObject *self, PyObject *args);
-static PyObject *
-chameleon_trigger(PyObject *self, PyObject *args);
-static PyObject *
-chameleon_capture(PyObject *self, PyObject *args);
-
 static PyObject *ChameleonError;
-
-static PyMethodDef ChameleonMethods[] = {
-  {"open", chameleon_open, METH_VARARGS, "Open a lizard like device. Returns handle"},
-  {"close", chameleon_close, METH_VARARGS, "Close device."},
-  {"trigger", chameleon_trigger, METH_VARARGS, "Trigger capture of an image"},
-  {"capture", chameleon_capture, METH_VARARGS, "Capture an image"},
-  {NULL, NULL, 0, NULL}        /* Terminus */
-};
 
 #define NUM_CAMERA_HANDLES 2
 
@@ -32,20 +15,6 @@ static struct chameleon_camera* cameras[NUM_CAMERA_HANDLES] = {
 float shutters[NUM_CAMERA_HANDLES] = {
   0.0, 0.0
 };
-
-PyMODINIT_FUNC
-initchameleon(void)
-{
-  PyObject *m;
-
-  m = Py_InitModule("chameleon", ChameleonMethods);
-  if (m == NULL)
-    return;
-
-  ChameleonError = PyErr_NewException("chameleon.error", NULL, NULL);
-  Py_INCREF(ChameleonError);
-  PyModule_AddObject(m, "error", ChameleonError);
-}
 
 static PyObject *
 chameleon_open(PyObject *self, PyObject *args)
@@ -184,4 +153,42 @@ chameleon_close(PyObject *self, PyObject *args)
   return PyLong_FromLong(sts);
 }
 
+
+static PyObject *
+chameleon_guid(PyObject *self, PyObject *args)
+{
+  int handle;
+  if (!PyArg_ParseTuple(args, "i", &handle))
+    return NULL;
+
+  if (handle >= 0 && handle < NUM_CAMERA_HANDLES && cameras[handle]) {
+    return PyLong_FromLong(cameras[handle]->guid);
+  }
+  PyErr_SetString(ChameleonError, "invalid handle");
+  return NULL;
+}
+
+
+static PyMethodDef ChameleonMethods[] = {
+  {"open", chameleon_open, METH_VARARGS, "Open a lizard like device. Returns handle"},
+  {"close", chameleon_close, METH_VARARGS, "Close device."},
+  {"trigger", chameleon_trigger, METH_VARARGS, "Trigger capture of an image"},
+  {"capture", chameleon_capture, METH_VARARGS, "Capture an image"},
+  {"guid", chameleon_guid, METH_VARARGS, "camera GUID"},
+  {NULL, NULL, 0, NULL}        /* Terminus */
+};
+
+PyMODINIT_FUNC
+initchameleon(void)
+{
+  PyObject *m;
+
+  m = Py_InitModule("chameleon", ChameleonMethods);
+  if (m == NULL)
+    return;
+
+  ChameleonError = PyErr_NewException("chameleon.error", NULL, NULL);
+  Py_INCREF(ChameleonError);
+  PyModule_AddObject(m, "error", ChameleonError);
+}
 
