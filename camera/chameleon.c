@@ -1180,8 +1180,8 @@ int chameleon_capture_setup(struct chameleon_camera *c, uint32_t num_dma_buffers
 					  callback, f, 0);
 	}
 	for (i = 0; i < c->num_frames; i++) {
-		printf("Submitting frame i=%d %p transfer=%p id=%d for cam=%p\n", 
-		       i, &c->frames[i], c->frames[i].transfer, c->frames[i].frame.id, c);
+	  //printf("Submitting frame i=%d %p transfer=%p id=%d for cam=%p\n", 
+	  //i, &c->frames[i], c->frames[i].transfer, c->frames[i].frame.id, c);
 		if (libusb_submit_transfer (c->frames[i].transfer) != 0) {
 			printf("Failed libusb_submit_transfer\n");
 			c->frames[i].active = false;
@@ -1649,7 +1649,7 @@ int chameleon_wait_image(struct chameleon_camera *c, unsigned timeout)
 	    printf("timeout waiting for image on cam=%p\n", c);
     }
     if (f->status != BUFFER_FILLED) {
-	    printf("WAIT_IMAGE -> status %u timeout=%u cam=%p\n", f->status, timeout, c);
+      printf("WAIT_IMAGE -> status %u timeout=%u cam=%p\n", f->status, timeout, c);
     }
     return 0;
 }
