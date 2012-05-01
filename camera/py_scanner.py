@@ -32,7 +32,12 @@ while True:
     print('failed to capture', msg)
     continue
   scanner.debayer(im, im_640)
-  scanner.scan(im_640, im_marked)
+  regions = scanner.scan(im_640, im_marked)
+  if len(regions) > 0:
+    print("Found %u regions" % len(regions))
+    for r in regions:
+      (minx, miny, maxx, maxy) = r
+      print(minx, miny, maxx, maxy)
 
   mat = cv.fromarray(im_marked)
   img = cv.GetImage(mat)

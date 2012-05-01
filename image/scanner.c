@@ -560,8 +560,7 @@ scanner_scan(PyObject *self, PyObject *args)
 
 	struct rgb_image8 *himage, *jimage;
 	struct regions *regions;
-	unsigned num_found;
-
+	
 	ALLOCATE(himage);
 	ALLOCATE(jimage);
 	ALLOCATE(regions);
@@ -571,17 +570,26 @@ scanner_scan(PyObject *self, PyObject *args)
 	assign_regions(himage, regions);
 	prune_regions(regions);
 	*out = *in;
-	num_found = regions->num_regions;
 	if (regions->num_regions > 0) {
 		mark_regions(out, regions);
 	}
 	Py_END_ALLOW_THREADS;
 
+	PyObject *list = PyList_New(regions->num_regions);
+	for (unsigned i=0; i<regions->num_regions; i++) {
+		PyObject *t = Py_BuildValue("(iiii)", 
+					    regions->bounds[i].minx,
+					    regions->bounds[i].miny,
+					    regions->bounds[i].maxx,
+					    regions->bounds[i].maxy);
+		PyList_SET_ITEM(list, i, t);
+	}
+
 	free(himage);
 	free(jimage);
 	free(regions);
 
-	return PyLong_FromLong(num_found);
+	return list;
 }
 
 
