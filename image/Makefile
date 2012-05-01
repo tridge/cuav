@@ -1,16 +1,17 @@
 CC=gcc
 CXX=g++
 AR=ar
+INCLUDES=$(shell python-config --includes)
 #CC=arm-linux-gnueabi-gcc
 #CXX=arm-linux-gnueabi-g++
 #AR=arm-linux-gnueabi-ar
 
 CXXFLAGS=-Wall -g -O2
-CFLAGS=-Wall -g -std=gnu99 -O2
+CFLAGS=-Wall -g -std=gnu99 -fPIC -O2 $(INCLUDES)
 
 objects = pgm_io.o debayer.o histogram.o image_utils.o BlobExtractor.o
 
-all: image.lib blobtest histtest hgram_scanner hgram_scanner8
+all: image.lib blobtest histtest hgram_scanner hgram_scanner8 scanner.so
 
 image.lib: $(objects)
 	$(AR) -r image.lib $(objects)
@@ -27,8 +28,11 @@ hgram_scanner: hgram_scanner.o
 hgram_scanner8: hgram_scanner8.o
 	$(CC) -o hgram_scanner8 hgram_scanner8.o
 
+scanner.so: scanner.o
+	$(CC) -shared -o scanner.so scanner.o $(LIBS) $(shell python-config --libs)
+
 clean:
-	rm -f *.o *~ *.bak hgram_scanner hgram_scanner8 blobtest histtest image.lib
+	rm -f *.o *.so *~ *.bak hgram_scanner hgram_scanner8 blobtest histtest image.lib
 
 depend:
 	makedepend -Y. *.cc *.c 2> /dev/null
