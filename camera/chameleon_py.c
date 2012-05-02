@@ -183,7 +183,7 @@ static int _save_pgm(const char *filename, unsigned w, unsigned h, unsigned stri
 		return -1;
 	}
 	dprintf(fd,"P5\n%u %u\n%u\n", 
-		w, h, stride==1?255:65535);
+		w, h, stride==w?255:65535);
 	if (write(fd, data, h*stride) != h*stride) {
 		close(fd);
 		return -1;

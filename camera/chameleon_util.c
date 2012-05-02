@@ -322,7 +322,7 @@ int capture_wait(struct chameleon_camera *c, float *shutter,
     c->bad_frames++;
     return -1;
   }
-  if (frame->total_bytes != IMAGE_WIDTH*IMAGE_HEIGHT) {
+  if (frame->total_bytes != IMAGE_WIDTH*IMAGE_HEIGHT*(frame->data_depth==8?1:2)) {
     memset(frame->image+frame->total_bytes-8, 0xff, 8);
     CHECK(chameleon_capture_enqueue(c, frame));
     c->bad_frames++;
