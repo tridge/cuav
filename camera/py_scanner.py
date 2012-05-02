@@ -41,7 +41,13 @@ while True:
 
   mat = cv.fromarray(im_marked)
   img = cv.GetImage(mat)
-  cv.SaveImage('tmp/i%u.jpg' % i, img)
+
+  # compress using neon-accelerated compressor, and write to a file
+  jpeg = scanner.jpeg_compress(im_marked)
+  jfile = open('tmp/i%u.jpg' % i, "w")
+  jfile.write(jpeg)
+  jfile.close()
+
   cv.ShowImage('Viewer', img)
   i += 1
 
