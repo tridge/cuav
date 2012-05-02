@@ -1,7 +1,8 @@
 CC=gcc
 CXX=g++
 AR=ar
-INCLUDES=$(shell python-config --includes)
+INCLUDES=$(shell python-config --includes) -I/opt/libjpeg-turbo/include
+LIBJPEG=-L/opt/libjpeg-turbo/lib -ljpeg
 #CC=arm-linux-gnueabi-gcc
 #CXX=arm-linux-gnueabi-g++
 #AR=arm-linux-gnueabi-ar
@@ -29,7 +30,7 @@ hgram_scanner8: hgram_scanner8.o
 	$(CC) -o hgram_scanner8 hgram_scanner8.o
 
 scanner.so: scanner.o
-	$(CC) -shared -o scanner.so scanner.o $(LIBS) $(shell python-config --libs)
+	$(CC) -shared -o scanner.so scanner.o $(LIBS) $(shell python-config --libs) $(LIBJPEG)
 
 clean:
 	rm -f *.o *.so *~ *.bak hgram_scanner hgram_scanner8 blobtest histtest image.lib

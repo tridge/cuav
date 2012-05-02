@@ -17,6 +17,14 @@
 #include <fcntl.h>
 #include <numpy/arrayobject.h>
 
+/*
+  this uses libjpeg-turbo from http://libjpeg-turbo.virtualgl.org/
+  You need to build it with
+     ./configure --prefix=/opt/libjpeg-turbo --with-jpeg8
+ */
+#define JPEG_LIB_VERSION 80
+#include <jpeglib.h>
+
 #ifndef Py_RETURN_NONE
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
@@ -40,10 +48,17 @@ struct PACKED rgb {
 };
 
 /*
-  full size greyscale 16 bit image
+  full size greyscale 8 bit image
  */
 struct grey_image8 {
 	uint8_t data[HEIGHT][WIDTH];
+};
+
+/*
+  full size greyscale 16 bit image
+ */
+struct grey_image16 {
+	uint16_t data[HEIGHT][WIDTH];
 };
 
 
@@ -64,7 +79,10 @@ static bool colour_save_pnm(const char *filename, const struct rgb_image8 *image
 	fd = open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666);
 	if (fd == -1) return false;
 	dprintf(fd, "P6\n640 480\n255\n");
-	write(fd, &image->data[0][0], sizeof(image->data));
+	if (write(fd, &image->data[0][0], sizeof(image->data)) != sizeof(image->data)) {
+		close(fd);
+		return false;
+	}
 	close(fd);
 	return true;
 }
@@ -88,6 +106,34 @@ static void colour_convert_8bit(const struct grey_image8 *in, struct rgb_image8 
 					     (uint16_t)in->data[y*2+1][x*2+1]) / 2;
 			out->data[y][x].b = in->data[y*2+0][x*2+1];
 			out->data[y][x].r = in->data[y*2+1][x*2+0];
+		}
+	}
+
+	if (save_intermediate) {
+		colour_save_pnm("test.pnm", out);
+	}
+}
+
+
+/*
+  roughly convert a 16 bit colour chameleon image to 8 bit colour at half
+  the resolution. No smoothing is done
+ */
+static void colour_convert_16_8bit(const struct grey_image16 *in, struct rgb_image8 *out)
+{
+	unsigned x, y;
+	/*
+	  layout in the input image is in blocks of 4 values. The top
+	  left corner of the image looks like this
+             G B
+	     R G
+	 */
+	for (y=0; y<HEIGHT/2; y++) {
+		for (x=0; x<WIDTH/2; x++) {
+			out->data[y][x].g = ((in->data[y*2+0][x*2+0] +
+					      (uint32_t)in->data[y*2+1][x*2+1])) >> 9;
+			out->data[y][x].b = in->data[y*2+0][x*2+1] >> 8;
+			out->data[y][x].r = in->data[y*2+1][x*2+0] >> 8;
 		}
 	}
 
@@ -530,6 +576,41 @@ scanner_debayer(PyObject *self, PyObject *args)
 	Py_RETURN_NONE;
 }
 
+
+/*
+  debayer a 1280x960 16 bit image to 640x480 24 bit
+ */
+static PyObject *
+scanner_debayer_16_8(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+
+	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+		return NULL;
+
+	if (PyArray_DIM(img_in, 1) != WIDTH ||
+	    PyArray_DIM(img_in, 0) != HEIGHT ||
+	    PyArray_STRIDE(img_in, 0) != WIDTH*2) {
+		PyErr_SetString(ScannerError, "input must be 1280x960 16 bit");
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 1) != WIDTH/2 ||
+	    PyArray_DIM(img_out, 0) != HEIGHT/2 ||
+	    PyArray_STRIDE(img_out, 0) != 3*(WIDTH/2)) {
+		PyErr_SetString(ScannerError, "output must be 640x480 24 bit");
+		return NULL;
+	}
+
+	const struct grey_image16 *in = PyArray_DATA(img_in);
+	struct rgb_image8 *out = PyArray_DATA(img_out);
+
+	Py_BEGIN_ALLOW_THREADS;
+	colour_convert_16_8bit(in, out);
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
 /*
   scan an image for regions of interest and mark them. Return the
   number of regions marked
@@ -593,10 +674,65 @@ scanner_scan(PyObject *self, PyObject *args)
 }
 
 
+/*
+  compress a 640x480 24 bit RGB image to a jpeg, returning as a python string
+ */
+static PyObject *
+scanner_jpeg_compress(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in;
+
+	if (!PyArg_ParseTuple(args, "O", &img_in))
+		return NULL;
+
+	if (PyArray_DIM(img_in, 1) != WIDTH/2 ||
+	    PyArray_DIM(img_in, 0) != HEIGHT/2 ||
+	    PyArray_STRIDE(img_in, 0) != 3*(WIDTH/2)) {
+		PyErr_SetString(ScannerError, "input must 640x480 24 bit");
+		return NULL;
+	}
+	const struct rgb_image8 *in = PyArray_DATA(img_in);
+	struct jpeg_compress_struct cinfo = {0};
+	struct jpeg_error_mgr jerr;
+	JSAMPROW row_ptr[1];
+	unsigned char *outptr = NULL;
+	long unsigned outlen = 0;
+
+	Py_BEGIN_ALLOW_THREADS;
+	cinfo.err = jpeg_std_error(&jerr);
+	jpeg_create_compress(&cinfo);
+	jpeg_mem_dest(&cinfo, &outptr, &outlen);
+
+	cinfo.image_width = 640;
+	cinfo.image_height = 480;
+	cinfo.input_components = 3;
+	cinfo.in_color_space = JCS_RGB;
+
+	jpeg_set_defaults(&cinfo);
+	jpeg_start_compress(&cinfo, TRUE);
+
+	while (cinfo.next_scanline < cinfo.image_height) {
+		row_ptr[0] = &in->data[cinfo.next_scanline];
+		jpeg_write_scanlines(&cinfo, row_ptr, 1);
+	}
+	Py_END_ALLOW_THREADS;
+
+	jpeg_finish_compress(&cinfo);
+	jpeg_destroy_compress(&cinfo);
+
+	PyObject *ret = PyString_FromStringAndSize((const char *)outptr, outlen);
+	free(outptr);
+
+	return ret;
+}
+
+
 
 static PyMethodDef ScannerMethods[] = {
-	{"debayer", scanner_debayer, METH_VARARGS, "simple debayer of 1280x960 image to 640x480"},
+	{"debayer", scanner_debayer, METH_VARARGS, "simple debayer of 1280x960 8 bit image to 640x480"},
+	{"debayer_16_8", scanner_debayer_16_8, METH_VARARGS, "simple debayer of 1280x960 16 bit image to 640x480 24 bit"},
 	{"scan", scanner_scan, METH_VARARGS, "histogram scan a 640x480 colour image"},
+	{"jpeg_compress", scanner_jpeg_compress, METH_VARARGS, "compress a 640x480 colour image to a jpeg image as a python string"},
 	{NULL, NULL, 0, NULL}
 };
 
