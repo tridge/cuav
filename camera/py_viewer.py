@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
-from numpy import array,zeros
-import chameleon, cv, time
+import chameleon, cv, time, sys, os, numpy
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
+import scanner
+
 
 colour = 0
 depth = 8
@@ -13,7 +15,7 @@ except chameleon.error:
   colour = 0
 
 print("Found camera: colour=%u GUID=%x" % (colour, chameleon.guid(h)))
-im = zeros((960,1280),dtype='uint8')
+im = numpy.zeros((960,1280),dtype='uint8')
 
 cv.NamedWindow('Viewer')
 
@@ -27,19 +29,16 @@ while True:
   except chameleon.error, msg:
     print('failed to capture', msg)
     continue
-  mat = cv.fromarray(im)
-  img = cv.GetImage(mat)
   if colour == 1:
-    color_img = cv.CreateImage((1280,960), 8, 3)
-#    cv.CvtColor(img, color_img, cv.CV_BayerGR2BGR)
-#    img_640 = cv.CreateImage((640,480), 8, 3)
-#    cv.Resize(color_img, img_640)
-#   cv.SaveImage('tmp/i%u_full.jpg' % i, color_img)
+    img_colour = numpy.zeros((480,640,3),dtype='uint8')
+    scanner.debayer(im, img_colour)
+    img_640 = cv.GetImage(cv.fromarray(img_colour))
   else:
     img_640 = cv.CreateImage((640,480), 8, 1)
-#    cv.Resize(img, img_640)
-#  cv.ShowImage('Viewer', img_640)
-#  cv.SaveImage('tmp/i%u.jpg' % i, img_640)
+    mat = cv.fromarray(im)
+    img = cv.GetImage(mat)
+    cv.Resize(img, img_640)
+  cv.ShowImage('Viewer', img_640)
   i += 1
 
   if i % 10 == 0:
