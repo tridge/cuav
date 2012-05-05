@@ -7,8 +7,8 @@ LIBJPEG=-L/opt/libjpeg-turbo/lib -ljpeg
 #CXX=arm-linux-gnueabi-g++
 #AR=arm-linux-gnueabi-ar
 
-CXXFLAGS=-Wall -g -O2
-CFLAGS=-Wall -g -std=gnu99 -fPIC -O2 $(INCLUDES)
+CXXFLAGS=-Wall -g -O3
+CFLAGS=-Wall -g -std=gnu99 -fPIC -O3 $(INCLUDES)
 
 objects = pgm_io.o debayer.o histogram.o image_utils.o BlobExtractor.o
 
