@@ -675,7 +675,7 @@ scanner_scan(PyObject *self, PyObject *args)
 
 
 /*
-  compress a 640x480 24 bit RGB image to a jpeg, returning as a python string
+  compress a 24 bit RGB image to a jpeg, returning as a python string
  */
 static PyObject *
 scanner_jpeg_compress(PyObject *self, PyObject *args)
@@ -685,13 +685,13 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "O", &img_in))
 		return NULL;
 
-	if (PyArray_DIM(img_in, 1) != WIDTH/2 ||
-	    PyArray_DIM(img_in, 0) != HEIGHT/2 ||
-	    PyArray_STRIDE(img_in, 0) != 3*(WIDTH/2)) {
-		PyErr_SetString(ScannerError, "input must 640x480 24 bit");
+	if (PyArray_STRIDE(img_in, 0) != 3*PyArray_DIM(img_in, 1)) {
+		printf("stride=%u dim0=%u dim1=%u\n",
+		       PyArray_STRIDE(img_in, 0), PyArray_DIM(img_in, 0), PyArray_DIM(img_in, 1));
+		PyErr_SetString(ScannerError, "input must 24 bit BGR");
 		return NULL;
 	}
-	const struct rgb_image8 *in = PyArray_DATA(img_in);
+	const struct PACKED rgb *rgb_in = PyArray_DATA(img_in);
 	struct jpeg_compress_struct cinfo = {0};
 	struct jpeg_error_mgr jerr;
 	JSAMPROW row_ptr[1];
@@ -703,8 +703,8 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 	jpeg_create_compress(&cinfo);
 	jpeg_mem_dest(&cinfo, &outptr, &outlen);
 
-	cinfo.image_width = 640;
-	cinfo.image_height = 480;
+	cinfo.image_width = PyArray_DIM(img_in, 1);
+	cinfo.image_height = PyArray_DIM(img_in, 0);
 	cinfo.input_components = 3;
 	cinfo.in_color_space = JCS_EXT_BGR;
 
@@ -712,13 +712,13 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 	jpeg_start_compress(&cinfo, TRUE);
 
 	while (cinfo.next_scanline < cinfo.image_height) {
-		row_ptr[0] = &in->data[cinfo.next_scanline];
+		row_ptr[0] = &rgb_in[cinfo.next_scanline*cinfo.image_width];
 		jpeg_write_scanlines(&cinfo, row_ptr, 1);
 	}
-	Py_END_ALLOW_THREADS;
 
 	jpeg_finish_compress(&cinfo);
 	jpeg_destroy_compress(&cinfo);
+	Py_END_ALLOW_THREADS;
 
 	PyObject *ret = PyString_FromStringAndSize((const char *)outptr, outlen);
 	free(outptr);
