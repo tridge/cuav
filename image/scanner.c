@@ -612,48 +612,41 @@ scanner_debayer_16_8(PyObject *self, PyObject *args)
 }
 
 /*
-  scan an image for regions of interest and mark them. Return the
-  number of regions marked
+  scan an image for regions of interest and return the
+  markup as a set of tuples
  */
 static PyObject *
 scanner_scan(PyObject *self, PyObject *args)
 {
-	PyArrayObject *img_in, *img_out;
+	PyArrayObject *img_in;
 
-	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+	if (!PyArg_ParseTuple(args, "O", &img_in))
 		return NULL;
 
 	if (PyArray_DIM(img_in, 1) != WIDTH/2 ||
 	    PyArray_DIM(img_in, 0) != HEIGHT/2 ||
 	    PyArray_STRIDE(img_in, 0) != 3*(WIDTH/2)) {
+		printf("stride=%u dim0=%u dim1=%u\n",
+		       PyArray_STRIDE(img_in, 0), PyArray_DIM(img_in, 0), PyArray_DIM(img_in, 1));
 		PyErr_SetString(ScannerError, "input must 640x480 24 bit");		
-		return NULL;
-	}
-	if (PyArray_DIM(img_out, 1) != WIDTH/2 ||
-	    PyArray_DIM(img_out, 0) != HEIGHT/2 ||
-	    PyArray_STRIDE(img_out, 0) != 3*(WIDTH/2)) {
-		PyErr_SetString(ScannerError, "output must be 640x480 24 bit");		
 		return NULL;
 	}
 	
 	const struct rgb_image8 *in = PyArray_DATA(img_in);
-	struct rgb_image8 *out = PyArray_DATA(img_out);
 
 	struct rgb_image8 *himage, *jimage;
 	struct regions *regions;
 	
-	ALLOCATE(himage);
-	ALLOCATE(jimage);
 	ALLOCATE(regions);
 
 	Py_BEGIN_ALLOW_THREADS;
+	ALLOCATE(himage);
+	ALLOCATE(jimage);
 	colour_histogram(in, himage);
 	assign_regions(himage, regions);
 	prune_regions(regions);
-	*out = *in;
-	if (regions->num_regions > 0) {
-		mark_regions(out, regions);
-	}
+	free(himage);
+	free(jimage);
 	Py_END_ALLOW_THREADS;
 
 	PyObject *list = PyList_New(regions->num_regions);
@@ -666,8 +659,6 @@ scanner_scan(PyObject *self, PyObject *args)
 		PyList_SET_ITEM(list, i, t);
 	}
 
-	free(himage);
-	free(jimage);
 	free(regions);
 
 	return list;
