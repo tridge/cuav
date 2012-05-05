@@ -118,7 +118,6 @@ chameleon_capture(PyObject *self, PyObject *args)
 	}
 
 	void* buf = PyArray_DATA(array);
-	struct timeval tv;
 	int status;
 
 	Py_BEGIN_ALLOW_THREADS;
@@ -129,8 +128,7 @@ chameleon_capture(PyObject *self, PyObject *args)
 		PyErr_SetString(ChameleonError, "Failed to capture");
 		return NULL;
 	}
-	int64_t time = (int64_t)tv.tv_sec*1000000LL + (int64_t)tv.tv_usec;
-	return Py_BuildValue("fL", shutters[handle], time);
+	return Py_BuildValue("f", shutters[handle]);
 }
 
 
