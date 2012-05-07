@@ -29,9 +29,12 @@ chameleon_open(PyObject *self, PyObject *args)
 	int colour = 0;
 	int depth = 0;
 	int sts = -1;
-
-	if (!PyArg_ParseTuple(args, "ii", &colour, &depth))
+	PyObject *colour_obj;
+	
+	if (!PyArg_ParseTuple(args, "Oi", &colour_obj, &depth))
 		return NULL;
+
+	colour = PyObject_IsTrue(colour_obj);
 
 	int i = 0;
 	for (i = 0; i < NUM_CAMERA_HANDLES; ++i) {
@@ -63,8 +66,13 @@ chameleon_trigger(PyObject *self, PyObject *args)
 	int handle = -1;
 	int status;
 	struct chameleon_camera* cam = NULL;
-	if (!PyArg_ParseTuple(args, "i", &handle))
+	PyObject *continuous_obj;
+	bool continuous;
+
+	if (!PyArg_ParseTuple(args, "iO", &handle, &continuous_obj))
 		return NULL;
+
+	continuous = PyObject_IsTrue(continuous_obj);
 
 	if (handle >= 0 && handle < NUM_CAMERA_HANDLES && cameras[handle]) {
 		cam = cameras[handle];
@@ -74,7 +82,7 @@ chameleon_trigger(PyObject *self, PyObject *args)
 	}
 
 	Py_BEGIN_ALLOW_THREADS;
-	status = trigger_capture(cam, shutters[handle]);
+	status = trigger_capture(cam, shutters[handle], continuous);
 	Py_END_ALLOW_THREADS;
 
 	if (status < 0) {
@@ -119,16 +127,22 @@ chameleon_capture(PyObject *self, PyObject *args)
 
 	void* buf = PyArray_DATA(array);
 	int status;
+	float frame_time=0;
+	uint32_t frame_counter=0;
 
 	Py_BEGIN_ALLOW_THREADS;
-	status = capture_wait(cam, &shutters[handle], buf, stride, stride*h);
+	status = capture_wait(cam, &shutters[handle], buf, stride, stride*h, 
+			      &frame_time, &frame_counter);
 	Py_END_ALLOW_THREADS;
 	
 	if (status < 0) {
 		PyErr_SetString(ChameleonError, "Failed to capture");
 		return NULL;
 	}
-	return Py_BuildValue("f", shutters[handle]);
+	return Py_BuildValue("flf", 
+			     frame_time, 
+			     (long)frame_counter,
+			     shutters[handle]);
 }
 
 
