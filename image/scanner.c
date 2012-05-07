@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <arpa/inet.h>
 #include <numpy/arrayobject.h>
 
 /*
@@ -130,10 +131,10 @@ static void colour_convert_16_8bit(const struct grey_image16 *in, struct rgb_ima
 	 */
 	for (y=0; y<HEIGHT/2; y++) {
 		for (x=0; x<WIDTH/2; x++) {
-			out->data[y][x].g = ((in->data[y*2+0][x*2+0] +
-					      (uint32_t)in->data[y*2+1][x*2+1])) >> 9;
-			out->data[y][x].b = in->data[y*2+0][x*2+1] >> 8;
-			out->data[y][x].r = in->data[y*2+1][x*2+0] >> 8;
+			out->data[y][x].g = (ntohs(in->data[y*2+0][x*2+0]) + 
+					     (uint32_t)ntohs(in->data[y*2+1][x*2+1])) >> 9;
+			out->data[y][x].b = ntohs(in->data[y*2+0][x*2+1]) >> 8;
+			out->data[y][x].r = ntohs(in->data[y*2+1][x*2+0]) >> 8;
 		}
 	}
 
@@ -543,41 +544,6 @@ static void mark_regions(struct rgb_image8 *img, const struct regions *r)
 }
 
 /*
-  debayer a 1280x960 image to 640x480 24 bit
- */
-static PyObject *
-scanner_debayer(PyObject *self, PyObject *args)
-{
-	PyArrayObject *img_in, *img_out;
-
-	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
-		return NULL;
-
-	if (PyArray_DIM(img_in, 1) != WIDTH ||
-	    PyArray_DIM(img_in, 0) != HEIGHT ||
-	    PyArray_STRIDE(img_in, 0) != WIDTH) {
-		PyErr_SetString(ScannerError, "input must be 1280x960 8 bit");		
-		return NULL;
-	}
-	if (PyArray_DIM(img_out, 1) != WIDTH/2 ||
-	    PyArray_DIM(img_out, 0) != HEIGHT/2 ||
-	    PyArray_STRIDE(img_out, 0) != 3*(WIDTH/2)) {
-		PyErr_SetString(ScannerError, "output must be 640x480 24 bit");		
-		return NULL;
-	}
-	
-	const struct grey_image8 *in = PyArray_DATA(img_in);
-	struct rgb_image8 *out = PyArray_DATA(img_out);
-
-	Py_BEGIN_ALLOW_THREADS;
-	colour_convert_8bit(in, out);
-	Py_END_ALLOW_THREADS;
-
-	Py_RETURN_NONE;
-}
-
-
-/*
   debayer a 1280x960 16 bit image to 640x480 24 bit
  */
 static PyObject *
@@ -610,6 +576,48 @@ scanner_debayer_16_8(PyObject *self, PyObject *args)
 
 	Py_RETURN_NONE;
 }
+
+
+/*
+  debayer a 1280x960 8 bit image to 640x480 24 bit
+ */
+static PyObject *
+scanner_debayer(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+	bool use_16_bit = false;
+
+	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+		return NULL;
+
+	use_16_bit = (PyArray_STRIDE(img_in, 0) == WIDTH*2);
+
+	if (PyArray_DIM(img_in, 1) != WIDTH ||
+	    PyArray_DIM(img_in, 0) != HEIGHT) {
+		PyErr_SetString(ScannerError, "input must be 1280x960 bit");		
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 1) != WIDTH/2 ||
+	    PyArray_DIM(img_out, 0) != HEIGHT/2 ||
+	    PyArray_STRIDE(img_out, 0) != 3*(WIDTH/2)) {
+		PyErr_SetString(ScannerError, "output must be 640x480 24 bit");		
+		return NULL;
+	}
+	
+	const struct grey_image8 *in = PyArray_DATA(img_in);
+	struct rgb_image8 *out = PyArray_DATA(img_out);
+
+	Py_BEGIN_ALLOW_THREADS;
+	if (use_16_bit) {
+		colour_convert_16_8bit((const struct grey_image16 *)in, out);
+	} else {
+		colour_convert_8bit(in, out);
+	}
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
 
 /*
   scan an image for regions of interest and return the
