@@ -287,6 +287,7 @@ struct chameleon {
 	libusb_context *ctx;
 	unsigned base_id;
 };
+typedef struct chameleon chameleon_t;
 
 
 /**
@@ -379,6 +380,7 @@ struct chameleon_frame {
     bool                     data_in_padding;       /* DC1394_TRUE if data is present in the padding bytes in IIDC 1.32 format,
                                                        DC1394_FALSE otherwise */
 };
+typedef struct chameleon_frame chameleon_frame_t;
 
 struct chameleon_camera {
 	struct chameleon *d;
@@ -405,6 +407,7 @@ struct chameleon_camera {
 	struct chameleon_frame proto;
 	unsigned bad_frames;
 };
+typedef struct chameleon_camera chameleon_camera_t;
 
 
 
@@ -424,6 +427,8 @@ dc1394error_t
 chameleon_feature_set_mode(struct chameleon_camera *camera, dc1394feature_t feature, dc1394feature_mode_t mode);
 dc1394error_t
 chameleon_feature_set_value(struct chameleon_camera *camera, dc1394feature_t feature, uint32_t value);
+dc1394error_t
+chameleon_feature_get_value(struct chameleon_camera *camera, dc1394feature_t feature, uint32_t *value);
 dc1394error_t
 chameleon_feature_set_absolute_control(struct chameleon_camera *camera, dc1394feature_t feature, dc1394switch_t pwr);
 dc1394error_t

@@ -1090,9 +1090,12 @@ callback(struct libusb_transfer * transfer)
 	    return;	    
     }
 
-#if 0
-    printf("usb: Bulk transfer %d complete, %d of %d bytes recv=%u (cam=%p)\n",
-	   f->frame.id, transfer->actual_length, transfer->length, f->received_bytes, craw);
+#if 1
+    uint32_t *frame_info = (uint32_t *)f->transfer->buffer;
+    printf("usb: Bulk transfer %d complete, %d of %d bytes recv=%u (cam=%p) info1=0x%x info2=0x%x\n",
+	   f->frame.id, transfer->actual_length, transfer->length, 
+	   f->received_bytes, craw, 
+	   (unsigned)ntohl(frame_info[1]), (unsigned)ntohl(frame_info[2]));
 #endif
 
     if (transfer->actual_length + IMAGE_EXTRA_FETCH >= transfer->length) {
@@ -1114,8 +1117,8 @@ callback(struct libusb_transfer * transfer)
 			      callback, f, 0);
     
     if (libusb_submit_transfer(f->transfer) == 0) {
-	    //printf("Resubmit for %u more bytes at %u OK\n",
-	    //f->transfer->length, f->received_bytes);
+	    printf("Resubmit for %u more bytes at %u OK\n",
+	    f->transfer->length, f->received_bytes);
             f->active = true;
 	    return;
     }
@@ -1308,6 +1311,34 @@ chameleon_feature_set_value(struct chameleon_camera *camera, dc1394feature_t fea
 
     err=chameleon_set_control_register(camera, offset, (quadval & 0xFFFFF000UL) | (value & 0xFFFUL));
     DC1394_ERR_RTN(err, "Could not set feature value");
+    return err;
+}
+
+dc1394error_t
+chameleon_feature_get_value(struct chameleon_camera *camera, dc1394feature_t feature, uint32_t *value)
+{
+    uint32_t quadval;
+    uint64_t offset;
+    dc1394error_t err;
+
+    if ( (feature<DC1394_FEATURE_MIN) || (feature>DC1394_FEATURE_MAX) )
+        return DC1394_INVALID_FEATURE;
+
+    if ((feature==DC1394_FEATURE_WHITE_BALANCE)||
+        (feature==DC1394_FEATURE_WHITE_SHADING)||
+        (feature==DC1394_FEATURE_TEMPERATURE)) {
+        err=DC1394_INVALID_FEATURE;
+        DC1394_ERR_RTN(err, "You should use the specific functions to read from multiple-value features");
+    }
+
+    FEATURE_TO_VALUE_OFFSET(feature, offset);
+
+    printf("fetching from register 0x%x\n", offset);
+
+    err=chameleon_get_control_register(camera, offset, &quadval);
+    DC1394_ERR_RTN(err, "Could not get feature value");
+    *value= (uint32_t)(quadval & 0xFFFUL);
+
     return err;
 }
 
@@ -1645,7 +1676,7 @@ int chameleon_wait_image(struct chameleon_camera *c, unsigned timeout)
 	    tv.tv_sec = 0;
 	    chameleon_wait_events(c->d, &tv);
     }
-    if (timeout == 0) {
+    if (f->status == BUFFER_EMPTY && telapsed_msec(&tv0) >= timeout) {
 	    printf("timeout waiting for image on cam=%p\n", c);
     }
     if (f->status != BUFFER_FILLED) {
