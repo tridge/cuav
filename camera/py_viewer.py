@@ -30,12 +30,12 @@ chameleon.trigger(h, True)
 i=0
 while True:
   try:
-    frame_time, frame_counter, shutter = chameleon.capture(h, im)
+    frame_time, frame_counter, shutter = chameleon.capture(h, 1000, im)
   except chameleon.error, msg:
     print('failed to capture', msg)
     continue
   filename = 'tmp/i%u.pgm' % i
-  chameleon.save_pgm(h, filename, im)
+  chameleon.save_pgm(filename, im)
   if colour == 1:
     img_colour = numpy.zeros((480,640,3),dtype='uint8')
     scanner.debayer(im, img_colour)

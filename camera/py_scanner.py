@@ -32,7 +32,7 @@ while True:
   try:
     chameleon.trigger(h)
     frame_time = time.time()
-    shutter = chameleon.capture(h, im)
+    shutter = chameleon.capture(h, 1000, im)
   except chameleon.error, msg:
     print('failed to capture', msg)
     continue
