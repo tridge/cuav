@@ -6,7 +6,7 @@ import scanner
 
 
 colour = 0
-depth = 8
+depth = 16
 try:
   h = chameleon.open(1, depth)
   colour = 1
@@ -15,20 +15,27 @@ except chameleon.error:
   colour = 0
 
 print("Found camera: colour=%u GUID=%x" % (colour, chameleon.guid(h)))
-im = numpy.zeros((960,1280),dtype='uint8')
+if depth == 8:
+  dtype = 'uint8'
+else:
+  dtype = 'uint16'
+im = numpy.zeros((960,1280),dtype=dtype)
 
 cv.NamedWindow('Viewer')
 
 tstart = time.time()
 
+chameleon.trigger(h, True)
+
 i=0
 while True:
   try:
-    chameleon.trigger(h)
-    (shutter, ftime) = chameleon.capture(h, im)
+    frame_time, frame_counter, shutter = chameleon.capture(h, im)
   except chameleon.error, msg:
     print('failed to capture', msg)
     continue
+  filename = 'tmp/i%u.pgm' % i
+  chameleon.save_pgm(h, filename, im)
   if colour == 1:
     img_colour = numpy.zeros((480,640,3),dtype='uint8')
     scanner.debayer(im, img_colour)
@@ -43,7 +50,7 @@ while True:
 
   if i % 10 == 0:
     tdiff = time.time() - tstart
-    print("%.1f fps" % (10/tdiff));
+    print("%.1f fps shutter=%f" % (10/tdiff, shutter));
     tstart = time.time()
 
   key = cv.WaitKey(1)
