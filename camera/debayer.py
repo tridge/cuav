@@ -5,7 +5,9 @@ import util
 
 from optparse import OptionParser
 parser = OptionParser("debayer.py [options] <filename>")
-parser.add_option("--batch", dest="batch", action='store_true', help="batch convert to png")
+parser.add_option("--batch", action='store_true', help="batch convert to png")
+parser.add_option("--half", action='store_true', help="show half sized")
+parser.add_option("--brightness", type='float', default=1.0, help="set brightness")
 (opts, args) = parser.parse_args()
 
 if len(args) < 1:
@@ -24,6 +26,12 @@ def debayer(filename):
     
     color_img = cv.CreateImage((1280,960), 8, 3)
     cv.CvtColor(img8, color_img, cv.CV_BayerGR2BGR)
+    if opts.half:
+        half_img = cv.CreateImage((640,480), 8, 3)
+        cv.Resize(color_img, half_img)
+        color_img = half_img        
+
+    cv.ConvertScale(color_img, color_img, scale=opts.brightness)
 
     cv.ShowImage('Bayer', color_img)
     return (color_img, pgm)
