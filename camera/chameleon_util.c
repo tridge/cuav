@@ -189,8 +189,8 @@ static void adjust_shutter(float *shutter, float average, uint32_t num_saturated
 
 static void camera_setup(chameleon_camera_t *camera, int depth)
 {
-  CHECK(chameleon_camera_reset(camera));
   CHECK(chameleon_video_set_transmission(camera, DC1394_OFF));
+  CHECK(chameleon_camera_reset(camera));
   CHECK(chameleon_video_set_iso_speed(camera, DC1394_ISO_SPEED_400));
 
   CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_EXPOSURE, DC1394_OFF));
@@ -355,8 +355,16 @@ int trigger_capture(chameleon_camera_t *c, float shutter, bool continuous)
 	return 0;
 }
 
+static unsigned telapsed_msec(const struct timeval *tv)
+{
+	struct timeval tv2;
+	gettimeofday(&tv2, NULL);
+	return (tv2.tv_sec - tv->tv_sec)*1000 + (tv2.tv_usec - tv->tv_usec)/1000;
+}
+
 int capture_wait(chameleon_camera_t *c, float *shutter,
 		 void* buf, size_t stride, size_t size, 
+		 int timeout_ms,
 		 float *frame_time, uint32_t *frame_counter)
 {
 	chameleon_frame_t *frame = NULL;
@@ -375,19 +383,25 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 	//CHECK(chameleon_get_control_register(c, 0x820, &gain_csr));
 	gain_csr = 0x82000000;
 
-	chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_WAIT, &frame);
+	if (timeout_ms == -1) {
+		chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_WAIT, &frame);
+	} else {
+		struct timeval tv0;
+		gettimeofday(&tv0, NULL);
+		do {
+			chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_POLL, &frame);
+			if (frame != NULL) {
+				break;
+			}
+			usleep(1000);
+		} while (telapsed_msec(&tv0) < timeout_ms);
+	}
 	if (!frame) {
-#if USE_LIBDC1394 == 0
-		c->bad_frames++;
-#endif
 		return -1;
 	}
 	if (frame->total_bytes != IMAGE_WIDTH*IMAGE_HEIGHT*(frame->data_depth==8?1:2)) {
 		memset(frame->image+frame->total_bytes-8, 0xff, 8);
 		CHECK(chameleon_capture_enqueue(c, frame));
-#if USE_LIBDC1394 == 0
-		c->bad_frames++;
-#endif
 		return -1;
 	}
 	if (frame->size[1]*stride <= size) {
@@ -407,9 +421,6 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 	if (ntohl(frame_info[1]) != gain_csr) {
 		printf("Warning: bad frame info 0x%08x should be 0x%08x\n",
 		       ntohl(frame_info[1]), gain_csr);
-#if USE_LIBDC1394 == 0
-		c->bad_frames++;
-#endif
 		return -1;
 	}
 	uint32_t frame_time_int = ntohl(frame_info[0]);
@@ -433,16 +444,8 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 	}
 	if (average == 0.0) {
 		printf("Warning: bad frame average=0\n");
-#if USE_LIBDC1394 == 0
-		c->bad_frames++;
-#endif
 		return -1;
 	}
-#endif
-
-	/* we got a good frame, reduce the bad frame count. */
-#if USE_LIBDC1394 == 0
-	c->bad_frames /= 2;
 #endif
 
 	//printf("shutter=%f average=%.1f saturated=%u hsaturated=%u\n",

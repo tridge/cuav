@@ -5,6 +5,7 @@
 
 int capture_wait(struct chameleon_camera* c, float* shutter,
 		 void* buf, size_t stride, size_t size,
+		 int timeout_ms,
 		 float *frame_time, uint32_t *frame_counter);
 
 int trigger_capture(struct chameleon_camera* c, float shutter, bool continuous);

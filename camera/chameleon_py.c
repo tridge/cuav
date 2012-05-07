@@ -97,9 +97,10 @@ static PyObject *
 chameleon_capture(PyObject *self, PyObject *args)
 {
 	int handle = -1;
+	int timeout_ms = 0;
 	struct chameleon_camera* cam = NULL;
 	PyArrayObject* array = NULL;
-	if (!PyArg_ParseTuple(args, "iO", &handle, &array))
+	if (!PyArg_ParseTuple(args, "iiO", &handle, &timeout_ms, &array))
 		return NULL;
 
 	if (handle >= 0 && handle < NUM_CAMERA_HANDLES && cameras[handle]) {
@@ -132,7 +133,7 @@ chameleon_capture(PyObject *self, PyObject *args)
 
 	Py_BEGIN_ALLOW_THREADS;
 	status = capture_wait(cam, &shutters[handle], buf, stride, stride*h, 
-			      &frame_time, &frame_counter);
+			      timeout_ms, &frame_time, &frame_counter);
 	Py_END_ALLOW_THREADS;
 	
 	if (status < 0) {
@@ -186,6 +187,21 @@ chameleon_guid(PyObject *self, PyObject *args)
 	return NULL;
 }
 
+/* low level file save routine */
+static int _save_file(const char *filename, unsigned size, const char *data)
+{
+	int fd = open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+	if (fd == -1) {
+		return -1;
+	}
+	if (write(fd, data, size) != size) {
+		close(fd);
+		return -1;
+	}
+	close(fd);
+	return 0;
+}
+
 /* low level save routine */
 static int _save_pgm(const char *filename, unsigned w, unsigned h, unsigned stride,
 		     const char *data)
@@ -210,18 +226,13 @@ static int _save_pgm(const char *filename, unsigned w, unsigned h, unsigned stri
 static PyObject *
 save_pgm(PyObject *self, PyObject *args)
 {
-	int handle, status;
+	int status;
 	const char *filename;
 	unsigned w, h, stride;
 	PyArrayObject* array = NULL;
 
-	if (!PyArg_ParseTuple(args, "isO", &handle, &filename, &array))
+	if (!PyArg_ParseTuple(args, "sO", &filename, &array))
 		return NULL;
-
-	if (!(handle >= 0 && handle < NUM_CAMERA_HANDLES && cameras[handle])) {
-		PyErr_SetString(ChameleonError, "invalid handle");
-		return NULL;
-	}
 
 	w = PyArray_DIM(array, 1);
 	h = PyArray_DIM(array, 0);
@@ -237,6 +248,30 @@ save_pgm(PyObject *self, PyObject *args)
 	Py_RETURN_NONE;
 }
 
+/*
+  save a file from a string
+ */
+static PyObject *
+save_file(PyObject *self, PyObject *args)
+{
+	int status;
+	const char *filename;
+	char *data = NULL;
+	int size = 0;
+
+	if (!PyArg_ParseTuple(args, "ss#", &filename, &data, &size))
+		return NULL;
+
+	Py_BEGIN_ALLOW_THREADS;
+	status = _save_file(filename, size, data);
+	Py_END_ALLOW_THREADS;
+	if (status != 0) {
+		PyErr_SetString(ChameleonError, "file save failed");
+		return NULL;
+	}
+	Py_RETURN_NONE;
+}
+
 
 static PyMethodDef ChameleonMethods[] = {
   {"open", chameleon_open, METH_VARARGS, "Open a lizard like device. Returns handle"},
@@ -245,6 +280,7 @@ static PyMethodDef ChameleonMethods[] = {
   {"capture", chameleon_capture, METH_VARARGS, "Capture an image"},
   {"guid", chameleon_guid, METH_VARARGS, "camera GUID"},
   {"save_pgm", save_pgm, METH_VARARGS, "save to a PGM"},
+  {"save_file", save_file, METH_VARARGS, "save to a file from a pystring"},
   {NULL, NULL, 0, NULL}        /* Terminus */
 };
 
