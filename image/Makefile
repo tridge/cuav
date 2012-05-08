@@ -2,13 +2,13 @@ CC=gcc
 CXX=g++
 AR=ar
 INCLUDES=$(shell python-config --includes) -I/opt/libjpeg-turbo/include
-LIBJPEG=-L/opt/libjpeg-turbo/lib -ljpeg
+LIBJPEG=-L/opt/libjpeg-turbo/lib -ljpeg -lturbojpeg
 #CC=arm-linux-gnueabi-gcc
 #CXX=arm-linux-gnueabi-g++
 #AR=arm-linux-gnueabi-ar
 
-CXXFLAGS=-Wall -g -O3
-CFLAGS=-Wall -g -std=gnu99 -fPIC -O3 $(INCLUDES)
+CXXFLAGS=-Wall -O3
+CFLAGS=-Wall -std=gnu99 -fPIC -O3 $(INCLUDES)
 
 objects = pgm_io.o debayer.o histogram.o image_utils.o BlobExtractor.o
 
