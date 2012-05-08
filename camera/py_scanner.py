@@ -8,10 +8,10 @@ import scanner
 colour = 0
 depth = 8
 try:
-  h = chameleon.open(1, depth)
+  h = chameleon.open(1, depth, 100)
   colour = 1
 except chameleon.error:
-  h = chameleon.open(0, depth)
+  h = chameleon.open(0, depth, 100)
   colour = 0
 
 print("Found camera: colour=%u GUID=%x" % (colour, chameleon.guid(h)))
@@ -50,7 +50,7 @@ while True:
   im_marked = numpy.ascontiguousarray(mat)
   
   # compress using neon-accelerated compressor, and write to a file
-  jpeg = scanner.jpeg_compress(im_marked)
+  jpeg = scanner.jpeg_compress(im_marked, 30)
   jfile = open('tmp/i%u.jpg' % i, "w")
   jfile.write(jpeg)
   jfile.close()
