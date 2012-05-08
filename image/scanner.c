@@ -17,6 +17,8 @@
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <numpy/arrayobject.h>
+#include "debayer.h"
+#include "pgm_io.h"
 
 /*
   this uses libjpeg-turbo from http://libjpeg-turbo.virtualgl.org/
@@ -620,6 +622,41 @@ scanner_debayer(PyObject *self, PyObject *args)
 
 
 /*
+  debayer a 1280x960 16 bit image to 1280x960 24 bit colour image
+ */
+static PyObject *
+scanner_debayer_16_full(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+
+	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+		return NULL;
+
+	if (PyArray_DIM(img_in, 1) != WIDTH ||
+	    PyArray_DIM(img_in, 0) != HEIGHT ||
+	    PyArray_STRIDE(img_in, 0) != WIDTH*2) {
+		PyErr_SetString(ScannerError, "input must be 1280x960 16 bit");
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 1) != WIDTH ||
+	    PyArray_DIM(img_out, 0) != HEIGHT ||
+	    PyArray_STRIDE(img_out, 0) != 3*WIDTH) {
+		PyErr_SetString(ScannerError, "output must be 1280x960 24 bit");
+		return NULL;
+	}
+
+	const uint16_t *in = PyArray_DATA(img_in);
+	uint8_t *out = PyArray_DATA(img_out);
+
+	Py_BEGIN_ALLOW_THREADS;
+	debayer_full_16u_8u(in, 1280, 1280, 960, out, 1280*3, &pixop_2x2_16u_8u_rgb);
+	save_pnm_uint8("debayer_rgb.pnm", out, 1280, 1280*3, 960);
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
+/*
   scan an image for regions of interest and return the
   markup as a set of tuples
  */
@@ -730,6 +767,7 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 static PyMethodDef ScannerMethods[] = {
 	{"debayer", scanner_debayer, METH_VARARGS, "simple debayer of 1280x960 8 bit image to 640x480"},
 	{"debayer_16_8", scanner_debayer_16_8, METH_VARARGS, "simple debayer of 1280x960 16 bit image to 640x480 24 bit"},
+	{"debayer_16_full", scanner_debayer_16_full, METH_VARARGS, "debayer of 1280x960 16 bit image to 1280x960 24 bit"},
 	{"scan", scanner_scan, METH_VARARGS, "histogram scan a 640x480 colour image"},
 	{"jpeg_compress", scanner_jpeg_compress, METH_VARARGS, "compress a 640x480 colour image to a jpeg image as a python string"},
 	{NULL, NULL, 0, NULL}
