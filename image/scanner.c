@@ -27,6 +27,7 @@
  */
 #define JPEG_LIB_VERSION 80
 #include <jpeglib.h>
+#include <turbojpeg.h>
 
 #ifndef Py_RETURN_NONE
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
@@ -70,6 +71,13 @@ struct grey_image16 {
  */
 struct rgb_image8 {
 	struct rgb data[HEIGHT/2][WIDTH/2];
+};
+
+/*
+  full size colour 8 bit per channel RGB image
+ */
+struct rgb_image8_full {
+	struct rgb data[HEIGHT][WIDTH];
 };
 
 
@@ -143,6 +151,54 @@ static void colour_convert_16_8bit(const struct grey_image16 *in, struct rgb_ima
 	if (save_intermediate) {
 		colour_save_pnm("test.pnm", out);
 	}
+}
+
+/*
+  convert a 16 bit colour chameleon image to 8 bit colour at full
+  resolution. No smoothing is done
+
+  This algorithm emphasises speed over colour accuracy
+ */
+static void colour_convert_16_8bit_full(const struct grey_image16 *in, struct rgb_image8_full *out)
+{
+	unsigned x, y;
+	/*
+	  layout in the input image is in blocks of 4 values. The top
+	  left corner of the image looks like this
+             G B G B
+	     R G R G
+	     G B G B
+	     R G R G
+	 */
+	for (y=1; y<HEIGHT-2; y += 2) {
+		for (x=1; x<WIDTH-2; x += 2) {
+			out->data[y+0][x+0].g = in->data[y][x] >> 8;
+			out->data[y+0][x+0].b = ((uint32_t)in->data[y-1][x+0] + (uint32_t)in->data[y+1][x+0]) >> 9;
+			out->data[y+0][x+0].r = ((uint32_t)in->data[y+0][x-1] + (uint32_t)in->data[y+0][x+1]) >> 9;
+
+			out->data[y+0][x+1].g = ((uint32_t)in->data[y+0][x+0] + (uint32_t)in->data[y-1][x+1] +
+						 (uint32_t)in->data[y+0][x+2] + (uint32_t)in->data[y+1][x+1]) >> 10;
+			out->data[y+0][x+1].b = ((uint32_t)in->data[y-1][x+0] + (uint32_t)in->data[y-1][x+2] +
+						 (uint32_t)in->data[y+1][x+0] + (uint32_t)in->data[y+1][x+2]) >> 10;
+			out->data[y+0][x+1].r = in->data[y+0][x+1] >> 8;
+
+			out->data[y+1][x+0].g = ((uint32_t)in->data[y+0][x+0] + (uint32_t)in->data[y+1][x-1] +
+						 (uint32_t)in->data[y+1][x+1] + (uint32_t)in->data[y+2][x+0]) >> 10;
+			out->data[y+1][x+0].b = in->data[y+1][x+0] >> 8;
+			out->data[y+1][x+0].r = ((uint32_t)in->data[y+0][x-1] + (uint32_t)in->data[y+0][x+1] +
+						 (uint32_t)in->data[y+2][x-1] + (uint32_t)in->data[y+2][x+1]) >> 10;
+
+			out->data[y+1][x+1].g = in->data[y+1][x+1] >> 8;
+			out->data[y+1][x+1].b = ((uint32_t)in->data[y+1][x+0] + (uint32_t)in->data[y+1][x+2]) >> 9;
+			out->data[y+1][x+1].r = ((uint32_t)in->data[y+0][x+1] + (uint32_t)in->data[y+2][x+1]) >> 9;
+		}
+		out->data[y+0][0] = out->data[y+0][1];
+		out->data[y+1][0] = out->data[y+1][1];
+		out->data[y+0][WIDTH-1] = out->data[y+0][WIDTH-2];
+		out->data[y+1][WIDTH-1] = out->data[y+1][WIDTH-2];
+	}
+	memcpy(out->data[0], out->data[1], WIDTH*3);
+	memcpy(out->data[HEIGHT-1], out->data[HEIGHT-2], WIDTH*3);
 }
 
 #define HISTOGRAM_BITS_PER_COLOR 3
@@ -645,12 +701,11 @@ scanner_debayer_16_full(PyObject *self, PyObject *args)
 		return NULL;
 	}
 
-	const uint16_t *in = PyArray_DATA(img_in);
-	uint8_t *out = PyArray_DATA(img_out);
+	const struct grey_image16 *in = PyArray_DATA(img_in);
+	struct rgb_image8_full *out = PyArray_DATA(img_out);
 
 	Py_BEGIN_ALLOW_THREADS;
-	debayer_full_16u_8u(in, 1280, 1280, 960, out, 1280*3, &pixop_2x2_16u_8u_rgb);
-	save_pnm_uint8("debayer_rgb.pnm", out, 1280, 1280*3, 960);
+	colour_convert_16_8bit_full(in, out);
 	Py_END_ALLOW_THREADS;
 
 	Py_RETURN_NONE;
@@ -717,8 +772,9 @@ static PyObject *
 scanner_jpeg_compress(PyObject *self, PyObject *args)
 {
 	PyArrayObject *img_in;
+	int quality = 20;
 
-	if (!PyArg_ParseTuple(args, "O", &img_in))
+	if (!PyArg_ParseTuple(args, "Oi", &img_in, &quality))
 		return NULL;
 
 	if (PyArray_STRIDE(img_in, 0) != 3*PyArray_DIM(img_in, 1)) {
@@ -727,37 +783,22 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 		PyErr_SetString(ScannerError, "input must 24 bit BGR");
 		return NULL;
 	}
+	const uint16_t w = PyArray_DIM(img_in, 1);
+	const uint16_t h = PyArray_DIM(img_in, 0);
 	const struct PACKED rgb *rgb_in = PyArray_DATA(img_in);
-	struct jpeg_compress_struct cinfo = {0};
-	struct jpeg_error_mgr jerr;
-	JSAMPROW row_ptr[1];
-	unsigned char *outptr = NULL;
-	long unsigned outlen = 0;
+	tjhandle handle=NULL;
+	const int subsamp = TJSAMP_420;
+	unsigned long jpegSize = tjBufSize(w, h, subsamp);
+	unsigned char *jpegBuf = tjAlloc(jpegSize);
 
 	Py_BEGIN_ALLOW_THREADS;
-	cinfo.err = jpeg_std_error(&jerr);
-	jpeg_create_compress(&cinfo);
-	jpeg_mem_dest(&cinfo, &outptr, &outlen);
-
-	cinfo.image_width = PyArray_DIM(img_in, 1);
-	cinfo.image_height = PyArray_DIM(img_in, 0);
-	cinfo.input_components = 3;
-	cinfo.in_color_space = JCS_EXT_BGR;
-
-	jpeg_set_defaults(&cinfo);
-	jpeg_start_compress(&cinfo, TRUE);
-
-	while (cinfo.next_scanline < cinfo.image_height) {
-		row_ptr[0] = &rgb_in[cinfo.next_scanline*cinfo.image_width];
-		jpeg_write_scanlines(&cinfo, row_ptr, 1);
-	}
-
-	jpeg_finish_compress(&cinfo);
-	jpeg_destroy_compress(&cinfo);
+	handle=tjInitCompress();
+	tjCompress2(handle, (unsigned char *)&rgb_in[0], w, 0, h, TJPF_BGR, &jpegBuf,
+		    &jpegSize, subsamp, quality, 0);
 	Py_END_ALLOW_THREADS;
 
-	PyObject *ret = PyString_FromStringAndSize((const char *)outptr, outlen);
-	free(outptr);
+	PyObject *ret = PyString_FromStringAndSize((const char *)jpegBuf, jpegSize);
+	tjFree(jpegBuf);
 
 	return ret;
 }
