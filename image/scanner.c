@@ -141,10 +141,10 @@ static void colour_convert_16_8bit(const struct grey_image16 *in, struct rgb_ima
 	 */
 	for (y=0; y<HEIGHT/2; y++) {
 		for (x=0; x<WIDTH/2; x++) {
-			out->data[y][x].g = (ntohs(in->data[y*2+0][x*2+0]) + 
-					     (uint32_t)ntohs(in->data[y*2+1][x*2+1])) >> 9;
-			out->data[y][x].b = ntohs(in->data[y*2+0][x*2+1]) >> 8;
-			out->data[y][x].r = ntohs(in->data[y*2+1][x*2+0]) >> 8;
+			out->data[y][x].g = (in->data[y*2+0][x*2+0] + 
+					     (uint32_t)in->data[y*2+1][x*2+1]) >> 9;
+			out->data[y][x].b = in->data[y*2+0][x*2+1] >> 8;
+			out->data[y][x].r = in->data[y*2+1][x*2+0] >> 8;
 		}
 	}
 
