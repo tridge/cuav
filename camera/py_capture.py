@@ -13,6 +13,8 @@ parser.add_option("--save", action='store_true', default=False, help="save image
 parser.add_option("--compress", action='store_true', default=False, help="compress images for saving")
 parser.add_option("--scan", action='store_true', default=False, help="run the Joe scanner")
 parser.add_option("--num-frames", "-n", type='int', default=0, help="number of images to capture")
+parser.add_option("--quality", type='int', default=95, help="compression quality")
+parser.add_option("--brightness", type='int', default=100, help="auto-exposure brightness")
 (opts, args) = parser.parse_args()
 
 class capture_state():
@@ -20,6 +22,8 @@ class capture_state():
     self.save_thread = None
     self.scan_thread = None
     self.compress_thread = None
+    self.bayer_thread = None
+    self.bayer_queue = Queue.Queue()
     self.compress_queue = Queue.Queue()
     self.save_queue = Queue.Queue()
 
@@ -35,11 +39,16 @@ def start_thread(fn):
     t.start()
     return t
 
-def get_base_time(h):
+def get_base_time():
   '''we need to get a baseline time from the camera. To do that we trigger
   in single shot mode until we get a good image, and use the time we 
   triggered as the base time'''
   frame_time = None
+  error_count = 0
+
+  print('Opening camera')
+  h = chameleon.open(not opts.mono, opts.depth, opts.brightness)
+
   while frame_time is None:
     try:
       base_time = time.time()
@@ -49,7 +58,13 @@ def get_base_time(h):
       base_time -= frame_time
     except chameleon.error:
       print('failed to capture')
-  return base_time, frame_time
+      error_count += 1
+      if error_count > 3:
+        error_count = 0
+        print('re-opening camera')
+        chameleon.close(h)
+        h = chameleon.open(not opts.mono, opts.depth, opts.brightness)
+  return h, base_time, frame_time
 
 
 def save_thread():
@@ -67,30 +82,31 @@ def save_thread():
       filename = 'tmp/i%s.pgm' % timestamp(frame_time)
       chameleon.save_pgm(filename, im)
 
+def bayer_thread():
+  '''thread for debayering images'''
+  #img_full = cv.CreateImage((1280,960), 16, 1)
+  #img8 = cv.CreateImage((1280,960), 8, 1)
+  #im_colour = cv.CreateMat(960, 1280, cv.CV_8UC3)
+  while True:
+    frame_time, im = state.bayer_queue.get()
+    # C debayer code
+    im_colour = numpy.zeros((960,1280,3),dtype='uint8')
+    scanner.debayer_16_full(im, im_colour)
+    state.compress_queue.put((frame_time, im_colour))
+
+    # OpenCV debayer code
+    #cv.SetData(img_full, im.data)
+    #cv.ConvertScale(img_full, img8, scale=1.0/256)
+    #cv.CvtColor(img8, im_colour, cv.CV_BayerGR2BGR)
+    #im2 = numpy.ascontiguousarray(im_colour)
+    #state.compress_queue.put((frame_time, im2))
+
+
 def compress_thread():
   '''thread for compressing images'''
   while True:
     frame_time, im = state.compress_queue.get()
-
-    t0 = time.time()
-    if False:
-      im_colour = numpy.zeros((960,1280,3),dtype='uint8')
-      scanner.debayer_16_full(im, im_colour)
-      t1 = time.time()
-      mat = cv.fromarray(im_colour)
-    else:
-      #im_array = cv.fromarray(im)
-      img_full = cv.CreateImage((1280,960), 16, 1)
-      cv.SetData(img_full, im.data)
-      img8 = cv.CreateImage((1280,960), 8, 1)
-      cv.ConvertScale(img_full, img8, scale=1.0/256)
-      full_colour = cv.CreateMat(960, 1280, cv.CV_8UC3)
-      cv.CvtColor(img8, full_colour, cv.CV_BayerGR2BGR)
-      t1 = time.time()
-    im2 = numpy.ascontiguousarray(full_colour)
-    jpeg = scanner.jpeg_compress(im2)
-    t2 = time.time()
-    print("Compress time t1=%f t2=%f" % ((t1-t0), (t2-t1)))
+    jpeg = scanner.jpeg_compress(im, int(opts.quality))
     if opts.save:
       state.save_queue.put((frame_time, jpeg, True))
 
@@ -98,11 +114,8 @@ def compress_thread():
 def run_capture():
   '''the main capture loop'''
 
-  print('Opening camera')
-  h = chameleon.open(not opts.mono, opts.depth)
-
   print("Getting base frame time")
-  base_time, last_frame_time = get_base_time(h)
+  h, base_time, last_frame_time = get_base_time()
 
   print('Starting continuous trigger mode')
   chameleon.trigger(h, True)
@@ -124,16 +137,17 @@ def run_capture():
       frame_loss += frame_counter - (last_frame_counter+1)
 
     if opts.compress:
-      state.compress_queue.put((base_time+frame_time, im))
+      state.bayer_queue.put((base_time+frame_time, im))
     elif opts.save:
       state.save_queue.put((base_time+frame_time, im, False))
 
-    print("Captured shutter=%f tdelta=%f ft=%f loss=%u qsave=%u qcompress=%u" % (
+    print("Captured shutter=%f tdelta=%f ft=%f loss=%u qsave=%u qbayer=%u qcompress=%u" % (
         shutter, 
         frame_time - last_frame_time,
         frame_time,
         frame_loss,
         state.save_queue.qsize(),
+        state.bayer_queue.qsize(),
         state.compress_queue.qsize()))
 
     last_frame_time = frame_time
@@ -153,6 +167,7 @@ if opts.save:
   state.save_thread = start_thread(save_thread)
 
 if opts.compress:
+  state.bayer_thread = start_thread(bayer_thread)
   state.compress_thread = start_thread(compress_thread)
 
 run_capture()
