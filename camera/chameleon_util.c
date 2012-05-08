@@ -42,6 +42,7 @@
 #include <arpa/inet.h>
 #include <math.h>
 #include <getopt.h>
+#include <endian.h>
 #if USE_LIBDC1394
 #include "chameleon_dc1394.h"
 #else
@@ -404,20 +405,10 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 		CHECK(chameleon_capture_enqueue(c, frame));
 		return -1;
 	}
-	if (frame->size[1]*stride <= size) {
-		uint8_t* p = (uint8_t*)buf;
-		for (int i=0; i < frame->size[1]; ++i ) {
-			memcpy(p + i*stride, frame->image + i*frame->stride, (frame->size[0]*frame->data_depth)/8);
-		}
-	} else {
-		printf("Warning: output buffer too small, frame not copied\n");
-	}
-	// mark the last 8 bytes with 0xFF, so we can detect incomplete images
-	memset(frame->image+frame->total_bytes-8, 0xff, 8);
 
 	CHECK(chameleon_capture_enqueue(c, frame));
 
-	uint32_t *frame_info = (uint32_t *)buf;
+	uint32_t *frame_info = (uint32_t *)frame->image;
 	if (ntohl(frame_info[1]) != gain_csr) {
 		printf("Warning: bad frame info 0x%08x should be 0x%08x\n",
 		       ntohl(frame_info[1]), gain_csr);
@@ -430,8 +421,23 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 	
 	// overwrite the frame_info values with the next bytes, so we
 	// don't skew the image stats
-	uint8_t* p = (uint8_t*)buf;
+	uint8_t* p = (uint8_t*)frame->image;
 	memcpy(p, p+12, 12);
+
+	if (frame->size[1]*stride <= size) {
+		uint8_t* p = (uint8_t*)buf;
+		for (int i=0; i < frame->size[1]; ++i ) {
+			if (__BYTE_ORDER == __LITTLE_ENDIAN && frame->data_depth == 16) {
+				swab(frame->image + i*frame->stride, p + i*stride, (frame->size[0]*frame->data_depth)/8);
+			} else {
+				memcpy(p + i*stride, frame->image + i*frame->stride, (frame->size[0]*frame->data_depth)/8);
+			}
+		}
+	} else {
+		printf("Warning: output buffer too small, frame not copied\n");
+	}
+	// mark the last 8 bytes with 0xFF, so we can detect incomplete images
+	memset(frame->image+frame->total_bytes-8, 0xff, 8);
 	
 #if USE_AUTO_EXPOSURE == 0
 	if (frame->data_depth == 8) {
