@@ -48,7 +48,7 @@ extern "C" {
   /*
    Full debayering image size preserved
    */
-  void debayer_full_16u_8u(uint16_t* in_image,
+  void debayer_full_16u_8u(const uint16_t* in_image,
                            size_t in_stride,
                            size_t in_width,
                            size_t in_height,

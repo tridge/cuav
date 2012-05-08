@@ -230,7 +230,7 @@ void pixop_2x2_16u_8u_yuv(const uint16_t* in, size_t in_stride, uint8_t* out, si
 }
 
 
-void debayer_full_16u_8u(uint16_t* in_image,
+void debayer_full_16u_8u(const uint16_t* in_image,
                          size_t in_stride,
                          size_t in_width,
                          size_t in_height,
@@ -238,13 +238,11 @@ void debayer_full_16u_8u(uint16_t* in_image,
                          size_t out_stride,
                          pixop_2x2_16u_8u pixop)
 {
-  for (size_t y = 2; y < in_height - 3; y += 2)
-  {
-    for (size_t x = 2; x < in_width - 3; x += 2)
-    {
-      uint16_t* p = in_image + in_stride * y + x;
-      uint8_t* q = out_image + y*out_stride + x*PIXEL_SIZE;
-      pixop(p, in_stride, q, out_stride);
-    }
-  }
+	for (size_t y = 2; y < in_height - 3; y += 2)  {
+		for (size_t x = 2; x < in_width - 3; x += 2) {
+			const uint16_t* p = in_image + in_stride * y + x;
+			uint8_t* q = out_image + y*out_stride + x*PIXEL_SIZE;
+			pixop(p, in_stride, q, out_stride);
+		}
+	}
 }
