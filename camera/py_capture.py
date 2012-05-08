@@ -20,6 +20,8 @@ class capture_state():
     self.save_thread = None
     self.scan_thread = None
     self.compress_thread = None
+    self.compress_queue = Queue.Queue()
+    self.save_queue = Queue.Queue()
 
 def timestamp(frame_time):
     '''return a localtime timestamp with 0.01 second resolution'''
@@ -67,13 +69,28 @@ def save_thread():
 
 def compress_thread():
   '''thread for compressing images'''
-  im_colour = numpy.zeros((960,1280,3),dtype='uint8')
   while True:
     frame_time, im = state.compress_queue.get()
-    scanner.debayer_16_full(im, im_colour)
-    mat = cv.fromarray(im_colour)
-    im2 = numpy.ascontiguousarray(mat)
+
+    t0 = time.time()
+    if False:
+      im_colour = numpy.zeros((960,1280,3),dtype='uint8')
+      scanner.debayer_16_full(im, im_colour)
+      t1 = time.time()
+      mat = cv.fromarray(im_colour)
+    else:
+      #im_array = cv.fromarray(im)
+      img_full = cv.CreateImage((1280,960), 16, 1)
+      cv.SetData(img_full, im.data)
+      img8 = cv.CreateImage((1280,960), 8, 1)
+      cv.ConvertScale(img_full, img8, scale=1.0/256)
+      full_colour = cv.CreateMat(960, 1280, cv.CV_8UC3)
+      cv.CvtColor(img8, full_colour, cv.CV_BayerGR2BGR)
+      t1 = time.time()
+    im2 = numpy.ascontiguousarray(full_colour)
     jpeg = scanner.jpeg_compress(im2)
+    t2 = time.time()
+    print("Compress time t1=%f t2=%f" % ((t1-t0), (t2-t1)))
     if opts.save:
       state.save_queue.put((frame_time, jpeg, True))
 
@@ -111,11 +128,13 @@ def run_capture():
     elif opts.save:
       state.save_queue.put((base_time+frame_time, im, False))
 
-    print("Captured shutter=%f tdelta=%f ft=%f loss=%u" % (
+    print("Captured shutter=%f tdelta=%f ft=%f loss=%u qsave=%u qcompress=%u" % (
         shutter, 
         frame_time - last_frame_time,
         frame_time,
-        frame_loss))
+        frame_loss,
+        state.save_queue.qsize(),
+        state.compress_queue.qsize()))
 
     last_frame_time = frame_time
     last_frame_counter = frame_counter
@@ -131,11 +150,9 @@ def run_capture():
 state = capture_state()
 
 if opts.save:
-  state.save_queue = Queue.Queue()
   state.save_thread = start_thread(save_thread)
 
 if opts.compress:
-  state.compress_queue = Queue.Queue()
   state.compress_thread = start_thread(compress_thread)
 
 run_capture()
