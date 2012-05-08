@@ -28,10 +28,11 @@ chameleon_open(PyObject *self, PyObject *args)
 {
 	int colour = 0;
 	int depth = 0;
+	int brightness = 100;
 	int sts = -1;
 	PyObject *colour_obj;
 	
-	if (!PyArg_ParseTuple(args, "Oi", &colour_obj, &depth))
+	if (!PyArg_ParseTuple(args, "Oii", &colour_obj, &depth, &brightness))
 		return NULL;
 
 	colour = PyObject_IsTrue(colour_obj);
@@ -39,7 +40,7 @@ chameleon_open(PyObject *self, PyObject *args)
 	int i = 0;
 	for (i = 0; i < NUM_CAMERA_HANDLES; ++i) {
 		if (cameras[i] == NULL) {
-			struct chameleon_camera *cam = open_camera(colour, depth);
+			struct chameleon_camera *cam = open_camera(colour, depth, brightness);
 			if (cam != NULL) {
 				cameras[i] = cam;
 				sts = i;
@@ -271,7 +272,6 @@ save_file(PyObject *self, PyObject *args)
 	}
 	Py_RETURN_NONE;
 }
-
 
 static PyMethodDef ChameleonMethods[] = {
   {"open", chameleon_open, METH_VARARGS, "Open a lizard like device. Returns handle"},
