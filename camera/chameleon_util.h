@@ -10,7 +10,7 @@ int capture_wait(struct chameleon_camera* c, float* shutter,
 
 int trigger_capture(struct chameleon_camera* c, float shutter, bool continuous);
 
-struct chameleon_camera *open_camera(bool colour_chameleon, int depth);
+struct chameleon_camera *open_camera(bool colour_chameleon, uint8_t depth, uint16_t brightness);
 
 void close_camera(struct chameleon_camera *);
 

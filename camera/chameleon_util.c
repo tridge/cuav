@@ -188,7 +188,7 @@ static void adjust_shutter(float *shutter, float average, uint32_t num_saturated
 }
 #endif
 
-static void camera_setup(chameleon_camera_t *camera, int depth)
+static void camera_setup(chameleon_camera_t *camera, uint8_t depth, uint16_t brightness)
 {
   CHECK(chameleon_video_set_transmission(camera, DC1394_OFF));
   CHECK(chameleon_camera_reset(camera));
@@ -224,7 +224,7 @@ static void camera_setup(chameleon_camera_t *camera, int depth)
   CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_BRIGHTNESS, DC1394_OFF));
   CHECK(chameleon_set_control_register(camera, 0x81C, 0x03000000)); // shutter on, auto
   CHECK(chameleon_set_control_register(camera, 0x820, 0x02000000)); // gain on, manual, 0
-  CHECK(chameleon_set_control_register(camera, 0x804, 0x02000000 | 100)); // AUTO_EXPOSURE on, manual
+  CHECK(chameleon_set_control_register(camera, 0x804, 0x02000000 | (brightness&0xFFF))); // AUTO_EXPOSURE on, manual
   CHECK(chameleon_set_control_register(camera, 0x1098, 0xFA0)); // auto shutter range max
   CHECK(chameleon_set_control_register(camera, 0x10A0, 0x02000000 | 0)); // auto gain zero range
 #else
@@ -272,7 +272,7 @@ void close_camera(chameleon_camera_t* camera)
   }
 }
 
-chameleon_camera_t *open_camera(bool colour_chameleon, int depth)
+chameleon_camera_t *open_camera(bool colour_chameleon, uint8_t depth, uint16_t brightness)
 {
 	chameleon_camera_t *camera;
 	if (!d) {
@@ -308,7 +308,7 @@ chameleon_camera_t *open_camera(bool colour_chameleon, int depth)
 
 	printf("Using camera with GUID %"PRIx64"\n", camera->guid);
 
-	camera_setup(camera, depth);
+	camera_setup(camera, depth, brightness);
 
 	return camera;
 
