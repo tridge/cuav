@@ -67,11 +67,11 @@ def save_thread():
 
 def compress_thread():
   '''thread for compressing images'''
-  im_640 = numpy.zeros((480,640,3),dtype='uint8')
+  im_colour = numpy.zeros((960,1280,3),dtype='uint8')
   while True:
     frame_time, im = state.compress_queue.get()
-    scanner.debayer(im, im_640)
-    mat = cv.fromarray(im_640)
+    scanner.debayer_16_full(im, im_colour)
+    mat = cv.fromarray(im_colour)
     im2 = numpy.ascontiguousarray(mat)
     jpeg = scanner.jpeg_compress(im2)
     if opts.save:
@@ -124,6 +124,7 @@ def run_capture():
       break
 
   print('Closing camera')
+  time.sleep(2)
   chameleon.close(h)
 
 # main program
