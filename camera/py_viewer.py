@@ -8,10 +8,10 @@ import scanner
 colour = 0
 depth = 16
 try:
-  h = chameleon.open(1, depth)
+  h = chameleon.open(1, depth, 100)
   colour = 1
 except chameleon.error:
-  h = chameleon.open(0, depth)
+  h = chameleon.open(0, depth, 100)
   colour = 0
 
 print("Found camera: colour=%u GUID=%x" % (colour, chameleon.guid(h)))
