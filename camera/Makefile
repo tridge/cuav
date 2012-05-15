@@ -1,7 +1,7 @@
-LIBDC=/home/tridge/project/UAV/misc/camera/libdc1394/prefix
-INCLUDES=$(shell python-config --includes) -I$(LIBDC)/include
-CFLAGS=-Wall -O3 -g $(INCLUDES) -I. -std=gnu99 -fPIC
-LIBS=-L$(LIBDC)/lib -ldc1394 -Wl,-rpath,$(LIBDC)/lib -lm -lusb-1.0
+INCLUDES=$(shell python-config --includes) -I/usr/local/include
+LISTOPTS=-adhlns=$(@:.o=.lst)
+CFLAGS=-Wall -std=gnu99 -fPIC -O3 -mfpu=neon -ftree-vectorize -Wa,$(LISTOPTS) $(INCLUDES)
+LIBS=-L/usr/local/lib -ldc1394 -lm -lusb-1.0
 TARGETS=capture_images capture_v4l chameleon_twin chameleon_twin16 chameleon_twin8 chameleon.so
 
 all: $(TARGETS)
