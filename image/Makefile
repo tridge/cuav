@@ -8,7 +8,9 @@ LIBJPEG=-L/opt/libjpeg-turbo/lib -ljpeg -lturbojpeg
 #AR=arm-linux-gnueabi-ar
 
 CXXFLAGS=-Wall -O3
-CFLAGS=-Wall -std=gnu99 -fPIC -O3 $(INCLUDES)
+LISTOPTS=-adhlns=$(@:.o=.lst)
+CFLAGS=-Wall -std=gnu99 -fPIC -O3 -mfpu=neon -ftree-vectorize -Wa,$(LISTOPTS) $(INCLUDES)
+#CFLAGS=-Wall -std=gnu99 -fPIC -g $(INCLUDES)
 
 objects = pgm_io.o debayer.o histogram.o image_utils.o BlobExtractor.o
 
