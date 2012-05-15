@@ -6,15 +6,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..
 import scanner
 
 from optparse import OptionParser
-parser = OptionParser("py_capture.py [options] <filename>")
+parser = OptionParser("py_capture.py [options]")
 parser.add_option("--depth", type='int', default=16, help="image depth")
 parser.add_option("--mono", action='store_true', default=False, help="use mono camera")
 parser.add_option("--save", action='store_true', default=False, help="save images in tmp/")
 parser.add_option("--compress", action='store_true', default=False, help="compress images for saving")
 parser.add_option("--scan", action='store_true', default=False, help="run the Joe scanner")
 parser.add_option("--num-frames", "-n", type='int', default=0, help="number of images to capture")
+parser.add_option("--scan-skip", type='int', default=0, help="number of scans to skip per image")
 parser.add_option("--quality", type='int', default=95, help="compression quality")
 parser.add_option("--brightness", type='int', default=100, help="auto-exposure brightness")
+parser.add_option("--trigger", action='store_true', default=False, help="trigger each image")
 (opts, args) = parser.parse_args()
 
 class capture_state():
@@ -26,6 +28,7 @@ class capture_state():
     self.bayer_queue = Queue.Queue()
     self.compress_queue = Queue.Queue()
     self.save_queue = Queue.Queue()
+    self.scan_queue = Queue.Queue()
 
 def timestamp(frame_time):
     '''return a localtime timestamp with 0.01 second resolution'''
@@ -92,7 +95,12 @@ def bayer_thread():
     # C debayer code
     im_colour = numpy.zeros((960,1280,3),dtype='uint8')
     scanner.debayer_16_full(im, im_colour)
-    state.compress_queue.put((frame_time, im_colour))
+    if opts.compress:
+      state.compress_queue.put((frame_time, im_colour))
+    if opts.scan:
+      im_640 = numpy.zeros((480,640,3),dtype='uint8')
+      scanner.downsample(im_colour, im_640)
+      state.scan_queue.put((frame_time, im_640))
 
     # OpenCV debayer code
     #cv.SetData(img_full, im.data)
@@ -110,6 +118,21 @@ def compress_thread():
     if opts.save:
       state.save_queue.put((frame_time, jpeg, True))
 
+def scan_thread():
+  '''thread for scanning for Joe'''
+  total_time = 0
+  count = 0
+  while True:
+    frame_time, im = state.scan_queue.get()
+    t0=time.time()
+    regions = scanner.scan(im)
+    t1=time.time()
+    total_time += (t1-t0)
+    count += 1
+    print('scan %f fps' % (count/total_time))
+    for i in range(opts.scan_skip):
+      frame_time, im = state.scan_queue.get()
+      
 
 def run_capture():
   '''the main capture loop'''
@@ -117,8 +140,9 @@ def run_capture():
   print("Getting base frame time")
   h, base_time, last_frame_time = get_base_time()
 
-  print('Starting continuous trigger mode')
-  chameleon.trigger(h, True)
+  if not opts.trigger:
+    print('Starting continuous trigger mode')
+    chameleon.trigger(h, True)
   
   frame_loss = 0
   num_captured = 0
@@ -127,6 +151,8 @@ def run_capture():
   while True:
     im = numpy.zeros((960,1280),dtype='uint8' if opts.depth==8 else 'uint16')
     try:
+      if opts.trigger:
+        chameleon.trigger(h, False)
       frame_time, frame_counter, shutter = chameleon.capture(h, 1000, im)
     except chameleon.error:
       print('failed to capture')
@@ -136,19 +162,21 @@ def run_capture():
     if last_frame_counter != 0:
       frame_loss += frame_counter - (last_frame_counter+1)
 
-    if opts.compress:
+    if opts.compress or opts.scan:
       state.bayer_queue.put((base_time+frame_time, im))
-    elif opts.save:
+    if opts.save and not opts.compress:
       state.save_queue.put((base_time+frame_time, im, False))
 
-    print("Captured shutter=%f tdelta=%f ft=%f loss=%u qsave=%u qbayer=%u qcompress=%u" % (
+    print("Captured %s shutter=%f tdelta=%f ft=%f loss=%u qsave=%u qbayer=%u qcompress=%u scan=%u" % (
+        timestamp(base_time+frame_time),
         shutter, 
         frame_time - last_frame_time,
         frame_time,
         frame_loss,
         state.save_queue.qsize(),
         state.bayer_queue.qsize(),
-        state.compress_queue.qsize()))
+        state.compress_queue.qsize(),
+        state.scan_queue.qsize()))
 
     last_frame_time = frame_time
     last_frame_counter = frame_counter
@@ -166,8 +194,13 @@ state = capture_state()
 if opts.save:
   state.save_thread = start_thread(save_thread)
 
-if opts.compress:
+if opts.scan:
+  state.scan_thread = start_thread(scan_thread)
+
+if opts.scan or opts.compress:
   state.bayer_thread = start_thread(bayer_thread)
+
+if opts.compress:
   state.compress_thread = start_thread(compress_thread)
 
 run_capture()
