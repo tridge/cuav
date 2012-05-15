@@ -39,7 +39,7 @@
 #include <arpa/inet.h>
 #include <math.h>
 #include <getopt.h>
-#include <chameleon.h>
+#include "chameleon.h"
 
 #define SHUTTER_MIN     0.000010
 #define SHUTTER_MAX     0.10000

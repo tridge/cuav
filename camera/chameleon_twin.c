@@ -39,7 +39,7 @@
 #include <arpa/inet.h>
 #include <math.h>
 #include <getopt.h>
-#include <chameleon.h>
+#include "chameleon.h"
 
 #define CHECK(x) do { \
 	int err = (x); \
