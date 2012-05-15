@@ -20,6 +20,14 @@
 #include "debayer.h"
 #include "pgm_io.h"
 
+//#undef __ARM_NEON__
+
+#define NOINLINE __attribute__((noinline))
+
+#ifdef __ARM_NEON__
+#include <arm_neon.h>
+#endif
+
 /*
   this uses libjpeg-turbo from http://libjpeg-turbo.virtualgl.org/
   You need to build it with
@@ -45,7 +53,7 @@ static PyObject *ScannerError;
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-static bool save_intermediate;
+#define SAVE_INTERMEDIATE 0
 
 struct PACKED rgb {
 	uint8_t b, g, r;
@@ -80,6 +88,10 @@ struct rgb_image8_full {
 	struct rgb data[HEIGHT][WIDTH];
 };
 
+static bool rgb_equal(const struct rgb *rgb1, const struct rgb *rgb2)
+{
+	return memcmp(rgb1, rgb2, sizeof(struct rgb)) == 0;
+}
 
 /*
   save a 640x480 rgb image as a P6 pnm file
@@ -96,6 +108,21 @@ static bool colour_save_pnm(const char *filename, const struct rgb_image8 *image
 	}
 	close(fd);
 	return true;
+}
+
+/*
+  find the highest individual value in 16 bit array
+ */
+static uint16_t highest_uint16(const uint16_t *in, uint32_t n)
+{
+	uint32_t i;
+	uint16_t highest = 0;
+
+	for (i=0;i<n;i++) {
+		if (*in > highest) highest = *in;
+		in++;
+	}
+	return highest;
 }
 
 /*
@@ -120,9 +147,9 @@ static void colour_convert_8bit(const struct grey_image8 *in, struct rgb_image8 
 		}
 	}
 
-	if (save_intermediate) {
-		colour_save_pnm("test.pnm", out);
-	}
+#if SAVE_INTERMEDIATE
+	colour_save_pnm("test.pnm", out);
+#endif
 }
 
 
@@ -148,9 +175,9 @@ static void colour_convert_16_8bit(const struct grey_image16 *in, struct rgb_ima
 		}
 	}
 
-	if (save_intermediate) {
-		colour_save_pnm("test.pnm", out);
-	}
+#if SAVE_INTERMEDIATE
+	colour_save_pnm("test.pnm", out);
+#endif
 }
 
 /*
@@ -211,11 +238,49 @@ struct histogram {
 };
 
 
+#ifdef __ARM_NEON__
+static void NOINLINE get_min_max_neon(const struct rgb_image8 * __restrict in, 
+				      struct rgb *min, 
+				      struct rgb *max)
+{
+	const uint8_t *src;
+	uint32_t i;
+	uint8x8_t rmax, rmin, gmax, gmin, bmax, bmin;
+	uint8x8x3_t rgb;
+
+	rmin = gmin = bmin = vdup_n_u8(255);
+	rmax = gmax = bmax = vdup_n_u8(0);
+
+	src = (const uint8_t *)&in->data[0][0];
+	for (i=0; i<(WIDTH/2)*(HEIGHT/2)/8; i++) {
+		rgb = vld3_u8(src);
+		bmin = vmin_u8(bmin, rgb.val[0]);
+		bmax = vmax_u8(bmax, rgb.val[0]);
+		gmin = vmin_u8(gmin, rgb.val[1]);
+		gmax = vmax_u8(gmax, rgb.val[1]);
+		rmin = vmin_u8(rmin, rgb.val[2]);
+		rmax = vmax_u8(rmax, rgb.val[2]);
+		src += 8*3;
+	}
+
+	min->r = min->g = min->b = 255;
+	max->r = max->g = max->b = 0;
+	for (i=0; i<8; i++) {
+		if (min->b > vget_lane_u8(bmin, i)) min->b = vget_lane_u8(bmin, i);
+		if (min->g > vget_lane_u8(gmin, i)) min->g = vget_lane_u8(gmin, i);
+		if (min->r > vget_lane_u8(rmin, i)) min->r = vget_lane_u8(rmin, i);
+		if (max->b < vget_lane_u8(bmax, i)) max->b = vget_lane_u8(bmax, i);
+		if (max->g < vget_lane_u8(gmax, i)) max->g = vget_lane_u8(gmax, i);
+		if (max->r < vget_lane_u8(rmax, i)) max->r = vget_lane_u8(rmax, i);
+	}
+}
+#endif
+
 /*
   find the min and max of each color over an image. Used to find
   bounds of histogram bins
  */
-static void get_min_max(const struct rgb_image8 *in, 
+static void get_min_max(const struct rgb_image8 * __restrict in, 
 			struct rgb *min, 
 			struct rgb *max)
 {
@@ -236,6 +301,39 @@ static void get_min_max(const struct rgb_image8 *in,
 		}
 	}	
 }
+
+#ifdef __ARM_NEON__XXX // not ready yet
+/*
+  quantise an RGB image
+ */
+static void quantise_image_neon(const struct rgb_image8 * __restrict in,
+				struct rgb_image8 * __restrict out,
+				const struct rgb *min, 
+				const struct rgb *bin_spacing)
+{
+	const uint8_t *src = &in->data[0][0];
+	uint8_t *dest = &out->data[0][0];
+	uint32_t i;
+	uint8x8_t gmin, bmax, bmin;
+
+	bmin = vdup_n_u8(min->b);
+	gmin = vdup_n_u8(min->g);
+	rmin = vdup_n_u8(min->r);
+
+	for (i=0; i<(WIDTH/2)*(HEIGHT/2)/8; i++) {
+		uint8x8x3_t rgb  = vld3_u8(src);
+		rgb.val[0] = vsub_u8(rgb.val[0], bmin);
+		rgb.val[1] = vsub_u8(rgb.val[1], gmin);
+		rgb.val[2] = vsub_u8(rgb.val[2], rmin);
+		out->data[y][x].r = (v->r - min->r) / bin_spacing->r;
+		out->data[y][x].g = (v->g - min->g) / bin_spacing->g;
+		out->data[y][x].b = (v->b - min->b) / bin_spacing->b;
+		vst3_u8(dest, rgb);
+		src += 8*3;
+		dest += 8*3;
+	}
+}
+#endif
 
 /*
   quantise an RGB image
@@ -379,51 +477,72 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 {
 	struct rgb min, max;
 	struct rgb bin_spacing;
-	struct rgb_image8 *quantised, *unquantised, *qsaved, *neighbours;
+	struct rgb_image8 *quantised, *neighbours;
 	struct histogram *histogram;
 	unsigned num_bins = (1<<HISTOGRAM_BITS_PER_COLOR);
+#if SAVE_INTERMEDIATE
+	struct rgb_image8 *qsaved;
+	struct rgb_image8 *unquantised;
+#endif
 
 	ALLOCATE(quantised);
-	ALLOCATE(unquantised);
-	ALLOCATE(qsaved);
 	ALLOCATE(neighbours);
 	ALLOCATE(histogram);
+#if SAVE_INTERMEDIATE
+	ALLOCATE(unquantised);
+	ALLOCATE(qsaved);
+#endif
 
+#ifdef __ARM_NEON__
+	get_min_max_neon(in, &min, &max);
+#else
 	get_min_max(in, &min, &max);
+#endif
+
+#if 0
+	struct rgb min2, max2;
+	if (!rgb_equal(&min, &min2) ||
+	    !rgb_equal(&max, &max2)) {
+		printf("get_min_max_neon failure\n");
+	}
+#endif
 	bin_spacing.r = 1 + (max.r - min.r) / num_bins;
 	bin_spacing.g = 1 + (max.g - min.g) / num_bins;
 	bin_spacing.b = 1 + (max.b - min.b) / num_bins;
 
 	quantise_image(in, quantised, &min, &bin_spacing);
-	if (save_intermediate) {
-		unquantise_image(quantised, unquantised, &min, &bin_spacing);
-		colour_save_pnm("unquantised.pnm", unquantised);
-	}
+
+#if SAVE_INTERMEDIATE
+	unquantise_image(quantised, unquantised, &min, &bin_spacing);
+	colour_save_pnm("unquantised.pnm", unquantised);
+#endif
 
 	build_histogram(quantised, histogram);
+
+#if SAVE_INTERMEDIATE
 	*qsaved = *quantised;
-
-	if (save_intermediate) {
-		histogram_threshold(quantised, histogram, HISTOGRAM_COUNT_THRESHOLD);
-		unquantise_image(quantised, unquantised, &min, &bin_spacing);
-		colour_save_pnm("thresholded.pnm", unquantised);
-	}
-
+	histogram_threshold(quantised, histogram, HISTOGRAM_COUNT_THRESHOLD);
+	unquantise_image(quantised, unquantised, &min, &bin_spacing);
+	colour_save_pnm("thresholded.pnm", unquantised);
 	*quantised = *qsaved;
+#endif
+
 
 	histogram_threshold_neighbours(quantised, neighbours, histogram, HISTOGRAM_COUNT_THRESHOLD);
-	if (save_intermediate) {
-		unquantise_image(neighbours, unquantised, &min, &bin_spacing);
-		colour_save_pnm("neighbours.pnm", unquantised);
-	}
+#if SAVE_INTERMEDIATE
+	unquantise_image(neighbours, unquantised, &min, &bin_spacing);
+	colour_save_pnm("neighbours.pnm", unquantised);
+#endif
 
 	*out = *neighbours;
 
 	free(quantised);
-	free(unquantised);
-	free(qsaved);
 	free(neighbours);
 	free(histogram);
+#if SAVE_INTERMEDIATE
+	free(unquantised);
+	free(qsaved);
+#endif
 }
 
 #define MAX_REGIONS 200
@@ -652,7 +771,7 @@ scanner_debayer(PyObject *self, PyObject *args)
 
 	if (PyArray_DIM(img_in, 1) != WIDTH ||
 	    PyArray_DIM(img_in, 0) != HEIGHT) {
-		PyErr_SetString(ScannerError, "input must be 1280x960 bit");		
+		PyErr_SetString(ScannerError, "input must be 1280x960");		
 		return NULL;
 	}
 	if (PyArray_DIM(img_out, 1) != WIDTH/2 ||
@@ -804,6 +923,89 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 }
 
 
+/*
+  downsample a 24 bit colour image from 1280x960 to 640x480
+ */
+static PyObject *
+scanner_downsample(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+
+	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+		return NULL;
+
+	if (PyArray_DIM(img_in, 1) != WIDTH ||
+	    PyArray_DIM(img_in, 0) != HEIGHT ||
+	    PyArray_STRIDE(img_in, 0) != WIDTH*3) {
+		PyErr_SetString(ScannerError, "input must be 1280x960 24 bit");
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 1) != WIDTH/2 ||
+	    PyArray_DIM(img_out, 0) != HEIGHT/2 ||
+	    PyArray_STRIDE(img_out, 0) != 3*(WIDTH/2)) {
+		PyErr_SetString(ScannerError, "output must be 640x480 24 bit");
+		return NULL;
+	}
+
+	const struct rgb_image8_full *in = PyArray_DATA(img_in);
+	struct rgb_image8 *out = PyArray_DATA(img_out);
+
+	Py_BEGIN_ALLOW_THREADS;
+	for (uint16_t y=0; y<HEIGHT/2; y++) {
+		for (uint16_t x=0; x<WIDTH/2; x++) {
+			out->data[y][x] = in->data[y*2][x*2];
+		}
+	}
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
+
+/*
+  reduce bit depth of an image from 16 bit to 8 bit
+ */
+static PyObject *
+scanner_reduce_depth(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+	uint16_t w, h;
+
+	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+		return NULL;
+
+	w = PyArray_DIM(img_out, 1);
+	h = PyArray_DIM(img_out, 0);
+
+	if (PyArray_STRIDE(img_in, 0) != w*2) {
+		PyErr_SetString(ScannerError, "input must be 16 bit");
+		return NULL;
+	}
+	if (PyArray_STRIDE(img_out, 0) != w) {
+		PyErr_SetString(ScannerError, "output must be 8 bit");
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 1) != w ||
+	    PyArray_DIM(img_out, 0) != h) {
+		PyErr_SetString(ScannerError, "input and output sizes must match");
+		return NULL;
+	}
+
+	const uint16_t *in = PyArray_DATA(img_in);
+	uint8_t *out = PyArray_DATA(img_out);
+
+	Py_BEGIN_ALLOW_THREADS;
+	uint16_t highest = highest_uint16(in, w*h);
+	printf("highest=0x%x\n", highest);
+	for (uint32_t i=0; i<w*h; i++) {
+		out[i] = in[i]>>8;
+	}
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
+
 
 static PyMethodDef ScannerMethods[] = {
 	{"debayer", scanner_debayer, METH_VARARGS, "simple debayer of 1280x960 8 bit image to 640x480"},
@@ -811,6 +1013,8 @@ static PyMethodDef ScannerMethods[] = {
 	{"debayer_16_full", scanner_debayer_16_full, METH_VARARGS, "debayer of 1280x960 16 bit image to 1280x960 24 bit"},
 	{"scan", scanner_scan, METH_VARARGS, "histogram scan a 640x480 colour image"},
 	{"jpeg_compress", scanner_jpeg_compress, METH_VARARGS, "compress a 640x480 colour image to a jpeg image as a python string"},
+	{"downsample", scanner_downsample, METH_VARARGS, "downsample a 1280x960 24 bit RGB colour image to 640x480"},
+	{"reduce_depth", scanner_reduce_depth, METH_VARARGS, "reduce greyscale bit depth from 16 bit to 8 bit"},
 	{NULL, NULL, 0, NULL}
 };
 
