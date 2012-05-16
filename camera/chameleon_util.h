@@ -14,4 +14,7 @@ struct chameleon_camera *open_camera(bool colour_chameleon, uint8_t depth, uint1
 
 void close_camera(struct chameleon_camera *);
 
+void camera_set_brightness(chameleon_camera_t *camera, uint16_t brightness);
+void camera_set_gamma(chameleon_camera_t *camera, uint16_t gamma);
+
 #endif

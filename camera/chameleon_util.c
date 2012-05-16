@@ -188,7 +188,8 @@ static void adjust_shutter(float *shutter, float average, uint32_t num_saturated
 }
 #endif
 
-static void camera_setup(chameleon_camera_t *camera, uint8_t depth, uint16_t brightness)
+static void camera_setup(chameleon_camera_t *camera, uint8_t depth, 
+			 uint16_t brightness)
 {
   CHECK(chameleon_video_set_transmission(camera, DC1394_OFF));
   CHECK(chameleon_camera_reset(camera));
@@ -210,7 +211,7 @@ static void camera_setup(chameleon_camera_t *camera, uint8_t depth, uint16_t bri
   }
 
 #if USE_LIBDC1394
-  chameleon_capture_setup(camera, 16, DC1394_CAPTURE_FLAGS_DEFAULT);
+  chameleon_capture_setup(camera, 20, DC1394_CAPTURE_FLAGS_DEFAULT);
 #else
   chameleon_capture_setup(camera, 1, DC1394_CAPTURE_FLAGS_DEFAULT);
 #endif
@@ -221,7 +222,9 @@ static void camera_setup(chameleon_camera_t *camera, uint8_t depth, uint16_t bri
   CHECK(chameleon_feature_set_value(camera, DC1394_FEATURE_BRIGHTNESS, 0));
 
 #if USE_AUTO_EXPOSURE
-  CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_BRIGHTNESS, DC1394_OFF));
+  CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_BRIGHTNESS, DC1394_ON));
+  CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_GAMMA, DC1394_ON));
+  CHECK(chameleon_feature_set_value(camera, DC1394_FEATURE_GAMMA, 1024));
   CHECK(chameleon_set_control_register(camera, 0x81C, 0x03000000)); // shutter on, auto
   CHECK(chameleon_set_control_register(camera, 0x820, 0x02000000)); // gain on, manual, 0
   CHECK(chameleon_set_control_register(camera, 0x804, 0x02000000 | (brightness&0xFFF))); // AUTO_EXPOSURE on, manual
@@ -242,6 +245,9 @@ static void camera_setup(chameleon_camera_t *camera, uint8_t depth, uint16_t bri
 
   // enable FRAME_INFO
   CHECK(chameleon_set_control_register(camera, 0x12F8, 0x80000043)); // gain CSR, timestamp and counter
+
+  // GPIO_XTRA, trigger queueing
+  CHECK(chameleon_set_control_register(camera, 0x1104, 0x40000000));
 
   // this sets the external trigger:
   //    power on
@@ -317,9 +323,16 @@ failed:
 	return NULL;
 }
 
+static unsigned telapsed_msec(const struct timeval *tv)
+{
+	struct timeval tv2;
+	gettimeofday(&tv2, NULL);
+	return (tv2.tv_sec - tv->tv_sec)*1000 + (tv2.tv_usec - tv->tv_usec)/1000;
+}
+
 /*
-  trigger an image capture. If continuous is true then change to
-  trigger mode 15 (continuous trigger)
+  trigger an image capture. count is the number of images to
+  trigger. zero means contintinuous
  */
 int trigger_capture(chameleon_camera_t *c, float shutter, bool continuous)
 {
@@ -332,34 +345,30 @@ int trigger_capture(chameleon_camera_t *c, float shutter, bool continuous)
 	CHECK(chameleon_feature_set_absolute_value(c, DC1394_FEATURE_SHUTTER, shutter));
 #endif
 
-	// wait for any previous trigger to complete
+	/* setup mode 15 triggering 
+	   - power on
+	   - trigger source 7 (software)
+	   - trigger mode 15 (continuous) or 0 (single shot)
+	   - trigger param 0 (image count)
+	*/
+	if (continuous) {
+		CHECK(chameleon_set_control_register(c, 0x830, 0x82FF0000));
+	} else {
+		CHECK(chameleon_set_control_register(c, 0x830, 0x82F00000));
+	}
+
+	struct timeval tv0;
 	uint32_t trigger_v;
+
+	gettimeofday(&tv0, NULL);
 	do {
 		CHECK(chameleon_get_control_register(c, 0x62C, &trigger_v));
-	} while (trigger_v & 0x80000000);
-
-	if (continuous) {
-		/* setup mode 15 triggering 
-		   - power on
-		   - trigger source 7 (software)
-		   - trigger mode 15 (continuous)
-		   - trigger param 0 (unlimited images)
-		*/
-		CHECK(chameleon_set_control_register(c, 0x830, 0x82FF0000));
-		// trigger capturing to start now
-		CHECK(chameleon_set_control_register(c, 0x62C, 0x80000000));
-	}
+		usleep(1000);
+	} while (telapsed_msec(&tv0) < 300 && (trigger_v & 0x80000000));
 
 	// activate the software trigger
 	CHECK(chameleon_set_control_register(c, 0x62C, 0x80000000));
 	return 0;
-}
-
-static unsigned telapsed_msec(const struct timeval *tv)
-{
-	struct timeval tv2;
-	gettimeofday(&tv2, NULL);
-	return (tv2.tv_sec - tv->tv_sec)*1000 + (tv2.tv_usec - tv->tv_usec)/1000;
 }
 
 int capture_wait(chameleon_camera_t *c, float *shutter,
@@ -374,6 +383,7 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 #endif
 	uint32_t gain_csr;
 	uint8_t pixel_width;
+	const uint8_t marker[16] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
 
 	if (!c) {
 		return -1;
@@ -387,14 +397,27 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 	if (timeout_ms == -1) {
 		chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_WAIT, &frame);
 	} else {
-		struct timeval tv0;
+		int fd = dc1394_capture_get_fileno(c);
+		struct timeval tval, tv0; 
+		fd_set	fds;
+		if (fd == -1) {
+			printf("No capture polling fd available\n");
+			return -1;
+		}
+  
+		FD_ZERO(&fds);
+		FD_SET(fd, &fds);
+
 		gettimeofday(&tv0, NULL);
 		do {
-			chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_POLL, &frame);
-			if (frame != NULL) {
+			int tleft = telapsed_msec(&tv0) - timeout_ms;
+			if (tleft <= 0) tleft = 1;
+			tval.tv_sec = tleft/1000;
+			tval.tv_usec = 1000*(tleft%1000);
+			if (select(fd+1, &fds, NULL, NULL, &tval) == 1) {
+				chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_POLL, &frame);
 				break;
-			}
-			usleep(1000);
+			}			
 		} while (telapsed_msec(&tv0) < timeout_ms);
 	}
 	if (!frame) {
@@ -430,29 +453,14 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 	// don't skew the image stats
 	memcpy(buf, buf+12, 12);
 
-	int i;
-	uint8_t *p = (frame->total_bytes-16) + (uint8_t *)buf;
-	for (i=0; i<16; i++) {
-		if (p[i] != 0xff) break;
-	}
-	if (i == 16) {
-		printf("Warning: incomplete frame 0xff marker present\n");
-		CHECK(chameleon_capture_enqueue(c, frame));
-		return -1;
+	if (memcmp(frame->image+frame->total_bytes-sizeof(marker),
+		   marker, sizeof(marker)) == 0) {
+		printf("Warning: incomplete frame marker present\n");
+		goto failed;
 	}
 
-	// mark the last 10 lines with 0xFF, so we can detect incomplete images
-	memset(frame->image+frame->total_bytes-(IMAGE_WIDTH*10*pixel_width), 0xff, (IMAGE_WIDTH*10*pixel_width));
-
-#if 0
-	// useful for seeing tearing effects
-	struct row { uint16_t x[1280]; };
-	struct row *rows = buf;
-	for (int i=100; i<860; i++) {
-		memset(&rows[i].x[620], 0xFF, 40*2);
-	}
-
-#endif
+	// mark the last bytes so we can detect incomplete images
+	memcpy(frame->image+frame->total_bytes-sizeof(marker), marker, sizeof(marker));
 
 #if USE_AUTO_EXPOSURE == 0
 	if (frame->data_depth == 8) {
@@ -481,11 +489,21 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 	return 0;
 
 failed:
-	// mark the last 10 lines with 0xFF, so we can detect incomplete images
-	memset(frame->image+frame->total_bytes-(IMAGE_WIDTH*10*pixel_width), 0xff, 
-	       (IMAGE_WIDTH*10*pixel_width));
+	// mark the last bytes so we can detect incomplete images
+	memcpy(frame->image+frame->total_bytes-sizeof(marker), marker, sizeof(marker));
 	CHECK(chameleon_capture_enqueue(c, frame));
 	return -1;
 }
 
 
+// set gamma for 16 -> 8 bit conversion
+void camera_set_gamma(chameleon_camera_t *camera, uint16_t gamma)
+{
+	CHECK(chameleon_feature_set_value(camera, DC1394_FEATURE_GAMMA, gamma));	
+}
+
+// set brightness for auto exposure
+void camera_set_brightness(chameleon_camera_t *camera, uint16_t brightness)
+{
+	CHECK(chameleon_feature_set_value(camera, DC1394_FEATURE_BRIGHTNESS, brightness));	
+}
