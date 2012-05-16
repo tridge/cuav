@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 
 import sys, cv, numpy, time
-import util
+import util, os
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
+import scanner
 
 from optparse import OptionParser
 parser = OptionParser("debayer.py [options] <filename>")
 parser.add_option("--batch", action='store_true', help="batch convert to png")
 parser.add_option("--half", action='store_true', help="show half sized")
 parser.add_option("--brightness", type='float', default=1.0, help="set brightness")
+parser.add_option("--gamma", type='int', default=0, help="set gamma (if 16 bit images)")
 (opts, args) = parser.parse_args()
 
 if len(args) < 1:
@@ -17,22 +21,21 @@ if len(args) < 1:
 def debayer(filename):
     '''debayer an image'''
     pgm = util.PGM(filename)
-
-    if pgm.eightbit:
-        img8 = pgm.img
+    img = numpy.zeros((960,1280,3),dtype='uint8')
+    if opts.gamma != 0:
+        img8 = numpy.zeros((960,1280,1),dtype='uint8')
+        scanner.gamma_correct(pgm.array, img8, opts.gamma)
     else:
-        img8 = cv.CreateImage((1280,960), 8, 1)
-        cv.ConvertScale(pgm.img, img8, scale=1.0/256)
-    
-    color_img = cv.CreateImage((1280,960), 8, 3)
-    cv.CvtColor(img8, color_img, cv.CV_BayerGR2BGR)
+        img8 = pgm.array
+    scanner.debayer_full(img8, img)
+    color_img = cv.CreateImageHeader((1280, 960), 8, 3)
+    cv.SetData(color_img, img)
     if opts.half:
         half_img = cv.CreateImage((640,480), 8, 3)
         cv.Resize(color_img, half_img)
         color_img = half_img        
 
     cv.ConvertScale(color_img, color_img, scale=opts.brightness)
-
     cv.ShowImage('Bayer', color_img)
     return (color_img, pgm)
 
