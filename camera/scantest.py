@@ -10,6 +10,7 @@ parser = OptionParser("scantest.py [options] <filename..>")
 parser.add_option("--repeat", type='int', default=1, help="scan repeat count")
 parser.add_option("--view", action='store_true', default=False, help="show images")
 parser.add_option("--fullres", action='store_true', default=False, help="debayer at full resolution")
+parser.add_option("--gamma", type='int', default=0, help="gamma for 16 -> 8 conversion")
 (opts, args) = parser.parse_args()
 
 class state():
@@ -19,18 +20,31 @@ class state():
 def process(files):
   '''process a set of files'''
 
+  scan_count = 0
+  num_files = len(files)
+
   for f in files:
     stat = os.stat(f)
     pgm = util.PGM(f)
     im = pgm.array
     if opts.fullres:
-      im_8bit = numpy.zeros((960,1280,1),dtype='uint8')
-      scanner.reduce_depth(im, im_8bit)
+      if pgm.eightbit:
+        im_8bit = im
+      else:
+        im_8bit = numpy.zeros((960,1280,1),dtype='uint8')
+        if opts.gamma != 0:
+          scanner.gamma_correct(im, im_8bit, opts.gamma)
+        else:
+          scanner.reduce_depth(im, im_8bit)
       im_colour = numpy.zeros((960,1280,3),dtype='uint8')
-      scanner.debayer_16_full(im, im_colour)
+      scanner.debayer_full(im_8bit, im_colour)
       im_640 = numpy.zeros((480,640,3),dtype='uint8')
       scanner.downsample(im_colour, im_640)
     else:
+      if opts.gamma != 0:
+        im_8bit = numpy.zeros((960,1280,1),dtype='uint8')
+        scanner.gamma_correct(im, im_8bit, opts.gamma)
+        im = im_8bit
       im_640 = numpy.zeros((480,640,3),dtype='uint8')
       scanner.debayer(im, im_640)
 
@@ -44,7 +58,8 @@ def process(files):
       count += 1
     t1=time.time()
     region_count += len(regions)
-
+    scan_count += 1
+    
     if opts.view:
       mat = cv.fromarray(im_640)
       for (x1,y1,x2,y2) in regions:
@@ -54,12 +69,13 @@ def process(files):
       cv.WaitKey(1)
 
     total_time += (t1-t0)
-    print('%s scan %f fps  %u regions' % (f, count/total_time, region_count))
+    print('%s scan %f fps  %u regions [%u/%u]' % (
+      f, count/total_time, region_count, scan_count, num_files))
     
 
 # main program
 state = state()
 
 process(args)
-cv.WaitKey(2000)
+cv.WaitKey(100)
 cv.DestroyWindow('Viewer')
