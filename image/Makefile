@@ -9,8 +9,13 @@ LIBJPEG=-L/opt/libjpeg-turbo/lib -ljpeg -lturbojpeg
 
 CXXFLAGS=-Wall -O3
 LISTOPTS=-adhlns=$(@:.o=.lst)
+#CFLAGS=-Wall -std=gnu99 -fPIC -O3 -mfpu=neon -ftree-vectorize -Wa,$(LISTOPTS) $(INCLUDES)
+ARCH:=$(shell arch)
+ifeq ($(ARCH),armv71)
 CFLAGS=-Wall -std=gnu99 -fPIC -O3 -mfpu=neon -ftree-vectorize -Wa,$(LISTOPTS) $(INCLUDES)
-#CFLAGS=-Wall -std=gnu99 -fPIC -g $(INCLUDES)
+else
+CFLAGS=-Wall -std=gnu99 -fPIC -O3 -Wa,$(LISTOPTS) $(INCLUDES)
+endif
 
 objects = pgm_io.o debayer.o histogram.o image_utils.o BlobExtractor.o
 
