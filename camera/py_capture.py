@@ -16,7 +16,7 @@ parser.add_option("--num-frames", "-n", type='int', default=0, help="number of i
 parser.add_option("--scan-skip", type='int', default=0, help="number of scans to skip per image")
 parser.add_option("--quality", type='int', default=95, help="compression quality")
 parser.add_option("--brightness", type='int', default=100, help="auto-exposure brightness")
-parser.add_option("--trigger", action='store_true', default=False, help="trigger each image")
+parser.add_option("--trigger", action='store_true', default=False, help="use triggering")
 (opts, args) = parser.parse_args()
 
 class capture_state():
@@ -87,27 +87,16 @@ def save_thread():
 
 def bayer_thread():
   '''thread for debayering images'''
-  #img_full = cv.CreateImage((1280,960), 16, 1)
-  #img8 = cv.CreateImage((1280,960), 8, 1)
-  #im_colour = cv.CreateMat(960, 1280, cv.CV_8UC3)
   while True:
     frame_time, im = state.bayer_queue.get()
-    # C debayer code
     im_colour = numpy.zeros((960,1280,3),dtype='uint8')
-    scanner.debayer_16_full(im, im_colour)
+    scanner.debayer_full(im, im_colour)
     if opts.compress:
       state.compress_queue.put((frame_time, im_colour))
     if opts.scan:
       im_640 = numpy.zeros((480,640,3),dtype='uint8')
       scanner.downsample(im_colour, im_640)
       state.scan_queue.put((frame_time, im_640))
-
-    # OpenCV debayer code
-    #cv.SetData(img_full, im.data)
-    #cv.ConvertScale(img_full, img8, scale=1.0/256)
-    #cv.CvtColor(img8, im_colour, cv.CV_BayerGR2BGR)
-    #im2 = numpy.ascontiguousarray(im_colour)
-    #state.compress_queue.put((frame_time, im2))
 
 
 def compress_thread():
@@ -129,7 +118,6 @@ def scan_thread():
     t1=time.time()
     total_time += (t1-t0)
     count += 1
-    print('scan %f fps' % (count/total_time))
     for i in range(opts.scan_skip):
       frame_time, im = state.scan_queue.get()
       
@@ -141,12 +129,14 @@ def run_capture():
   h, base_time, last_frame_time = get_base_time()
 
   if not opts.trigger:
-    print('Starting continuous trigger mode')
+    print('Starting continuous trigger')
     chameleon.trigger(h, True)
   
   frame_loss = 0
   num_captured = 0
   last_frame_counter = 0
+
+  print('Starting main capture loop')
 
   while True:
     im = numpy.zeros((960,1280),dtype='uint8' if opts.depth==8 else 'uint16')
