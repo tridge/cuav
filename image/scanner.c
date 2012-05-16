@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <math.h>
 #include <arpa/inet.h>
 #include <numpy/arrayobject.h>
 #include "debayer.h"
@@ -218,6 +219,55 @@ static void colour_convert_16_8bit_full(const struct grey_image16 *in, struct rg
 			out->data[y+1][x+1].g = in->data[y+1][x+1] >> 8;
 			out->data[y+1][x+1].b = ((uint32_t)in->data[y+1][x+0] + (uint32_t)in->data[y+1][x+2]) >> 9;
 			out->data[y+1][x+1].r = ((uint32_t)in->data[y+0][x+1] + (uint32_t)in->data[y+2][x+1]) >> 9;
+		}
+		out->data[y+0][0] = out->data[y+0][1];
+		out->data[y+1][0] = out->data[y+1][1];
+		out->data[y+0][WIDTH-1] = out->data[y+0][WIDTH-2];
+		out->data[y+1][WIDTH-1] = out->data[y+1][WIDTH-2];
+	}
+	memcpy(out->data[0], out->data[1], WIDTH*3);
+	memcpy(out->data[HEIGHT-1], out->data[HEIGHT-2], WIDTH*3);
+}
+
+
+/*
+  convert a 8 bit colour chameleon image to 8 bit colour at full
+  resolution. No smoothing is done
+
+  This algorithm emphasises speed over colour accuracy
+ */
+static void colour_convert_8bit_full(const struct grey_image8 *in, struct rgb_image8_full *out)
+{
+	unsigned x, y;
+	/*
+	  layout in the input image is in blocks of 4 values. The top
+	  left corner of the image looks like this
+             G B G B
+	     R G R G
+	     G B G B
+	     R G R G
+	 */
+	for (y=1; y<HEIGHT-2; y += 2) {
+		for (x=1; x<WIDTH-2; x += 2) {
+			out->data[y+0][x+0].g = in->data[y][x];
+			out->data[y+0][x+0].b = ((uint16_t)in->data[y-1][x+0] + (uint16_t)in->data[y+1][x+0]) >> 1;
+			out->data[y+0][x+0].r = ((uint16_t)in->data[y+0][x-1] + (uint16_t)in->data[y+0][x+1]) >> 1;
+
+			out->data[y+0][x+1].g = ((uint16_t)in->data[y+0][x+0] + (uint16_t)in->data[y-1][x+1] +
+						 (uint16_t)in->data[y+0][x+2] + (uint16_t)in->data[y+1][x+1]) >> 2;
+			out->data[y+0][x+1].b = ((uint16_t)in->data[y-1][x+0] + (uint16_t)in->data[y-1][x+2] +
+						 (uint16_t)in->data[y+1][x+0] + (uint16_t)in->data[y+1][x+2]) >> 2;
+			out->data[y+0][x+1].r = in->data[y+0][x+1];
+
+			out->data[y+1][x+0].g = ((uint16_t)in->data[y+0][x+0] + (uint16_t)in->data[y+1][x-1] +
+						 (uint16_t)in->data[y+1][x+1] + (uint16_t)in->data[y+2][x+0]) >> 2;
+			out->data[y+1][x+0].b = in->data[y+1][x+0];
+			out->data[y+1][x+0].r = ((uint16_t)in->data[y+0][x-1] + (uint16_t)in->data[y+0][x+1] +
+						 (uint16_t)in->data[y+2][x-1] + (uint16_t)in->data[y+2][x+1]) >> 2;
+
+			out->data[y+1][x+1].g = in->data[y+1][x+1];
+			out->data[y+1][x+1].b = ((uint16_t)in->data[y+1][x+0] + (uint16_t)in->data[y+1][x+2]) >> 1;
+			out->data[y+1][x+1].r = ((uint16_t)in->data[y+0][x+1] + (uint16_t)in->data[y+2][x+1]) >> 1;
 		}
 		out->data[y+0][0] = out->data[y+0][1];
 		out->data[y+1][0] = out->data[y+1][1];
@@ -721,41 +771,6 @@ static void mark_regions(struct rgb_image8 *img, const struct regions *r)
 }
 
 /*
-  debayer a 1280x960 16 bit image to 640x480 24 bit
- */
-static PyObject *
-scanner_debayer_16_8(PyObject *self, PyObject *args)
-{
-	PyArrayObject *img_in, *img_out;
-
-	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
-		return NULL;
-
-	if (PyArray_DIM(img_in, 1) != WIDTH ||
-	    PyArray_DIM(img_in, 0) != HEIGHT ||
-	    PyArray_STRIDE(img_in, 0) != WIDTH*2) {
-		PyErr_SetString(ScannerError, "input must be 1280x960 16 bit");
-		return NULL;
-	}
-	if (PyArray_DIM(img_out, 1) != WIDTH/2 ||
-	    PyArray_DIM(img_out, 0) != HEIGHT/2 ||
-	    PyArray_STRIDE(img_out, 0) != 3*(WIDTH/2)) {
-		PyErr_SetString(ScannerError, "output must be 640x480 24 bit");
-		return NULL;
-	}
-
-	const struct grey_image16 *in = PyArray_DATA(img_in);
-	struct rgb_image8 *out = PyArray_DATA(img_out);
-
-	Py_BEGIN_ALLOW_THREADS;
-	colour_convert_16_8bit(in, out);
-	Py_END_ALLOW_THREADS;
-
-	Py_RETURN_NONE;
-}
-
-
-/*
   debayer a 1280x960 8 bit image to 640x480 24 bit
  */
 static PyObject *
@@ -797,10 +812,10 @@ scanner_debayer(PyObject *self, PyObject *args)
 
 
 /*
-  debayer a 1280x960 16 bit image to 1280x960 24 bit colour image
+  debayer a 1280x960 image to 1280x960 24 bit colour image
  */
 static PyObject *
-scanner_debayer_16_full(PyObject *self, PyObject *args)
+scanner_debayer_full(PyObject *self, PyObject *args)
 {
 	PyArrayObject *img_in, *img_out;
 
@@ -808,9 +823,8 @@ scanner_debayer_16_full(PyObject *self, PyObject *args)
 		return NULL;
 
 	if (PyArray_DIM(img_in, 1) != WIDTH ||
-	    PyArray_DIM(img_in, 0) != HEIGHT ||
-	    PyArray_STRIDE(img_in, 0) != WIDTH*2) {
-		PyErr_SetString(ScannerError, "input must be 1280x960 16 bit");
+	    PyArray_DIM(img_in, 0) != HEIGHT) {
+		PyErr_SetString(ScannerError, "input must be 1280x960");
 		return NULL;
 	}
 	if (PyArray_DIM(img_out, 1) != WIDTH ||
@@ -821,10 +835,16 @@ scanner_debayer_16_full(PyObject *self, PyObject *args)
 	}
 
 	const struct grey_image16 *in = PyArray_DATA(img_in);
+	const struct grey_image8 *in8 = PyArray_DATA(img_in);
 	struct rgb_image8_full *out = PyArray_DATA(img_out);
+	bool eightbit = PyArray_STRIDE(img_in, 0) == PyArray_DIM(img_in, 1);
 
 	Py_BEGIN_ALLOW_THREADS;
-	colour_convert_16_8bit_full(in, out);
+	if (eightbit) {
+		colour_convert_8bit_full(in8, out);
+	} else {
+		colour_convert_16_8bit_full(in, out);
+	}
 	Py_END_ALLOW_THREADS;
 
 	Py_RETURN_NONE;
@@ -1005,16 +1025,65 @@ scanner_reduce_depth(PyObject *self, PyObject *args)
 	Py_RETURN_NONE;
 }
 
+/*
+  reduce bit depth of an image from 16 bit to 8 bit, applying gamma
+ */
+static PyObject *
+scanner_gamma_correct(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+	uint16_t w, h;
+	uint8_t lookup[0x1000];
+	int gamma=-1;
+
+	if (!PyArg_ParseTuple(args, "OOi", &img_in, &img_out, &gamma))
+		return NULL;
+
+	w = PyArray_DIM(img_out, 1);
+	h = PyArray_DIM(img_out, 0);
+
+	if (PyArray_STRIDE(img_in, 0) != w*2) {
+		PyErr_SetString(ScannerError, "input must be 16 bit");
+		return NULL;
+	}
+	if (PyArray_STRIDE(img_out, 0) != w) {
+		PyErr_SetString(ScannerError, "output must be 8 bit");
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 1) != w ||
+	    PyArray_DIM(img_out, 0) != h) {
+		PyErr_SetString(ScannerError, "input and output sizes must match");
+		return NULL;
+	}
+
+	const uint16_t *in = PyArray_DATA(img_in);
+	uint8_t *out = PyArray_DATA(img_out);
+
+	Py_BEGIN_ALLOW_THREADS;
+	uint32_t i;
+	double p = 1024.0 / gamma;
+	double z = 0xFFF;
+	for (i=0; i<0x1000; i++) {
+		lookup[i] = 255 * pow(i/z, p);
+	}
+	for (i=0; i<w*h; i++) {
+		out[i] = lookup[in[i]>>4];
+	}
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
 
 
 static PyMethodDef ScannerMethods[] = {
-	{"debayer", scanner_debayer, METH_VARARGS, "simple debayer of 1280x960 8 bit image to 640x480"},
-	{"debayer_16_8", scanner_debayer_16_8, METH_VARARGS, "simple debayer of 1280x960 16 bit image to 640x480 24 bit"},
-	{"debayer_16_full", scanner_debayer_16_full, METH_VARARGS, "debayer of 1280x960 16 bit image to 1280x960 24 bit"},
+	{"debayer", scanner_debayer, METH_VARARGS, "simple debayer of 1280x960 image to 640x480 24 bit"},
+	{"debayer_full", scanner_debayer_full, METH_VARARGS, "debayer of 1280x960 image to 1280x960 24 bit"},
 	{"scan", scanner_scan, METH_VARARGS, "histogram scan a 640x480 colour image"},
 	{"jpeg_compress", scanner_jpeg_compress, METH_VARARGS, "compress a 640x480 colour image to a jpeg image as a python string"},
 	{"downsample", scanner_downsample, METH_VARARGS, "downsample a 1280x960 24 bit RGB colour image to 640x480"},
 	{"reduce_depth", scanner_reduce_depth, METH_VARARGS, "reduce greyscale bit depth from 16 bit to 8 bit"},
+	{"gamma_correct", scanner_gamma_correct, METH_VARARGS, "reduce greyscale, applying gamma"},
 	{NULL, NULL, 0, NULL}
 };
 
