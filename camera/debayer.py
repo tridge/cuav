@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 import sys, cv, numpy, time
-import util, os
+import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-import scanner
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
+import scanner, cuav_util
 
 from optparse import OptionParser
 parser = OptionParser("debayer.py [options] <filename>")
@@ -20,7 +21,7 @@ if len(args) < 1:
 
 def debayer(filename):
     '''debayer an image'''
-    pgm = util.PGM(filename)
+    pgm = cuav_util.PGM(filename)
     img = numpy.zeros((960,1280,3),dtype='uint8')
     if opts.gamma != 0:
         img8 = numpy.zeros((960,1280,1),dtype='uint8')
@@ -72,7 +73,7 @@ def show_images(args):
         print(args[idx])
         (image, pgm) = change_image(idx)
         oldidx = idx
-        newidx = util.key_menu(oldidx, len(args), image,
+        newidx = cuav_util.key_menu(oldidx, len(args), image,
                                '%s.png' % args[idx][:-4],
                                pgm=pgm)
         idx += (newidx - oldidx)
