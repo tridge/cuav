@@ -455,7 +455,7 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 
 	if (memcmp(frame->image+frame->total_bytes-sizeof(marker),
 		   marker, sizeof(marker)) == 0) {
-		printf("Warning: incomplete frame marker present\n");
+		//printf("Warning: incomplete frame marker present\n");
 		goto failed;
 	}
 
