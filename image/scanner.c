@@ -60,6 +60,10 @@ struct PACKED rgb {
 	uint8_t b, g, r;
 };
 
+struct PACKED yuv {
+	uint8_t y, u, v;
+};
+
 /*
   full size greyscale 8 bit image
  */
@@ -556,9 +560,20 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 		printf("get_min_max_neon failure\n");
 	}
 #endif
+
+
 	bin_spacing.r = 1 + (max.r - min.r) / num_bins;
 	bin_spacing.g = 1 + (max.g - min.g) / num_bins;
 	bin_spacing.b = 1 + (max.b - min.b) / num_bins;
+
+#if 0
+	// try using same spacing on all axes
+	if (bin_spacing.r < bin_spacing.g) bin_spacing.r = bin_spacing.g;
+	if (bin_spacing.r < bin_spacing.b) bin_spacing.r = bin_spacing.b;
+	bin_spacing.g = bin_spacing.r;
+	bin_spacing.b = bin_spacing.b;
+#endif
+
 
 	quantise_image(in, quantised, &min, &bin_spacing);
 
@@ -870,8 +885,6 @@ scanner_scan(PyObject *self, PyObject *args)
 	if (PyArray_DIM(img_in, 1) != WIDTH/2 ||
 	    PyArray_DIM(img_in, 0) != HEIGHT/2 ||
 	    PyArray_STRIDE(img_in, 0) != 3*(WIDTH/2)) {
-		printf("stride=%u dim0=%u dim1=%u\n",
-		       PyArray_STRIDE(img_in, 0), PyArray_DIM(img_in, 0), PyArray_DIM(img_in, 1));
 		PyErr_SetString(ScannerError, "input must 640x480 24 bit");		
 		return NULL;
 	}
@@ -932,8 +945,6 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 		return NULL;
 
 	if (PyArray_STRIDE(img_in, 0) != 3*PyArray_DIM(img_in, 1)) {
-		printf("stride=%u dim0=%u dim1=%u\n",
-		       PyArray_STRIDE(img_in, 0), PyArray_DIM(img_in, 0), PyArray_DIM(img_in, 1));
 		PyErr_SetString(ScannerError, "input must 24 bit BGR");
 		return NULL;
 	}
@@ -1079,10 +1090,72 @@ scanner_gamma_correct(PyObject *self, PyObject *args)
 	double p = 1024.0 / gamma;
 	double z = 0xFFF;
 	for (i=0; i<0x1000; i++) {
-		lookup[i] = 0.5 + 255 * pow(i/z, p);
+		double v = ceil(255 * pow(i/z, p));
+		if (v >= 255) {
+			lookup[i] = 255;
+		} else {
+			lookup[i] = v;
+		}
 	}
 	for (i=0; i<w*h; i++) {
 		out[i] = lookup[in[i]>>4];
+	}
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
+
+/*
+  convert to 0-255 YUV
+ */
+static PyObject *
+scanner_rgb_to_yuv(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+	uint16_t w, h;
+
+	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+		return NULL;
+
+	w = PyArray_DIM(img_in, 1);
+	h = PyArray_DIM(img_in, 0);
+
+	if (PyArray_STRIDE(img_in, 0) != w*3) {
+		PyErr_SetString(ScannerError, "input must be 24 bit");
+		return NULL;
+	}
+	if (PyArray_STRIDE(img_out, 0) != w*3) {
+		PyErr_SetString(ScannerError, "output must be 24 bit");
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 1) != w ||
+	    PyArray_DIM(img_out, 0) != h) {
+		PyErr_SetString(ScannerError, "input and output sizes must match");
+		return NULL;
+	}
+
+	const uint8_t *in = PyArray_DATA(img_in);
+	uint8_t *out = PyArray_DATA(img_out);
+
+	Py_BEGIN_ALLOW_THREADS;
+	for (uint32_t i=0; i<w*h; i++) {
+		const struct rgb *rgb = (const struct rgb *)in;
+		struct yuv *yuv = (struct yuv *)out;
+		float y, u, v;
+		y = 0.299*rgb->r + 0.587*rgb->g + 0.114*rgb->b;
+		u = (rgb->b - yuv->y)*0.565 + 128;
+		v = (rgb->r - yuv->y)*0.713 + 128;
+		if (y > 255) y = 255;
+		if (u > 255) u = 255;
+		if (v > 255) v = 255;
+		if (u < 0) u = 0;
+		if (v < 0) v = 0;
+		yuv->y = y;
+		yuv->u = u;
+		yuv->v = v;
+		in += 3;
+		out += 3;
 	}
 	Py_END_ALLOW_THREADS;
 
@@ -1099,6 +1172,7 @@ static PyMethodDef ScannerMethods[] = {
 	{"downsample", scanner_downsample, METH_VARARGS, "downsample a 1280x960 24 bit RGB colour image to 640x480"},
 	{"reduce_depth", scanner_reduce_depth, METH_VARARGS, "reduce greyscale bit depth from 16 bit to 8 bit"},
 	{"gamma_correct", scanner_gamma_correct, METH_VARARGS, "reduce greyscale, applying gamma"},
+	{"rgb_to_yuv", scanner_rgb_to_yuv, METH_VARARGS, "convert to 0-255 YUV"},
 	{NULL, NULL, 0, NULL}
 };
 
