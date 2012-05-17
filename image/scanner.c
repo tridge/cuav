@@ -89,11 +89,7 @@ struct rgb_image8_full {
 	struct rgb data[HEIGHT][WIDTH];
 };
 
-static bool rgb_equal(const struct rgb *rgb1, const struct rgb *rgb2)
-{
-	return memcmp(rgb1, rgb2, sizeof(struct rgb)) == 0;
-}
-
+#if SAVE_INTERMEDIATE
 /*
   save a 640x480 rgb image as a P6 pnm file
  */
@@ -110,6 +106,7 @@ static bool colour_save_pnm(const char *filename, const struct rgb_image8 *image
 	close(fd);
 	return true;
 }
+#endif
 
 /*
   find the highest individual value in 16 bit array
@@ -405,6 +402,7 @@ static void quantise_image(const struct rgb_image8 *in,
 	}
 }
 
+#if SAVE_INTERMEDIATE
 /*
   unquantise an RGB image, useful for visualising the effect of
   quantisation by restoring the original colour ranges, which makes
@@ -427,6 +425,7 @@ static void unquantise_image(const struct rgb_image8 *in,
 	}
 
 }
+#endif
 
 /*
   calculate a histogram bin for a rgb value
@@ -457,7 +456,7 @@ static void build_histogram(const struct rgb_image8 *in,
 	}	
 }
 
-
+#if SAVE_INTERMEDIATE
 /*
   threshold an image by its histogram. Pixels that have a histogram
   count of more than the given threshold are set to zero value
@@ -478,6 +477,7 @@ static void histogram_threshold(struct rgb_image8 *in,
 		}
 	}	
 }
+#endif
 
 /*
   threshold an image by its histogram, Pixels that have a histogram
@@ -503,7 +503,7 @@ static void histogram_threshold_neighbours(const struct rgb_image8 *in,
 			for (rofs=-1; rofs<= 1; rofs++) {
 				for (gofs=-1; gofs<= 1; gofs++) {
 					for (bofs=-1; bofs<= 1; bofs++) {
-						struct rgb v2 = { v.r+rofs, v.g+gofs, v.b+bofs };
+						struct rgb v2 = { .b=v.b+bofs, .g=v.g+gofs, .r=v.r+rofs };
 						if (v2.r >= (1<<HISTOGRAM_BITS_PER_COLOR) ||
 						    v2.g >= (1<<HISTOGRAM_BITS_PER_COLOR) ||
 						    v2.b >= (1<<HISTOGRAM_BITS_PER_COLOR)) {
@@ -728,6 +728,7 @@ static void prune_regions(struct regions *in)
 	}
 }
 
+#if SAVE_INTERMEDIATE
 /*
   draw a square on an image
  */
@@ -752,7 +753,10 @@ static void draw_square(struct rgb_image8 *img,
 		img->data[y][right-1] = *c;
 	}
 }
+#endif
 
+
+#if SAVE_INTERMEDIATE
 /*
   mark regions in an image with a blue square
  */
@@ -769,6 +773,7 @@ static void mark_regions(struct rgb_image8 *img, const struct regions *r)
 			    MIN(r->bounds[i].maxy+2, (HEIGHT/2)-1));
 	}
 }
+#endif
 
 /*
   debayer a 1280x960 8 bit image to 640x480 24 bit
@@ -884,6 +889,16 @@ scanner_scan(PyObject *self, PyObject *args)
 	colour_histogram(in, himage);
 	assign_regions(himage, regions);
 	prune_regions(regions);
+
+#if SAVE_INTERMEDIATE
+	struct rgb_image8 *marked;
+	ALLOCATE(marked);
+	*marked = *in;
+	mark_regions(marked, regions);
+	colour_save_pnm("marked.pnm", marked);
+	free(marked);
+#endif
+
 	free(himage);
 	free(jimage);
 	Py_END_ALLOW_THREADS;
@@ -1064,7 +1079,7 @@ scanner_gamma_correct(PyObject *self, PyObject *args)
 	double p = 1024.0 / gamma;
 	double z = 0xFFF;
 	for (i=0; i<0x1000; i++) {
-		lookup[i] = 255 * pow(i/z, p);
+		lookup[i] = 0.5 + 255 * pow(i/z, p);
 	}
 	for (i=0; i<w*h; i++) {
 		out[i] = lookup[in[i]>>4];
