@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
-import chameleon, numpy, os, time, cv, sys
+import chameleon, numpy, os, time, cv, sys, math
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util, cuav_mosaic
+import scanner, cuav_util, cuav_mosaic, mav_position
 
 from optparse import OptionParser
 parser = OptionParser("scantest.py [options] <filename..>")
@@ -13,6 +13,10 @@ parser.add_option("--view", action='store_true', default=False, help="show image
 parser.add_option("--gamma", type='int', default=0, help="gamma for 16 -> 8 conversion")
 parser.add_option("--yuv", action='store_true', default=False, help="use YUV conversion")
 parser.add_option("--mosaic", action='store_true', default=False, help="build a mosaic of regions")
+parser.add_option("--mavlog", default=None, help="flight log for geo-referencing")
+parser.add_option("--boundary", default=None, help="search boundary file")
+parser.add_option("--max-deltat", default=1.0, type='float', help="max deltat for interpolation")
+parser.add_option("--max-attitude", default=0, type='float', help="max attitude geo-referencing")
 (opts, args) = parser.parse_args()
 
 class state():
@@ -26,11 +30,27 @@ def process(files):
   num_files = len(files)
   region_count = 0
 
+  if opts.mavlog:
+    mpos = mav_position.MavInterpolator()
+    mpos.set_logfile(opts.mavlog)
+  else:
+    mpos = None
+
+  if opts.boundary:
+    boundary = cuav_util.polygon_load(opts.boundary)
+  else:
+    boundary = None
+
   if opts.mosaic:
     mosaic = cuav_mosaic.Mosaic()
 
   for f in files:
-    stat = os.stat(f)
+    frame_time = cuav_util.parse_frame_time(f)
+    if mpos:
+      try:
+        pos = mpos.position(frame_time, opts.max_deltat)
+      except mav_position.MavInterpolatorDeltaTException:
+        pos = None
     if f.endswith('.pgm'):
       pgm = cuav_util.PGM(f)
       im = pgm.array
@@ -66,11 +86,24 @@ def process(files):
       regions = scanner.scan(img_scan)
       count += 1
     t1=time.time()
+
+    if boundary and mpos:
+      if pos is None:
+        regions = []
+      elif (opts.max_attitude != 0 and (
+        math.fabs(pos.roll) > opts.max_attitude or math.fabs(pos.pitch) > opts.max_attitude)):
+        regions = []        
+      for i in range(len(regions)-1, -1, -1):
+        r = regions[i]
+        (lat, lon) = cuav_util.gps_position_from_image_region(r, pos)
+        if cuav_util.polygon_outside((lat, lon), boundary):
+          regions.pop(i)
+    
     region_count += len(regions)
     scan_count += 1
 
     if opts.mosaic:
-      mosaic.add_regions(regions, img_scan, f)
+      mosaic.add_regions(regions, img_scan, f, pos)
     
     if opts.view:
       mat = cv.fromarray(img_scan)
