@@ -26,6 +26,7 @@ class Mosaic():
     '''called on mouse events'''
     if flags & cv.CV_EVENT_FLAG_RBUTTON:
       self.full_res = not self.full_res
+      print("full_res: %s" % self.full_res)
     if not (flags & cv.CV_EVENT_FLAG_LBUTTON):
       return
     idx = (x/32) + (self.width/32)*(y/32)
@@ -40,6 +41,7 @@ class Mosaic():
       mat = cv.fromarray(im)
     else:
       mat = cv.LoadImage(filename)
+      im = numpy.asarray(cv.GetMat(mat))
     (x1,y1,x2,y2) = r
     if im.shape[0] == 960:
       x1 *= 2
@@ -58,6 +60,8 @@ class Mosaic():
 
   def add_regions(self, regions, img, filename):
     '''add some regions'''
+    if getattr(img, 'shape', None) is None:
+      img = numpy.asarray(cv.GetMat(img))
     for r in regions:
       (x1,y1,x2,y2) = r
       dest_x = (self.region_index * 32) % self.height
