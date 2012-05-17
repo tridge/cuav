@@ -1042,7 +1042,6 @@ scanner_reduce_depth(PyObject *self, PyObject *args)
 
 	Py_BEGIN_ALLOW_THREADS;
 	uint16_t highest = highest_uint16(in, w*h);
-	printf("highest=0x%x\n", highest);
 	for (uint32_t i=0; i<w*h; i++) {
 		out[i] = in[i]>>8;
 	}
