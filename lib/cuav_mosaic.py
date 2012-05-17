@@ -5,7 +5,7 @@ Andrew Tridgell
 May 2012
 '''
 
-import numpy, os, cv, sys, cuav_util
+import numpy, os, cv, sys, cuav_util, time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 import scanner
@@ -32,8 +32,13 @@ class Mosaic():
     idx = (x/32) + (self.width/32)*(y/32)
     if self.regions[idx] is None:
       return
-    (r, filename) = self.regions[idx]
-    print '-> %s' % filename
+    (r, filename, pos) = self.regions[idx]
+    if pos:
+      (lat, lon) = cuav_util.gps_position_from_image_region(r, pos)
+      position_string = '%f %f %.1f %s %s' % (lat, lon, pos.altitude, pos, time.asctime(time.localtime(pos.time)))
+    else:
+      position_string = ''
+    print '-> %s %s' % (filename, position_string)
     if filename.endswith('.pgm'):
       pgm = cuav_util.PGM(filename)
       im = numpy.zeros((pgm.array.shape[0],pgm.array.shape[1],3),dtype='uint8')
@@ -58,7 +63,7 @@ class Mosaic():
     cv.WaitKey(1)
     
 
-  def add_regions(self, regions, img, filename):
+  def add_regions(self, regions, img, filename, pos=None):
     '''add some regions'''
     if getattr(img, 'shape', None) is None:
       img = numpy.asarray(cv.GetMat(img))
@@ -76,7 +81,7 @@ class Mosaic():
           else:
             px = img[y+midy, x+midx]
           self.mosaic[dest_y+y+16, dest_x+x+16] = px
-      self.regions[self.region_index] = (r, filename)
+      self.regions[self.region_index] = (r, filename, pos)
       self.region_index += 1
       if self.region_index >= self.num_regions:
         self.region_index = 0
