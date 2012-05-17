@@ -11,6 +11,7 @@ parser.add_option("--repeat", type='int', default=1, help="scan repeat count")
 parser.add_option("--view", action='store_true', default=False, help="show images")
 parser.add_option("--fullres", action='store_true', default=False, help="debayer at full resolution")
 parser.add_option("--gamma", type='int', default=0, help="gamma for 16 -> 8 conversion")
+parser.add_option("--yuv", action='store_true', default=False, help="use YUV conversion")
 (opts, args) = parser.parse_args()
 
 class state():
@@ -52,16 +53,22 @@ def process(files):
     region_count = 0
     total_time = 0
 
+    if opts.yuv:
+      img_scan = numpy.zeros((480,640,3),dtype='uint8')
+      scanner.rgb_to_yuv(im_640, img_scan)
+    else:
+      img_scan = im_640
+
     t0=time.time()
     for i in range(opts.repeat):
-      regions = scanner.scan(im_640)
+      regions = scanner.scan(img_scan)
       count += 1
     t1=time.time()
     region_count += len(regions)
     scan_count += 1
     
     if opts.view:
-      mat = cv.fromarray(im_640)
+      mat = cv.fromarray(img_scan)
       for (x1,y1,x2,y2) in regions:
         cv.Rectangle(mat, (x1,y1), (x2,y2), (255,0,0), 1)
       cv.ShowImage('Viewer', mat)
