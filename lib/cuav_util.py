@@ -1,6 +1,6 @@
 '''common utility functions'''
 
-import numpy, cv, math, sys
+import numpy, cv, math, sys, os
 
 class PGMError(Exception):
 	'''PGMLink error class'''
@@ -224,3 +224,19 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     dlon = math.degrees(math.atan(xofs/radius_of_earth))
 
     return (latitude+dlat, longitude+dlon)
+
+
+def mkdir_p(dir):
+    '''like mkdir -p'''
+    if not dir:
+        return
+    if dir.endswith("/"):
+        mkdir_p(dir[:-1])
+        return
+    if os.path.isdir(dir):
+        return
+    mkdir_p(os.path.dirname(dir))
+    try:
+        os.mkdir(dir)
+    except Exception:
+        pass
