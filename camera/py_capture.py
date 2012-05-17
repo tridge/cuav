@@ -3,7 +3,8 @@
 import chameleon, numpy, os, time, threading, Queue, cv, sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-import scanner
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
+import scanner, cuav_util
 
 from optparse import OptionParser
 parser = OptionParser("py_capture.py [options]")
@@ -29,11 +30,6 @@ class capture_state():
     self.compress_queue = Queue.Queue()
     self.save_queue = Queue.Queue()
     self.scan_queue = Queue.Queue()
-
-def timestamp(frame_time):
-    '''return a localtime timestamp with 0.01 second resolution'''
-    hundredths = int(frame_time * 100.0) % 100
-    return "%s%02u" % (time.strftime("%Y%m%d%H%M%S", time.localtime(frame_time)), hundredths)
 
 def start_thread(fn):
     '''start a thread running'''
@@ -79,10 +75,10 @@ def save_thread():
   while True:
     frame_time, im, is_jpeg = state.save_queue.get()
     if is_jpeg:
-      filename = 'tmp/i%s.jpg' % timestamp(frame_time)
+      filename = 'tmp/i%s.jpg' % cuav_util.frame_time(frame_time)
       chameleon.save_file(filename, im)
     else:
-      filename = 'tmp/i%s.pgm' % timestamp(frame_time)
+      filename = 'tmp/i%s.pgm' % cuav_util.frame_time(frame_time)
       chameleon.save_pgm(filename, im)
 
 def bayer_thread():
@@ -158,7 +154,7 @@ def run_capture():
       state.save_queue.put((base_time+frame_time, im, False))
 
     print("Captured %s shutter=%f tdelta=%f ft=%f loss=%u qsave=%u qbayer=%u qcompress=%u scan=%u" % (
-        timestamp(base_time+frame_time),
+        cuav_util.frame_time(base_time+frame_time),
         shutter, 
         frame_time - last_frame_time,
         frame_time,
