@@ -1,9 +1,10 @@
 #!/usr/bin/python
 
-import chameleon, numpy, os, time, cv, sys, util
+import chameleon, numpy, os, time, cv, sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-import scanner
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
+import scanner, cuav_util, cuav_mosaic
 
 from optparse import OptionParser
 parser = OptionParser("scantest.py [options] <filename..>")
@@ -19,49 +20,19 @@ class state():
   def __init__(self):
     pass
 
-class Mosaic():
-  '''keep a mosaic of found regions'''
-  def __init__(self, width=512, height=512):
-    self.width = width
-    self.height = height
-    self.mosaic = numpy.zeros((width,height,3),dtype='uint8')
-    self.region_index = 0
-
-  def add_regions(self, regions, img):
-    '''add some regions'''
-    for (x1,y1,x2,y2) in regions:
-      dest_x = (self.region_index * 32) % self.height
-      dest_y = ((self.region_index * 32) / self.width) * 32
-      midx = (x1+x2)/2
-      midy = (y1+y2)/2
-      for x in range(-16, 16):
-        for y in range(-16, 16):
-          if (y+midy < 0 or x+midx < 0 or
-              y+midy >= img.shape[0] or x+midx >= img.shape[1]):
-            continue
-          px = img[y+midy, x+midx]
-          self.mosaic[dest_y+y+16, dest_x+x+16] = px
-      self.region_index += 1
-      if self.region_index >= (self.width/32)*(self.height/32):
-        self.region_index = 0
-    
-
-def update_mosaic(mosaic, regions):
-  '''add to the mosaic'''
-  pass
-
 def process(files):
   '''process a set of files'''
 
   scan_count = 0
   num_files = len(files)
+  region_count = 0
 
   if opts.mosaic:
-    mosaic = Mosaic()
+    mosaic = cuav_mosaic.Mosaic()
 
   for f in files:
     stat = os.stat(f)
-    pgm = util.PGM(f)
+    pgm = cuav_util.PGM(f)
     im = pgm.array
     if opts.fullres:
       if pgm.eightbit:
@@ -85,7 +56,6 @@ def process(files):
       scanner.debayer(im, im_640)
 
     count = 0
-    region_count = 0
     total_time = 0
 
     if opts.yuv:
@@ -103,9 +73,7 @@ def process(files):
     scan_count += 1
 
     if opts.mosaic:
-      mosaic.add_regions(regions, img_scan)
-      mat = cv.fromarray(mosaic.mosaic)
-      cv.ShowImage('Mosaic', mat)
+      mosaic.add_regions(regions, img_scan, f)
     
     if opts.view:
       mat = cv.fromarray(img_scan)
@@ -119,6 +87,9 @@ def process(files):
     print('%s scan %f fps  %u regions [%u/%u]' % (
       f, count/total_time, region_count, scan_count, num_files))
     
+
+if opts.view:
+    cv.NamedWindow('Viewer')
 
 # main program
 state = state()
