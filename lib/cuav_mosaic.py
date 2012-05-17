@@ -73,8 +73,9 @@ class Mosaic():
       dest_y = ((self.region_index * 32) / self.width) * 32
       midx = (x1+x2)/2
       midy = (y1+y2)/2
-      for x in range(-16, 16):
-        for y in range(-16, 16):
+      # leave a 1 pixel black border
+      for x in range(-15, 16):
+        for y in range(-15, 16):
           if (y+midy < 0 or x+midx < 0 or
               y+midy >= img.shape[0] or x+midx >= img.shape[1]):
             px = 0
