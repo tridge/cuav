@@ -10,7 +10,6 @@ from optparse import OptionParser
 parser = OptionParser("scantest.py [options] <filename..>")
 parser.add_option("--repeat", type='int', default=1, help="scan repeat count")
 parser.add_option("--view", action='store_true', default=False, help="show images")
-parser.add_option("--fullres", action='store_true', default=False, help="debayer at full resolution")
 parser.add_option("--gamma", type='int', default=0, help="gamma for 16 -> 8 conversion")
 parser.add_option("--yuv", action='store_true', default=False, help="use YUV conversion")
 parser.add_option("--mosaic", action='store_true', default=False, help="build a mosaic of regions")
@@ -32,9 +31,9 @@ def process(files):
 
   for f in files:
     stat = os.stat(f)
-    pgm = cuav_util.PGM(f)
-    im = pgm.array
-    if opts.fullres:
+    if f.endswith('.pgm'):
+      pgm = cuav_util.PGM(f)
+      im = pgm.array
       if pgm.eightbit:
         im_8bit = im
       else:
@@ -48,12 +47,10 @@ def process(files):
       im_640 = numpy.zeros((480,640,3),dtype='uint8')
       scanner.downsample(im_colour, im_640)
     else:
-      if opts.gamma != 0:
-        im_8bit = numpy.zeros((960,1280,1),dtype='uint8')
-        scanner.gamma_correct(im, im_8bit, opts.gamma)
-        im = im_8bit
-      im_640 = numpy.zeros((480,640,3),dtype='uint8')
-      scanner.debayer(im, im_640)
+      im = cv.LoadImage(f)
+      im_640 = cv.CreateImage((640, 480), 8, 3)
+      cv.Resize(im, im_640)
+      im_640 = numpy.ascontiguousarray(cv.GetMat(im_640))
 
     count = 0
     total_time = 0
