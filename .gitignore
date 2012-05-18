@@ -5,3 +5,5 @@
 *.pgm
 *.jpg
 *.yuv
+*.pyc
+*.lst
