@@ -3,8 +3,9 @@
 import chameleon, numpy, os, time, cv, sys, math
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util, cuav_mosaic, mav_position
+import scanner, cuav_util, cuav_mosaic, mav_position, chameleon
 
 from optparse import OptionParser
 parser = OptionParser("scantest.py [options] <filename..>")
@@ -12,6 +13,8 @@ parser.add_option("--repeat", type='int', default=1, help="scan repeat count")
 parser.add_option("--view", action='store_true', default=False, help="show images")
 parser.add_option("--gamma", type='int', default=0, help="gamma for 16 -> 8 conversion")
 parser.add_option("--yuv", action='store_true', default=False, help="use YUV conversion")
+parser.add_option("--compress", action='store_true', default=False, help="show jpeg compressed images")
+parser.add_option("--quality", type='int', default=80, help="jpeg compression quality")
 parser.add_option("--mosaic", action='store_true', default=False, help="build a mosaic of regions")
 parser.add_option("--mavlog", default=None, help="flight log for geo-referencing")
 parser.add_option("--boundary", default=None, help="search boundary file")
@@ -106,7 +109,12 @@ def process(files):
       mosaic.add_regions(regions, img_scan, f, pos)
     
     if opts.view:
-      mat = cv.fromarray(img_scan)
+      if opts.compress:
+        jpeg = scanner.jpeg_compress(img_scan, opts.quality)
+        chameleon.save_file('view.jpg', jpeg)
+        mat = cv.LoadImage('view.jpg')
+      else:
+        mat = cv.fromarray(img_scan)
       for (x1,y1,x2,y2) in regions:
         cv.Rectangle(mat, (x1,y1), (x2,y2), (255,0,0), 1)
       cv.ShowImage('Viewer', mat)
