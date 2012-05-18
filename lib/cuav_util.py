@@ -307,8 +307,8 @@ def mkdir_p(dir):
 
 def frame_time(t):
     '''return a time string for a filename with 0.01 sec resolution'''
-    hundredths = int(frame_time * 100.0) % 100
-    return "%s%02u" % (time.strftime("%Y%m%d%H%M%S", time.localtime(frame_time)), hundredths)
+    hundredths = int(t * 100.0) % 100
+    return "%s%02u" % (time.strftime("%Y%m%d%H%M%S", time.localtime(t)), hundredths)
 
 def parse_frame_time(filename):
 	'''parse a image frame time from a image filename
