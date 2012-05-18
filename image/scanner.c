@@ -353,38 +353,6 @@ static void get_min_max(const struct rgb_image8 * __restrict in,
 	}	
 }
 
-#ifdef __ARM_NEON__XXX // not ready yet
-/*
-  quantise an RGB image
- */
-static void quantise_image_neon(const struct rgb_image8 * __restrict in,
-				struct rgb_image8 * __restrict out,
-				const struct rgb *min, 
-				const struct rgb *bin_spacing)
-{
-	const uint8_t *src = &in->data[0][0];
-	uint8_t *dest = &out->data[0][0];
-	uint32_t i;
-	uint8x8_t gmin, bmax, bmin;
-
-	bmin = vdup_n_u8(min->b);
-	gmin = vdup_n_u8(min->g);
-	rmin = vdup_n_u8(min->r);
-
-	for (i=0; i<(WIDTH/2)*(HEIGHT/2)/8; i++) {
-		uint8x8x3_t rgb  = vld3_u8(src);
-		rgb.val[0] = vsub_u8(rgb.val[0], bmin);
-		rgb.val[1] = vsub_u8(rgb.val[1], gmin);
-		rgb.val[2] = vsub_u8(rgb.val[2], rmin);
-		out->data[y][x].r = (v->r - min->r) / bin_spacing->r;
-		out->data[y][x].g = (v->g - min->g) / bin_spacing->g;
-		out->data[y][x].b = (v->b - min->b) / bin_spacing->b;
-		vst3_u8(dest, rgb);
-		src += 8*3;
-		dest += 8*3;
-	}
-}
-#endif
 
 /*
   quantise an RGB image
@@ -394,15 +362,24 @@ static void quantise_image(const struct rgb_image8 *in,
 			   const struct rgb *min, 
 			   const struct rgb *bin_spacing)
 {
-	unsigned x, y;
+	unsigned i;
+	uint8_t btab[0x100], gtab[0x100], rtab[0x100];
+	const struct rgb *pin;
+	struct rgb *pout;
 
-	for (y=0; y<HEIGHT/2; y++) {
-		for (x=0; x<WIDTH/2; x++) {
-			const struct rgb *v = &in->data[y][x];
-			out->data[y][x].r = (v->r - min->r) / bin_spacing->r;
-			out->data[y][x].g = (v->g - min->g) / bin_spacing->g;
-			out->data[y][x].b = (v->b - min->b) / bin_spacing->b;
-		}
+	for (i=0; i<0x100; i++) {
+		btab[i] = (i - min->b) / bin_spacing->b;
+		gtab[i] = (i - min->g) / bin_spacing->g;
+		rtab[i] = (i - min->r) / bin_spacing->r;
+	}
+
+	pin = &in->data[0][0];
+	pout = &out->data[0][0];
+
+	for (i=0; i<(WIDTH/2)*(HEIGHT/2); i++) {
+		pout[i].b = btab[pin[i].b];
+		pout[i].g = gtab[pin[i].g];
+		pout[i].r = rtab[pin[i].r];
 	}
 }
 
@@ -434,7 +411,7 @@ static void unquantise_image(const struct rgb_image8 *in,
 /*
   calculate a histogram bin for a rgb value
  */
-static uint16_t rgb_bin(const struct rgb *in)
+static inline uint16_t rgb_bin(const struct rgb *in)
 {
 	return (in->r << (2*HISTOGRAM_BITS_PER_COLOR)) |
 		(in->g << (HISTOGRAM_BITS_PER_COLOR)) |
@@ -447,16 +424,14 @@ static uint16_t rgb_bin(const struct rgb *in)
 static void build_histogram(const struct rgb_image8 *in,
 			    struct histogram *out)
 {
-	unsigned x, y;
+	unsigned i;
+	const struct rgb *pin = &in->data[0][0];
 
 	memset(out->count, 0, sizeof(out->count));
 
-	for (y=0; y<HEIGHT/2; y++) {
-		for (x=0; x<WIDTH/2; x++) {
-			const struct rgb *v = &in->data[y][x];
-			uint16_t b = rgb_bin(v);
-			out->count[b]++;
-		}
+	for (i=0; i<(WIDTH/2)*(HEIGHT/2); i++) {
+		uint16_t b = rgb_bin(&pin[i]);
+		out->count[b]++;
 	}	
 }
 
@@ -497,33 +472,33 @@ static void histogram_threshold_neighbours(const struct rgb_image8 *in,
 					   const struct histogram *histogram,
 					   unsigned threshold)
 {
-	unsigned x, y;
+	unsigned i;
+	const struct rgb *pin = &in->data[0][0];
+	struct rgb *pout = &out->data[0][0];
 
-	for (y=0; y<HEIGHT/2; y++) {
-		for (x=0; x<WIDTH/2; x++) {
-			struct rgb v = in->data[y][x];
-			int8_t rofs, gofs, bofs;
+	for (i=0; i<(WIDTH/2)*(HEIGHT/2); i++) {
+		struct rgb v = pin[i];
+		int8_t rofs, gofs, bofs;
 
-			for (rofs=-1; rofs<= 1; rofs++) {
-				for (gofs=-1; gofs<= 1; gofs++) {
-					for (bofs=-1; bofs<= 1; bofs++) {
-						struct rgb v2 = { .b=v.b+bofs, .g=v.g+gofs, .r=v.r+rofs };
-						if (v2.r >= (1<<HISTOGRAM_BITS_PER_COLOR) ||
-						    v2.g >= (1<<HISTOGRAM_BITS_PER_COLOR) ||
-						    v2.b >= (1<<HISTOGRAM_BITS_PER_COLOR)) {
-							continue;
-						}
-						if (histogram->count[rgb_bin(&v2)] > threshold) {
-							goto zero;
-						}
+		for (rofs=-1; rofs<= 1; rofs++) {
+			for (gofs=-1; gofs<= 1; gofs++) {
+				for (bofs=-1; bofs<= 1; bofs++) {
+					struct rgb v2 = { .b=v.b+bofs, .g=v.g+gofs, .r=v.r+rofs };
+					if (v2.r >= (1<<HISTOGRAM_BITS_PER_COLOR) ||
+					    v2.g >= (1<<HISTOGRAM_BITS_PER_COLOR) ||
+					    v2.b >= (1<<HISTOGRAM_BITS_PER_COLOR)) {
+						continue;
+					}
+					if (histogram->count[rgb_bin(&v2)] > threshold) {
+						goto zero;
 					}
 				}
 			}
-			out->data[y][x] = in->data[y][x];
-			continue;
-		zero:
-			out->data[y][x].r = out->data[y][x].g = out->data[y][x].b = 0;
 		}
+		pout[i] = pin[i];
+		continue;
+	zero:
+		pout[i].b = pout[i].g = pout[i].r = 0;
 	}	
 }
 
