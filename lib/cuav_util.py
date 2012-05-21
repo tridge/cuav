@@ -316,7 +316,7 @@ def parse_frame_time(filename):
 	filename = os.path.basename(filename)
 	i = filename.find('201')
 	if i == -1:
-		raise RuntimeError('unable to parse filename into time')
+		raise RuntimeError('unable to parse filename %s into time' % filename)
 	tstring = filename[i:]
 	t = time.mktime(time.strptime(tstring[:14], "%Y%m%d%H%M%S"))
 	# hundredths can be after a dash
@@ -427,3 +427,16 @@ if __name__ == "__main__":
 		if outside != polygon_outside((lat, lon), OBC_boundary):
 			raise RuntimeError('OBC_boundary test error', lat, lon)
 			
+
+def cv_wait_quit():
+	'''wait until q is hit for quit'''
+	print("Press q to quit")
+	while True:
+		key = cv.WaitKey()
+		key &= 0xFF
+		if not key in range(128):
+			continue
+		key = chr(key)
+		if key in ['q', 'Q']:
+			break
+		
