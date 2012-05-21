@@ -15,8 +15,9 @@ class Mosaic():
   def __init__(self, width=512, height=512):
     self.width = width
     self.height = height
+    self.thumb_size = 32
     self.mosaic = numpy.zeros((width,height,3),dtype='uint8')
-    self.num_regions = (width/32)*(height/32)
+    self.num_regions = (width/self.thumb_size)*(height/self.thumb_size)
     self.region_index = 0
     self.regions = [None] * self.num_regions
     self.full_res = False
@@ -29,7 +30,7 @@ class Mosaic():
       print("full_res: %s" % self.full_res)
     if not (flags & cv.CV_EVENT_FLAG_LBUTTON):
       return
-    idx = (x/32) + (self.width/32)*(y/32)
+    idx = (x/self.thumb_size) + (self.width/self.thumb_size)*(y/self.thumb_size)
     if self.regions[idx] is None:
       return
     (r, filename, pos) = self.regions[idx]
@@ -69,20 +70,25 @@ class Mosaic():
       img = numpy.asarray(cv.GetMat(img))
     for r in regions:
       (x1,y1,x2,y2) = r
-      dest_x = (self.region_index * 32) % self.height
-      dest_y = ((self.region_index * 32) / self.width) * 32
+
       midx = (x1+x2)/2
       midy = (y1+y2)/2
+      x1 = midx - 15
+      y1 = midy - 15
+      if x1 < 0: x1 = 0
+      if y1 < 0: y1 = 0
+      
       # leave a 1 pixel black border
-      for x in range(-15, 16):
-        for y in range(-15, 16):
-          if (y+midy < 0 or x+midx < 0 or
-              y+midy >= img.shape[0] or x+midx >= img.shape[1]):
-            px = 0
-          else:
-            px = img[y+midy, x+midx]
-          self.mosaic[dest_y+y+16, dest_x+x+16] = px
-      self.regions[self.region_index] = (r, filename, pos)
+      thumbnail = numpy.zeros((self.thumb_size-1,self.thumb_size-1,3),dtype='uint8')
+      scanner.rect_extract(img, thumbnail, x1, y1)
+
+      dest_x = (self.region_index * self.thumb_size) % self.width
+      dest_y = ((self.region_index * self.thumb_size) / self.width) * self.thumb_size
+
+      # overlay thumbnail on mosaic
+      scanner.rect_overlay(self.mosaic, thumbnail, dest_x, dest_y)
+
+      self.regions[self.region_index] = (r, filename, pos, thumbnail)
       self.region_index += 1
       if self.region_index >= self.num_regions:
         self.region_index = 0
