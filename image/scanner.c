@@ -914,9 +914,9 @@ static PyObject *
 scanner_jpeg_compress(PyObject *self, PyObject *args)
 {
 	PyArrayObject *img_in;
-	int quality = 20;
+	unsigned short quality = 20;
 
-	if (!PyArg_ParseTuple(args, "Oi", &img_in, &quality))
+	if (!PyArg_ParseTuple(args, "OH", &img_in, &quality))
 		return NULL;
 
 	if (PyArray_STRIDE(img_in, 0) != 3*PyArray_DIM(img_in, 1)) {
@@ -1016,7 +1016,6 @@ scanner_reduce_depth(PyObject *self, PyObject *args)
 	uint8_t *out = PyArray_DATA(img_out);
 
 	Py_BEGIN_ALLOW_THREADS;
-	uint16_t highest = highest_uint16(in, w*h);
 	for (uint32_t i=0; i<w*h; i++) {
 		out[i] = in[i]>>8;
 	}
@@ -1034,9 +1033,9 @@ scanner_gamma_correct(PyObject *self, PyObject *args)
 	PyArrayObject *img_in, *img_out;
 	uint16_t w, h;
 	uint8_t lookup[0x1000];
-	int gamma=-1;
+	unsigned short gamma;
 
-	if (!PyArg_ParseTuple(args, "OOi", &img_in, &img_out, &gamma))
+	if (!PyArg_ParseTuple(args, "OOH", &img_in, &img_out, &gamma))
 		return NULL;
 
 	w = PyArray_DIM(img_out, 1);
