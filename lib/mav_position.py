@@ -147,10 +147,6 @@ class MavInterpolator():
 		lat = self.interpolate('GPS_RAW', 'lat', t, max_deltat)
 		lon = self.interpolate('GPS_RAW', 'lon', t, max_deltat)
 
-		# extrapolate our latitude/longitude 
-		(lat, lon) = cuav_util.gps_newpos(gps_raw.lat, gps_raw.lon,
-						  gps_raw.hdg,
-						  gps_raw.v * (t - gps_raw._timestamp))
 		# get altitude
 		altitude = self._altitude(scaled_pressure)
 
