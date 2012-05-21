@@ -1136,6 +1136,120 @@ scanner_rgb_to_yuv(PyObject *self, PyObject *args)
 }
 
 
+/*
+  extract a rectange from a 24 bit RGB image
+  img_in is a 24 bit large image
+  img_out is a 24 bit small target image
+  x1, y1 are top left coordinates of target in img1
+ */
+static PyObject *
+scanner_rect_extract(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+	unsigned short x1, y1, x2, y2;
+	unsigned short x, y, w, h, w_out, h_out;
+
+	if (!PyArg_ParseTuple(args, "OOHH", &img_in, &img_out, &x1, &y1))
+		return NULL;
+
+	w = PyArray_DIM(img_in, 1);
+	h = PyArray_DIM(img_in, 0);
+
+	w_out = PyArray_DIM(img_out, 1);
+	h_out = PyArray_DIM(img_out, 0);
+
+	if (PyArray_STRIDE(img_in, 0) != w*3) {
+		PyErr_SetString(ScannerError, "input must be 24 bit");
+		return NULL;
+	}
+	if (PyArray_STRIDE(img_out, 0) != w_out*3) {
+		PyErr_SetString(ScannerError, "output must be 24 bit");
+		return NULL;
+	}
+	if (x1 >= w || y1 >= h) {
+		PyErr_SetString(ScannerError, "corner must be inside input image");
+		return NULL;		
+	}
+
+	const struct rgb *in = PyArray_DATA(img_in);
+	struct rgb *out = PyArray_DATA(img_out);
+
+	Py_BEGIN_ALLOW_THREADS;
+	x2 = x1 + w_out - 1;
+	y2 = y1 + h_out - 1;       
+
+	if (x2 >= w) x2 = w;
+	if (y2 >= h) y2 = h;
+
+	for (y=y1; y<=y2; y++) {
+		const struct rgb *in_y = in + y*w;
+		struct rgb *out_y = out + (y-y1)*w_out;
+		for (x=x1; x<=x2; x++) {
+			out_y[x-x1] = in_y[x];
+		}
+	}
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
+/*
+  overlay a rectange on a 24 bit RGB image
+  img1 is a large image
+  img2 is a small image to be overlayed on top of img1
+  x1, y1 are top left coordinates of target in img1
+ */
+static PyObject *
+scanner_rect_overlay(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img1, *img2;
+	unsigned short x1, y1, x2, y2;
+	unsigned short x, y, w1, h1, w2, h2;
+
+	if (!PyArg_ParseTuple(args, "OOHH", &img1, &img2, &x1, &y1))
+		return NULL;
+
+	w1 = PyArray_DIM(img1, 1);
+	h1 = PyArray_DIM(img1, 0);
+	w2 = PyArray_DIM(img2, 1);
+	h2 = PyArray_DIM(img2, 0);
+
+	if (PyArray_STRIDE(img1, 0) != w1*3) {
+		PyErr_SetString(ScannerError, "image 1 must be 24 bit");
+		return NULL;
+	}
+	if (PyArray_STRIDE(img2, 0) != w2*3) {
+		PyErr_SetString(ScannerError, "image 2 must be 24 bit");
+		return NULL;
+	}
+	if (x1 >= w1 || y1 >= h1) {
+		PyErr_SetString(ScannerError, "corner must be inside image1");
+		return NULL;		
+	}
+
+	struct rgb *im1 = PyArray_DATA(img1);
+	struct rgb *im2 = PyArray_DATA(img2);
+
+	Py_BEGIN_ALLOW_THREADS;
+	x2 = x1 + w2 - 1;
+	y2 = y1 + h2 - 1;       
+
+	if (x2 >= w1) x2 = w1;
+	if (y2 >= h1) y2 = h1;
+
+	for (y=y1; y<=y2; y++) {
+		struct rgb *im1_y = im1 + y*w1;
+		struct rgb *im2_y = im2 + (y-y1)*w2;
+		for (x=x1; x<=x2; x++) {
+			im1_y[x] = im2_y[x-x1];
+		}
+	}
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
+
 
 static PyMethodDef ScannerMethods[] = {
 	{"debayer", scanner_debayer, METH_VARARGS, "simple debayer of 1280x960 image to 640x480 24 bit"},
@@ -1146,6 +1260,8 @@ static PyMethodDef ScannerMethods[] = {
 	{"reduce_depth", scanner_reduce_depth, METH_VARARGS, "reduce greyscale bit depth from 16 bit to 8 bit"},
 	{"gamma_correct", scanner_gamma_correct, METH_VARARGS, "reduce greyscale, applying gamma"},
 	{"rgb_to_yuv", scanner_rgb_to_yuv, METH_VARARGS, "convert to 0-255 YUV"},
+	{"rect_extract", scanner_rect_extract, METH_VARARGS, "extract a rectange from a 24 bit RGB image"},
+	{"rect_overlay", scanner_rect_overlay, METH_VARARGS, "overlay a image with another smaller image at x,y"},
 	{NULL, NULL, 0, NULL}
 };
 
