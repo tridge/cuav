@@ -400,10 +400,6 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 		int fd = dc1394_capture_get_fileno(c);
 		struct timeval tval, tv0; 
 		fd_set	fds;
-		if (fd == -1) {
-			printf("No capture polling fd available\n");
-			return -1;
-		}
   
 		FD_ZERO(&fds);
 		FD_SET(fd, &fds);
@@ -414,11 +410,14 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 			if (tleft <= 0) tleft = 1;
 			tval.tv_sec = tleft/1000;
 			tval.tv_usec = 1000*(tleft%1000);
-			if (select(fd+1, &fds, NULL, NULL, &tval) == 1) {
+			if (fd == -1) {
+				usleep(200);
+				chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_POLL, &frame);
+			} else if (select(fd+1, &fds, NULL, NULL, &tval) == 1) {
 				chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_POLL, &frame);
 				break;
 			}			
-		} while (telapsed_msec(&tv0) < timeout_ms);
+		} while (telapsed_msec(&tv0) < timeout_ms && frame == NULL);
 	}
 	if (!frame) {
 		return -1;
