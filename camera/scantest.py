@@ -11,6 +11,7 @@ from optparse import OptionParser
 parser = OptionParser("scantest.py [options] <filename..>")
 parser.add_option("--repeat", type='int', default=1, help="scan repeat count")
 parser.add_option("--view", action='store_true', default=False, help="show images")
+parser.add_option("--fullres", action='store_true', default=False, help="show full resolution")
 parser.add_option("--gamma", type='int', default=0, help="gamma for 16 -> 8 conversion")
 parser.add_option("--yuv", action='store_true', default=False, help="use YUV conversion")
 parser.add_option("--compress", action='store_true', default=False, help="show jpeg compressed images")
@@ -54,6 +55,8 @@ def process(files):
         pos = mpos.position(frame_time, opts.max_deltat)
       except mav_position.MavInterpolatorDeltaTException:
         pos = None
+    else:
+      pos = None
     if f.endswith('.pgm'):
       pgm = cuav_util.PGM(f)
       im = pgm.array
@@ -65,14 +68,14 @@ def process(files):
           scanner.gamma_correct(im, im_8bit, opts.gamma)
         else:
           scanner.reduce_depth(im, im_8bit)
-      im_colour = numpy.zeros((960,1280,3),dtype='uint8')
-      scanner.debayer_full(im_8bit, im_colour)
+      im_full = numpy.zeros((960,1280,3),dtype='uint8')
+      scanner.debayer_full(im_8bit, im_full)
       im_640 = numpy.zeros((480,640,3),dtype='uint8')
-      scanner.downsample(im_colour, im_640)
+      scanner.downsample(im_full, im_640)
     else:
-      im = cv.LoadImage(f)
+      im_full = cv.LoadImage(f)
       im_640 = cv.CreateImage((640, 480), 8, 3)
-      cv.Resize(im, im_640)
+      cv.Resize(im_full, im_640)
       im_640 = numpy.ascontiguousarray(cv.GetMat(im_640))
 
     count = 0
@@ -109,13 +112,22 @@ def process(files):
       mosaic.add_regions(regions, img_scan, f, pos)
     
     if opts.view:
+      if opts.fullres:
+        img_view = im_full
+      else:
+        img_view = img_scan
       if opts.compress:
-        jpeg = scanner.jpeg_compress(img_scan, opts.quality)
+        jpeg = scanner.jpeg_compress(img_view, opts.quality)
         chameleon.save_file('view.jpg', jpeg)
         mat = cv.LoadImage('view.jpg')
       else:
-        mat = cv.fromarray(img_scan)
+        mat = cv.fromarray(img_view)
       for (x1,y1,x2,y2) in regions:
+        if opts.fullres:
+          x1 *= 2
+          y1 *= 2
+          x2 *= 2
+          y2 *= 2
         cv.Rectangle(mat, (x1,y1), (x2,y2), (255,0,0), 1)
       cv.ShowImage('Viewer', mat)
       cv.WaitKey(1)
@@ -133,5 +145,5 @@ if opts.view:
 state = state()
 
 process(args)
-cv.WaitKey()
+cuav_util.cv_wait_quit()
 cv.DestroyWindow('Viewer')
