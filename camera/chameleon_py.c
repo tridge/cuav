@@ -27,12 +27,12 @@ static PyObject *
 chameleon_open(PyObject *self, PyObject *args)
 {
 	int colour = 0;
-	int depth = 0;
-	int brightness = 100;
+	unsigned short depth = 0;
+	unsigned short brightness;
 	int sts = -1;
 	PyObject *colour_obj;
 	
-	if (!PyArg_ParseTuple(args, "Oii", &colour_obj, &depth, &brightness))
+	if (!PyArg_ParseTuple(args, "OHH", &colour_obj, &depth, &brightness))
 		return NULL;
 
 	colour = PyObject_IsTrue(colour_obj);
@@ -319,7 +319,7 @@ save_file(PyObject *self, PyObject *args)
 	char *data = NULL;
 	int size = 0;
 
-	if (!PyArg_ParseTuple(args, "ss#", &filename, &data, &size))
+	if (!PyArg_ParseTuple(args, "sy#", &filename, &data, &size))
 		return NULL;
 
 	Py_BEGIN_ALLOW_THREADS;
