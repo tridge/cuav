@@ -390,11 +390,14 @@ def polygon_outside(P, V):
 	'''return true if point is outside polygon
 	P is a (x,y) tuple
 	V is a list of (x,y) tuples
+
+	The point in polygon algorithm is based on:
+	http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
 	'''
 	n = len(V)
 	outside = True
 	j = n-1
-	for i in range(n-1):
+	for i in range(n):
 		if (((V[i][1]>P[1]) != (V[j][1]>P[1])) and
 		    (P[0] < (V[j][0]-V[i][0]) * (P[1]-V[i][1]) / (V[j][1]-V[i][1]) + V[i][0])):
 			outside = not outside
@@ -477,7 +480,10 @@ if __name__ == "__main__":
 		(-26.6092110, 151.8747419, False ),
 		(-26.6092111, 151.8747421, True ),
 		(-26.6092109, 151.8747421, True ),
-		(-26.6092111, 151.8747419, False )
+		(-26.6092111, 151.8747419, False ),
+		(-27.6092111, 151.8747419, True ),
+		(-27.6092111, 152.0000000, True ),
+		(-25.0000000, 150.0000000, True )
 		]
 	if not polygon_complete(OBC_boundary):
 		raise RuntimeError('OBC_boundary invalid')
