@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''common CanberraUAV utility functions'''
 
-import numpy, cv, math, sys, os, time
+import numpy, cv, math, sys, os, time, rotmat
 
 radius_of_earth = 6378100.0 # in meters
 
@@ -205,9 +205,11 @@ def ground_offset(height, pitch, roll, yaw):
     return (x, y)
 
 
-def pixel_position(xpos, ypos, height, pitch, roll, yaw,
+def pixel_position_old(xpos, ypos, height, pitch, roll, yaw,
                    lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960):
     '''
+    NOTE: this algorithm is incorrect
+    
     find the offset on the ground in meters of a pixel in a ground image
     given height above the ground in meters, and pitch/roll/yaw in degrees, the
     lens and image parameters
@@ -248,6 +250,61 @@ def pixel_position(xpos, ypos, height, pitch, roll, yaw,
     return (xcenter+x, ycenter+y)
 
 
+def pixel_position(xpos, ypos, height, pitch, roll, yaw,
+                   lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960):
+    '''
+    find the offset on the ground in meters of a pixel in a ground image
+    given height above the ground in meters, and pitch/roll/yaw in degrees, the
+    lens and image parameters
+
+    The xpos,ypos is from the top-left of the image
+    The height is in meters
+    
+    The yaw is from grid north. Positive yaw is clockwise
+    The roll is from horiznotal. Positive roll is down on the right
+    The pitch is from horiznotal. Positive pitch is up in the front
+    lens is in mm
+    sensorwidth is in mm
+    xresolution and yresolution is in pixels
+    
+    return result is a tuple, with meters east and north of current GPS position
+
+    This is only correct for small values of pitch/roll
+    '''
+    from rotmat import Vector3, Matrix3, Plane, Line
+    from math import radians
+    
+    # get pixel sizes in meters, this assumes we are pointing straight down with square pixels
+    px = pixel_width(height, xresolution=xresolution, lens=lens, sensorwidth=sensorwidth)
+    py = pixel_height(height, yresolution=yresolution, lens=lens, sensorwidth=sensorwidth)
+
+    # ground plane
+    ground_plane = Plane()
+
+    # the position of the camera in the air, remembering its a right
+    # hand coordinate system, so +ve z is down
+    camera_point = Vector3(0, 0, -height)
+
+    # get position on ground relative to camera assuming camera is pointing straight down
+    ground_point = Vector3(-py * (ypos - (yresolution/2)),
+			   px * (xpos - (xresolution/2)),
+			   height)
+    
+    # form a rotation matrix from our current attitude
+    r = Matrix3()
+    r.from_euler(radians(roll), radians(pitch), radians(yaw))
+
+    # rotate ground_point to form vector in ground frame
+    rot_point = r * ground_point
+
+    # a line from the camera to the ground
+    line = Line(camera_point, rot_point)
+
+    # find the intersection with the ground
+    pt = line.plane_intersection(ground_plane)
+    return (pt.y, pt.x)
+
+
 def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
                       lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960):
     '''
@@ -279,6 +336,7 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     bearing = math.degrees(math.atan2(xofs, yofs))
     distance = math.sqrt(xofs**2 + yofs**2)
     return gps_newpos(latitude, longitude, bearing, distance)
+
 
 def gps_position_from_image_region(region, pos, width=640, height=480):
 	'''return a GPS position in an image given a MavPosition object
