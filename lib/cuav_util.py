@@ -231,14 +231,13 @@ def pixel_position_old(xpos, ypos, height, pitch, roll, yaw,
     
     (xcenter, ycenter) = ground_offset(height, pitch, roll, yaw)
     
-    px = pixel_width(height, xresolution=xresolution, lens=lens, sensorwidth=sensorwidth)
-    py = pixel_height(height, yresolution=yresolution, lens=lens, sensorwidth=sensorwidth)
+    pw = pixel_width(height, xresolution=xresolution, lens=lens, sensorwidth=sensorwidth)
 
     dx = (xresolution/2) - xpos
     dy = (yresolution/2) - ypos
 
-    range_c = math.hypot(dx * px, dy * py)
-    angle_c = math.atan2(dy * py, dx * px)
+    range_c = math.hypot(dx * pw, dy * py)
+    angle_c = math.atan2(dy * pw, dx * px)
 
     # add in yaw
     angle_c += math.radians(yaw)
@@ -275,8 +274,7 @@ def pixel_position(xpos, ypos, height, pitch, roll, yaw,
     from math import radians
     
     # get pixel sizes in meters, this assumes we are pointing straight down with square pixels
-    px = pixel_width(height, xresolution=xresolution, lens=lens, sensorwidth=sensorwidth)
-    py = pixel_height(height, yresolution=yresolution, lens=lens, sensorwidth=sensorwidth)
+    pw = pixel_width(height, xresolution=xresolution, lens=lens, sensorwidth=sensorwidth)
 
     # ground plane
     ground_plane = Plane()
@@ -286,8 +284,8 @@ def pixel_position(xpos, ypos, height, pitch, roll, yaw,
     camera_point = Vector3(0, 0, -height)
 
     # get position on ground relative to camera assuming camera is pointing straight down
-    ground_point = Vector3(-py * (ypos - (yresolution/2)),
-			   px * (xpos - (xresolution/2)),
+    ground_point = Vector3(-pw * (ypos - (yresolution/2)),
+			   pw * (xpos - (xresolution/2)),
 			   height)
     
     # form a rotation matrix from our current attitude
