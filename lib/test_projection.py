@@ -21,10 +21,10 @@ parser.add_option("--step", type='int', default=16, help="display grid resolutio
 f = pyplot.figure(1)
 f.clf()
 
-minx = -200
-maxx = 200
-miny = -200
-maxy = 200
+minx = 0
+maxx = 0
+miny = 0
+maxy = 0
 
 # show position below plane
 pyplot.plot(0, 0, 'ro')
@@ -55,6 +55,13 @@ for x in range(0, opts.xres, opts.step):
         pyplot.plot(ofs_x, ofs_y, color)
 
 print("Speed: %.1f projections/second" % (count/total_time))
+
+print("Range: ", minx, miny, maxy, maxy)
+
+minx = min(minx, -200)
+miny = min(miny, -200)
+maxx = max(maxx, 200)
+maxy = max(maxy, 200)
         
 pyplot.axis([minx-50,maxx+50, miny-50, maxy+50])
 f.show()
