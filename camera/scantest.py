@@ -47,6 +47,8 @@ def process(files):
 
   if opts.mosaic:
     mosaic = cuav_mosaic.Mosaic()
+    if boundary is not None:
+      mosaic.set_boundary(boundary)
 
   for f in files:
     frame_time = cuav_util.parse_frame_time(f)
@@ -93,18 +95,6 @@ def process(files):
       count += 1
     t1=time.time()
 
-    if boundary and mpos:
-      if pos is None:
-        regions = []
-      elif (opts.max_attitude != 0 and (
-        math.fabs(pos.roll) > opts.max_attitude or math.fabs(pos.pitch) > opts.max_attitude)):
-        regions = []        
-      for i in range(len(regions)-1, -1, -1):
-        r = regions[i]
-        (lat, lon) = cuav_util.gps_position_from_image_region(r, pos)
-        if cuav_util.polygon_outside((lat, lon), boundary):
-          regions.pop(i)
-    
     region_count += len(regions)
     scan_count += 1
 
