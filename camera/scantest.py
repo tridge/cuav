@@ -20,7 +20,8 @@ parser.add_option("--mosaic", action='store_true', default=False, help="build a 
 parser.add_option("--mavlog", default=None, help="flight log for geo-referencing")
 parser.add_option("--boundary", default=None, help="search boundary file")
 parser.add_option("--max-deltat", default=1.0, type='float', help="max deltat for interpolation")
-parser.add_option("--max-attitude", default=0, type='float', help="max attitude geo-referencing")
+parser.add_option("--max-attitude", default=45, type='float', help="max attitude geo-referencing")
+parser.add_option("--fill-map", default=False, action='store_true', help="show all images on map")
 (opts, args) = parser.parse_args()
 
 class state():
@@ -49,6 +50,8 @@ def process(files):
     mosaic = cuav_mosaic.Mosaic()
     if boundary is not None:
       mosaic.set_boundary(boundary)
+    if opts.fill_map:
+      mosaic.fill_map = True
 
   for f in files:
     frame_time = cuav_util.parse_frame_time(f)
@@ -100,6 +103,10 @@ def process(files):
 
     if opts.mosaic:
       mosaic.add_regions(regions, img_scan, f, pos)
+      if (opts.fill_map and pos and
+          math.fabs(pos.roll) < opts.max_attitude and
+          math.fabs(pos.pitch) < opts.max_attitude):
+        mosaic.add_image(img_scan, pos)
     
     if opts.view:
       if opts.fullres:

@@ -5,7 +5,7 @@ Andrew Tridgell
 May 2012
 '''
 
-import numpy, os, cv, sys, cuav_util, time, math
+import numpy, os, cv, cv2, sys, cuav_util, time, math
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 import scanner
@@ -64,10 +64,12 @@ class Mosaic():
     self.map_height = grid_height * thumb_size
     self.mosaic = numpy.zeros((self.height,self.width,3),dtype='uint8')
     self.map = numpy.zeros((self.map_height,self.map_width,3),dtype='uint8')
+    self.map_background = numpy.zeros((self.map_height,self.map_width,3),dtype='uint8')
     self.display_regions = grid_width*grid_height
     self.regions = []
     self.full_res = False
     self.boundary = []
+    self.fill_map = False
 
     # map limits in form (min_lat, min_lon, max_lat, max_lon)
     self.map_limits = [0,0,0,0]
@@ -242,7 +244,36 @@ class Mosaic():
     if region is None:
       return    
     self.display_region_image(region)
-      
+
+  def refresh_map(self):
+    '''refresh the map display'''
+    if self.fill_map:
+      map = numpy.zeros((self.map_height,self.map_width,3),dtype='uint8')
+      scanner.rect_overlay(map, self.map_background, 0, 0, False)
+      scanner.rect_overlay(map, self.map, 0, 0, True)
+    else:
+      map = self.map
+    cv.ShowImage('Mosaic Map', cv.fromarray(map))
+
+  def add_image(self, img, pos):
+    '''add a background image'''
+    if not self.fill_map:
+      return
+    # show transformed image on map
+    w = img.shape[1]
+    h = img.shape[0]
+    srcpos = [(0,0), (w-1,0), (w-1,h-1), (0,h-1)]
+    dstpos = []
+    for (x,y) in srcpos:
+      (lat,lon) = cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
+                                              pos.pitch, pos.roll, pos.yaw,
+                                              xresolution=w, yresolution=h)
+      dstpos.append(self.latlon_to_map(lat, lon))
+    transform = cv2.getPerspectiveTransform(numpy.array(srcpos, dtype=numpy.float32), numpy.array(dstpos, dtype=numpy.float32))
+    map_bg = cv.GetImage(cv.fromarray(self.map_background))
+    cv.WarpPerspective(cv.fromarray(img), map_bg, cv.fromarray(transform), flags=0)
+    self.map_background = numpy.asarray(cv.GetMat(map_bg))
+    self.refresh_map()
 
   def add_regions(self, regions, img, filename, pos=None):
     '''add some regions'''
@@ -277,15 +308,23 @@ class Mosaic():
       dest_y = ((idx * self.thumb_size) / self.width) * self.thumb_size
 
       # overlay thumbnail on mosaic
-      scanner.rect_overlay(self.mosaic, thumbnail, dest_x, dest_y)
+      scanner.rect_overlay(self.mosaic, thumbnail, dest_x, dest_y, False)
 
       if (lat,lon) != (None,None):
+        # show thumbnail on map
         (mapx, mapy) = self.latlon_to_map(lat, lon)
         scanner.rect_overlay(self.map, thumbnail,
                              max(0, mapx - self.thumb_size/2),
-                             max(0, mapy - self.thumb_size/2))
-        cv.ShowImage('Mosaic Map', cv.fromarray(self.map))
+                             max(0, mapy - self.thumb_size/2), False)
+        map = cv.fromarray(self.map)
+        (x1,y1) = (max(0, mapx - self.thumb_size/2),
+                   max(0, mapy - self.thumb_size/2))
+        (x2,y2) = (x1+self.thumb_size, y1+self.thumb_size)
+        cv.Rectangle(map, (x1,y1), (x2,y2), (255,0,0), 1)
+        self.map = numpy.asarray(map)
+        self.refresh_map()
 
       self.regions.append(MosaicRegion(r, filename, pos, thumbnail, latlon=(lat, lon), map_pos=(mapx, mapy)))
+
     cv.ShowImage('Mosaic', cv.fromarray(self.mosaic))
     cv.SetMouseCallback('Mosaic', self.mouse_event, self)
