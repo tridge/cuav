@@ -1205,9 +1205,13 @@ scanner_rect_overlay(PyObject *self, PyObject *args)
 	PyArrayObject *img1, *img2;
 	unsigned short x1, y1, x2, y2;
 	unsigned short x, y, w1, h1, w2, h2;
+	PyObject *skip_black_obj;
+	bool skip_black;
 
-	if (!PyArg_ParseTuple(args, "OOHH", &img1, &img2, &x1, &y1))
+	if (!PyArg_ParseTuple(args, "OOHHO", &img1, &img2, &x1, &y1, &skip_black_obj))
 		return NULL;
+
+	skip_black = PyObject_IsTrue(skip_black_obj);
 
 	w1 = PyArray_DIM(img1, 1);
 	h1 = PyArray_DIM(img1, 0);
@@ -1228,7 +1232,7 @@ scanner_rect_overlay(PyObject *self, PyObject *args)
 	}
 
 	struct rgb *im1 = PyArray_DATA(img1);
-	struct rgb *im2 = PyArray_DATA(img2);
+	const struct rgb *im2 = PyArray_DATA(img2);
 
 	Py_BEGIN_ALLOW_THREADS;
 	x2 = x1 + w2 - 1;
@@ -1237,13 +1241,28 @@ scanner_rect_overlay(PyObject *self, PyObject *args)
 	if (x2 >= w1) x2 = w1;
 	if (y2 >= h1) y2 = h1;
 
-	for (y=y1; y<=y2; y++) {
-		struct rgb *im1_y = im1 + y*w1;
-		struct rgb *im2_y = im2 + (y-y1)*w2;
-		for (x=x1; x<=x2; x++) {
-			im1_y[x] = im2_y[x-x1];
+	if (skip_black) {
+		for (y=y1; y<=y2; y++) {
+			struct rgb *im1_y = im1 + y*w1;
+			const struct rgb *im2_y = im2 + (y-y1)*w2;
+			for (x=x1; x<=x2; x++) {
+				const struct rgb *px = &im2_y[x-x1];
+				if (px->b == 0 && 
+				    px->g == 0 && 
+				    px->r == 0) continue;
+				im1_y[x] = im2_y[x-x1];
+			}
+		}
+	} else {
+		for (y=y1; y<=y2; y++) {
+			struct rgb *im1_y = im1 + y*w1;
+			const struct rgb *im2_y = im2 + (y-y1)*w2;
+			for (x=x1; x<=x2; x++) {
+				im1_y[x] = im2_y[x-x1];
+			}
 		}
 	}
+
 	Py_END_ALLOW_THREADS;
 
 	Py_RETURN_NONE;
