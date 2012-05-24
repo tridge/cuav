@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import chameleon, numpy, os, time, cv, sys, math
+import chameleon, numpy, os, time, cv, sys, math, sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
@@ -14,19 +14,23 @@ parser.add_option("--view", action='store_true', default=False, help="show image
 parser.add_option("--fullres", action='store_true', default=False, help="show full resolution")
 parser.add_option("--gamma", type='int', default=0, help="gamma for 16 -> 8 conversion")
 parser.add_option("--yuv", action='store_true', default=False, help="use YUV conversion")
-parser.add_option("--compress", action='store_true', default=False, help="show jpeg compressed images")
-parser.add_option("--quality", type='int', default=80, help="jpeg compression quality")
+parser.add_option("--compress", action='store_true', default=False, help="compress images to *.jpg")
+parser.add_option("--quality", type='int', default=95, help="jpeg compression quality")
 parser.add_option("--mosaic", action='store_true', default=False, help="build a mosaic of regions")
 parser.add_option("--mavlog", default=None, help="flight log for geo-referencing")
 parser.add_option("--boundary", default=None, help="search boundary file")
 parser.add_option("--max-deltat", default=1.0, type='float', help="max deltat for interpolation")
 parser.add_option("--max-attitude", default=45, type='float', help="max attitude geo-referencing")
 parser.add_option("--fill-map", default=False, action='store_true', help="show all images on map")
+parser.add_option("--joe", default=[], action='append', help="add a joe position")
+parser.add_option("--show-misses", default=False, action='store_true', help="show missed Joes")
+parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
 (opts, args) = parser.parse_args()
 
 class state():
   def __init__(self):
     pass
+
 
 def process(files):
   '''process a set of files'''
@@ -34,6 +38,7 @@ def process(files):
   scan_count = 0
   num_files = len(files)
   region_count = 0
+  joes = []
 
   if opts.mavlog:
     mpos = mav_position.MavInterpolator()
@@ -47,11 +52,22 @@ def process(files):
     boundary = None
 
   if opts.mosaic:
-    mosaic = cuav_mosaic.Mosaic()
+    mosaic = cuav_mosaic.Mosaic(lens=opts.lens)
     if boundary is not None:
       mosaic.set_boundary(boundary)
     if opts.fill_map:
       mosaic.fill_map = True
+
+  if opts.joe:
+    for joe in opts.joe:
+      (lat,lon) = joe.split(',')
+      joes.append((float(lat),float(lon)))
+    if boundary:
+      for joe in joes:
+        if cuav_util.polygon_outside(joe, boundary):
+          print("Error: joe outside boundary", joe)
+          return
+      
 
   for f in files:
     frame_time = cuav_util.parse_frame_time(f)
@@ -82,6 +98,7 @@ def process(files):
       im_640 = cv.CreateImage((640, 480), 8, 3)
       cv.Resize(im_full, im_640)
       im_640 = numpy.ascontiguousarray(cv.GetMat(im_640))
+      im_full = numpy.ascontiguousarray(cv.GetMat(im_full))
 
     count = 0
     total_time = 0
@@ -103,22 +120,25 @@ def process(files):
 
     if opts.mosaic:
       mosaic.add_regions(regions, img_scan, f, pos)
-      if (opts.fill_map and pos and
-          math.fabs(pos.roll) < opts.max_attitude and
-          math.fabs(pos.pitch) < opts.max_attitude):
-        mosaic.add_image(img_scan, pos)
-    
+      if pos:
+        mosaic.add_image(f, img_scan, pos)
+    if opts.show_misses:
+      mosaic.check_joe_miss(regions, img_scan, joes, pos)
+
+    if opts.compress:
+      jpeg = scanner.jpeg_compress(im_full, opts.quality)
+      jpeg_filename = f[:-4] + '.jpg'
+      if os.path.exists(jpeg_filename):
+        print('jpeg %s already exists' % jpeg_filename)
+        continue
+      chameleon.save_file(jpeg_filename, jpeg)
+
     if opts.view:
       if opts.fullres:
         img_view = im_full
       else:
         img_view = img_scan
-      if opts.compress:
-        jpeg = scanner.jpeg_compress(img_view, opts.quality)
-        chameleon.save_file('view.jpg', jpeg)
-        mat = cv.LoadImage('view.jpg')
-      else:
-        mat = cv.fromarray(img_view)
+      mat = cv.fromarray(img_view)
       for (x1,y1,x2,y2) in regions:
         if opts.fullres:
           x1 *= 2
