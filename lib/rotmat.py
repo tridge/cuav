@@ -292,13 +292,15 @@ class Line:
         self.point = point
         self.vector = vector
 
-    def plane_intersection(self, plane):
+    def plane_intersection(self, plane, forward_only=False):
         '''return point where line intersects with a plane'''
         l_dot_n = self.vector * plane.normal
         if l_dot_n == 0.0:
             # line is parallel to the plane
             return None
         d = ((plane.point - self.point) * plane.normal) / l_dot_n
+        if forward_only and d < 0:
+            return None
         return (self.vector * d) + self.point
         
 
