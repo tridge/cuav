@@ -15,6 +15,7 @@ parser.add_option("--lens", type='float', default=4.0, help="lens in mm")
 parser.add_option("--xres", type='int', default=640, help="X resolution")
 parser.add_option("--yres", type='int', default=480, help="Y resolution")
 parser.add_option("--step", type='int', default=16, help="display grid resolution")
+parser.add_option("--border", type='int', default=200, help="border size")
 (opts, args) = parser.parse_args()
 
 
@@ -32,15 +33,28 @@ pyplot.plot(0, 0, 'ro')
 total_time = 0
 count = 0
 
-for x in range(0, opts.xres, opts.step):
-    for y in range(0, opts.yres, opts.step):
+xpts = range(0, opts.xres, opts.step)
+ypts = range(0, opts.yres, opts.step)
+xpts.append(opts.xres-1)
+ypts.append(opts.yres-1)
+
+includes_sky = False
+
+print("Roll=%.1f Pitch=%.1f Yaw=%.1f Altitude=%.1f" % (opts.roll, opts.pitch, opts.yaw, opts.altitude))
+
+for x in xpts:
+    for y in ypts:
         t0 = time.time()
-        (ofs_x, ofs_y) = cuav_util.pixel_position(x, y,
-                                                  opts.altitude,
-                                                  opts.pitch, opts.roll, opts.yaw,
-                                                  opts.lens,
-                                                  xresolution=opts.xres, 
-                                                  yresolution=opts.yres)
+        ofs = cuav_util.pixel_position(x, y,
+                                       opts.altitude,
+                                       opts.pitch, opts.roll, opts.yaw,
+                                       opts.lens,
+                                       xresolution=opts.xres, 
+                                       yresolution=opts.yres)
+        if ofs is None:
+            includes_sky = True
+            continue
+        (ofs_x, ofs_y) = ofs
         t1 = time.time()
         total_time += t1 - t0
         count += 1
@@ -50,18 +64,21 @@ for x in range(0, opts.xres, opts.step):
         maxy = max(maxy, ofs_y)
         color = 'bo'
         if (x,y) == (0,0):
-            # show corner pixel in yellow
+            # show origin pixel in yellow
             color = 'yo'
         pyplot.plot(ofs_x, ofs_y, color)
+
+if includes_sky:
+    print("Projection includes sky")
 
 print("Speed: %.1f projections/second" % (count/total_time))
 
 print("Range: ", minx, miny, maxy, maxy)
 
-minx = min(minx, -200)
-miny = min(miny, -200)
-maxx = max(maxx, 200)
-maxy = max(maxy, 200)
+minx = min(minx, -opts.border)
+miny = min(miny, -opts.border)
+maxx = max(maxx, opts.border)
+maxy = max(maxy, opts.border)
         
 pyplot.axis([minx-50,maxx+50, miny-50, maxy+50])
 f.show()
