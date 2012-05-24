@@ -52,11 +52,31 @@ class MosaicRegion:
     else:
       position_string = ''
     return '%s %s' % (self.filename, position_string)
+
+
+class MosaicImage:
+  def __init__(self, filename, pos, boundary, center):
+    self.filename = filename
+    self.pos = pos
+    self.boundary = boundary
+    self.center = center
+
+  def __str__(self):
+    return '%s %s' % (self.filename, str(self.pos))
+
+class DisplayedImage:
+  def __init__(self, filename, pos, img):
+    self.filename = filename
+    self.pos = pos
+    self.img = img
+
+  def __str__(self):
+    return '%s %s' % (self.filename, str(self.pos))
     
 
 class Mosaic():
   '''keep a mosaic of found regions'''
-  def __init__(self, grid_width=30, grid_height=30, thumb_size=20):
+  def __init__(self, grid_width=30, grid_height=30, thumb_size=20, lens=4.0):
     self.thumb_size = thumb_size
     self.width = grid_width * thumb_size
     self.height = grid_height * thumb_size
@@ -67,9 +87,14 @@ class Mosaic():
     self.map_background = numpy.zeros((self.map_height,self.map_width,3),dtype='uint8')
     self.display_regions = grid_width*grid_height
     self.regions = []
+    self.images = []
     self.full_res = False
     self.boundary = []
     self.fill_map = False
+    self.last_map_image_idx = None
+    self.displayed_image = None
+    self.last_click_position = None
+    self.lens = lens
 
     # map limits in form (min_lat, min_lon, max_lat, max_lon)
     self.map_limits = [0,0,0,0]
@@ -85,6 +110,14 @@ class Mosaic():
     px = (dlon / (self.map_limits[3] - self.map_limits[1])) * self.map_width
     py = (1.0 - dlat / (self.map_limits[2] - self.map_limits[0])) * self.map_height
     return (int(px+0.5), int(py+0.5))
+
+  def map_to_latlon(self, x, y):
+    '''
+    convert a x/y map position in pixels to a lat/lon
+    '''
+    lat = self.map_limits[0] + ((self.map_height-1)-y)*(self.map_limits[2] - self.map_limits[0])/(self.map_height-1)
+    lon = self.map_limits[1] + x*(self.map_limits[3] - self.map_limits[1])/(self.map_width-1)
+    return (lat, lon)
   
 
   def set_boundary(self, boundary):
@@ -150,7 +183,10 @@ class Mosaic():
           
 
   def measure_distinctiveness(self, image, r):
-    '''measure the distinctiveness of a region in an image'''
+    '''measure the distinctiveness of a region in an image
+    this is currently disabled, and needs more work
+    '''
+    return
     if image.shape[0] == 960:
       r = tuple([2*v for v in r])
     (x1,y1,x2,y2) = r
@@ -193,9 +229,12 @@ class Mosaic():
       cv.Resize(mat, display_img)
       mat = display_img
 
-    #print(self.measure_distinctiveness(im, r))
+    self.measure_distinctiveness(im, region)
 
-    cv.ShowImage('Mosaic Image', mat)
+    self.displayed_image = DisplayedImage(region.filename, region.pos, mat)
+
+    cv.ShowImage('Image', mat)
+    cv.SetMouseCallback('Image', self.mouse_event_image, self)
     cv.WaitKey(1)
 
 
@@ -221,29 +260,89 @@ class Mosaic():
 
   def find_closest_region(self, x, y):
     '''find the closest region given a pixel position on the map'''
+    if len(self.regions) == 0:
+      return None
     best_idx = 0
-    best_distance = math.sqrt((self.regions[0].map_pos[0] - x)**2 + (self.regions[0].map_pos[1] - y)**2)
-    for idx in range(len(self.regions)-1):
+    best_distance = -1
+    for idx in range(len(self.regions)):
+      if self.regions[idx].map_pos == (None,None):
+        continue
       distance = math.sqrt((self.regions[idx].map_pos[0] - x)**2 + (self.regions[idx].map_pos[1] - y)**2)
-      if distance < best_distance:
+      if best_distance == -1 or distance < best_distance:
         best_distance = distance
         best_idx = idx
-    if best_distance > self.thumb_size:
+    if best_distance == -1 or best_distance > self.thumb_size:
       return None
     return self.regions[best_idx]
+
+  def find_closest_image_idx(self, x, y):
+    '''find the closest image given a pixel position on the map'''
+    if len(self.images) == 0:
+      return None
+    best_idx = 0
+    best_distance = -1
+    (lat, lon) = self.map_to_latlon(x,y)
+    for idx in range(len(self.images)):
+      if self.images[idx].center == (None,None):
+        continue
+      if cuav_util.polygon_outside((lat, lon), self.images[idx].boundary):
+        # only include images where we clicked inside the boundary
+        continue
+      distance = cuav_util.gps_distance(lat, lon, self.images[idx].center[0], self.images[idx].center[1])
+      if best_distance == -1 or distance < best_distance:
+        best_distance = distance
+        best_idx = idx
+    if best_distance == -1:
+      return None
+    return best_idx
 
   def mouse_event_map(self, event, x, y, flags, data):
     '''called on mouse events on the map'''
     if flags & cv.CV_EVENT_FLAG_RBUTTON:
       self.full_res = not self.full_res
       print("full_res: %s" % self.full_res)
+
+    if flags & cv.CV_EVENT_FLAG_LBUTTON:
+      # find the closest marked region and display it
+      region = self.find_closest_region(x,y)
+      if region is None:
+        return    
+      self.display_region_image(region)
+
+    if flags & cv.CV_EVENT_FLAG_MBUTTON:
+      # find the closest image re-display it
+      idx = self.find_closest_image_idx(x,y)
+      if idx is None:
+        return    
+      if self.last_map_image_idx != idx:
+        self.last_map_image_idx = idx
+        self.display_map_image(self.images[idx], show_full=True)
+
+
+  def mouse_event_image(self, event, x, y, flags, data):
+    '''called on mouse events on a displayed image'''
     if not (flags & cv.CV_EVENT_FLAG_LBUTTON):
       return
-
-    region = self.find_closest_region(x,y)
-    if region is None:
-      return    
-    self.display_region_image(region)
+    img = self.displayed_image
+    if img is None or img.pos is None:
+      return
+    pos = img.pos
+    w = img.img.width
+    h = img.img.height
+    latlon = cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
+                                         pos.pitch, pos.roll, pos.yaw,
+                                         xresolution=w, yresolution=h,
+                                         lens=self.lens)
+    if latlon is None:
+      print("Unable to find pixel coordinates")
+      return
+    (lat,lon) = latlon
+    print("=> %s %f %f %s" % (img.filename, lat, lon, str(pos)))
+    if self.last_click_position:
+      (last_lat, last_lon) = self.last_click_position
+      print("distance from last click: %.1f m" % (cuav_util.gps_distance(lat, lon, last_lat, last_lon)))
+    self.last_click_position = (lat,lon)
+    
 
   def refresh_map(self):
     '''refresh the map display'''
@@ -255,25 +354,88 @@ class Mosaic():
       map = self.map
     cv.ShowImage('Mosaic Map', cv.fromarray(map))
 
-  def add_image(self, img, pos):
+  def image_boundary(self, img, pos):
+    '''return a set of 4 (lat,lon) coordinates for the 4 corners
+    of an image in the order
+    (left,top), (right,top), (right,bottom), (left,bottom)
+
+    Note that one or more of the corners may return as None if
+    the corner is not on the ground (it points at the sky)
+    '''
+    w = img.shape[1]
+    h = img.shape[0]
+    latlon = []
+    for (x,y) in [(0,0), (w-1,0), (w-1,h-1), (0,h-1)]:
+      latlon.append(cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
+                                                pos.pitch, pos.roll, pos.yaw,
+                                                xresolution=w, yresolution=h,
+                                                lens=self.lens))
+    # make it a complete polygon by appending the first point
+    latlon.append(latlon[0])
+    return latlon
+
+  def image_center(self, img, pos):
+    '''return a (lat,lon) for the center of the image
+    '''
+    w = img.shape[1]
+    h = img.shape[0]
+    latlon = []
+    return cuav_util.pixel_coordinates(w/2, h/2, pos.lat, pos.lon, pos.altitude,
+                                       pos.pitch, pos.roll, pos.yaw,
+                                       xresolution=w, yresolution=h,
+                                       lens=self.lens)
+
+  def image_area(self, corners):
+    '''return approximage area of an image delimited by the 4 corners
+    use the min and max coordinates, thus giving a overestimate
+    '''
+    minx = corners[0][0]
+    maxx = corners[0][0]
+    miny = corners[0][1]
+    maxy = corners[0][1]
+    for (x,y) in corners:
+      minx = min(minx, x)
+      miny = min(miny, y)
+      maxx = max(maxx, x)
+      maxy = max(maxy, y)
+    return (maxy-miny)*(maxx-minx)
+    
+
+  def display_map_image(self, image, show_full=False):
+    '''show transformed image on map'''
+    img = cv.LoadImage(image.filename)
+    if show_full:
+      self.displayed_image = DisplayedImage(image.filename, image.pos, img)
+      cv.ShowImage('Image', img)
+      cv.SetMouseCallback('Image', self.mouse_event_image, self)
+      print('=> %s %s' % (image.filename, str(image.pos)))
+    w = img.width
+    h = img.height
+    srcpos = [(0,0), (w-1,0), (w-1,h-1), (0,h-1)]
+    dstpos = [self.latlon_to_map(lat, lon) for (lat,lon) in image.boundary[0:4]]
+    if self.image_area(dstpos) < 10:
+      return
+    transform = cv2.getPerspectiveTransform(numpy.array(srcpos, dtype=numpy.float32), numpy.array(dstpos, dtype=numpy.float32))
+    map_bg = cv.GetImage(cv.fromarray(self.map_background))
+    cv.WarpPerspective(img, map_bg, cv.fromarray(transform), flags=0)
+    self.map_background = numpy.asarray(cv.GetMat(map_bg))
+    self.refresh_map()
+
+
+  def add_image(self, filename, img, pos):
     '''add a background image'''
     if not self.fill_map:
       return
-    # show transformed image on map
-    w = img.shape[1]
-    h = img.shape[0]
-    srcpos = [(0,0), (w-1,0), (w-1,h-1), (0,h-1)]
-    dstpos = []
-    for (x,y) in srcpos:
-      (lat,lon) = cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
-                                              pos.pitch, pos.roll, pos.yaw,
-                                              xresolution=w, yresolution=h)
-      dstpos.append(self.latlon_to_map(lat, lon))
-    transform = cv2.getPerspectiveTransform(numpy.array(srcpos, dtype=numpy.float32), numpy.array(dstpos, dtype=numpy.float32))
-    map_bg = cv.GetImage(cv.fromarray(self.map_background))
-    cv.WarpPerspective(cv.fromarray(img), map_bg, cv.fromarray(transform), flags=0)
-    self.map_background = numpy.asarray(cv.GetMat(map_bg))
-    self.refresh_map()
+    if pos.altitude < 5:
+      # don't bother with pictures of the runway
+      return
+    img_boundary = self.image_boundary(img, pos)
+    if None in img_boundary:
+      # an image corner extends into the sky
+      return
+    center = self.image_center(img, pos)
+    self.images.append(MosaicImage(filename, pos, img_boundary, center))
+    self.display_map_image(self.images[-1])
 
   def add_regions(self, regions, img, filename, pos=None):
     '''add some regions'''
@@ -286,7 +448,11 @@ class Mosaic():
       (lat, lon) = (None, None)
 
       if self.boundary and pos:
-        (lat, lon) = cuav_util.gps_position_from_image_region(r, pos)
+        latlon = cuav_util.gps_position_from_image_region(r, pos, lens=self.lens)
+        if latlon is None:
+          # its pointing into the sky
+          continue
+        (lat, lon) = latlon
         if cuav_util.polygon_outside((lat, lon), self.boundary):
           # this region is outside the search boundary
           continue
@@ -328,3 +494,35 @@ class Mosaic():
 
     cv.ShowImage('Mosaic', cv.fromarray(self.mosaic))
     cv.SetMouseCallback('Mosaic', self.mouse_event, self)
+
+
+  def check_joe_miss(self, regions, img, joes, pos, accuracy=80):
+    '''check for false negatives from Joe scanner'''
+
+    # work out the lat,lon coordinates of the four corners of the image
+    image_boundary = self.image_boundary(img, pos)
+
+    if None in image_boundary:
+      # an image corner extends into the sky
+      return
+
+    for joe in joes:
+      if cuav_util.polygon_outside(joe, image_boundary):
+        continue
+      # this joe should be in this image
+      (joe_lat, joe_lon) = joe
+      min_error = -1
+      for r in regions:
+        latlon = cuav_util.gps_position_from_image_region(r, pos, lens=self.lens)
+        if latlon is None:
+          # its in the sky
+          continue
+        (lat, lon) = latlon
+        if cuav_util.polygon_outside((lat,lon), image_boundary):
+          print("Found position outside image boundary??", r, str(pos), (lat,lon), image_boundary)
+        error = cuav_util.gps_distance(joe_lat, joe_lon, lat, lon)
+        if min_error == -1 or error < min_error:
+          min_error = error
+      if min_error > accuracy:
+        # we got a false negative
+        print("False negative min_error=%f" % min_error)
