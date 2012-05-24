@@ -319,7 +319,7 @@ save_file(PyObject *self, PyObject *args)
 	char *data = NULL;
 	int size = 0;
 
-	if (!PyArg_ParseTuple(args, "sy#", &filename, &data, &size))
+	if (!PyArg_ParseTuple(args, "ss#", &filename, &data, &size))
 		return NULL;
 
 	Py_BEGIN_ALLOW_THREADS;
