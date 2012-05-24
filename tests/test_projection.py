@@ -2,8 +2,11 @@
 '''visualise camera projection onto ground
 '''
 
-import cuav_util, numpy, sys, time
+import numpy, sys, time, os
 from matplotlib import pyplot
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
+import cuav_util
 
 from optparse import OptionParser
 parser = OptionParser("test_projection.py [options]")
