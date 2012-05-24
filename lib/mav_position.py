@@ -51,6 +51,7 @@ class MavInterpolator():
 		self.mlog = None
 		self.ground_pressure = None
 		self.ground_temperature = None
+		self.usec_base = 0
 
 
 	def _find_msg_idx(self, type, t):
@@ -70,6 +71,12 @@ class MavInterpolator():
 			raise MavInterpolatorException('no msgs of type %s' % type)
 		i = self._find_msg_idx(type, t)
 		return self.msg_map[type][i]
+
+
+	def update_usec_base(self, msg):
+		'''update the difference between a usec field from
+		the APM and message timestamps'''
+		pass
 				 
 	def add_msg(self, msg):
 		'''add in a mavlink message'''
@@ -91,6 +98,8 @@ class MavInterpolator():
 			'''keep self.backlog messages around of each type'''
 			while len(self.msg_map[type]) > self.backlog:
 				self.msg_map[type].pop(0)
+		if type == 'ATTITUDE':
+			self.update_usec_base(msg)
 
 	def _altitude(self, SCALED_PRESSURE):
 		'''calculate barometric altitude relative to the ground'''
@@ -140,12 +149,13 @@ class MavInterpolator():
 		'''return a MavPosition estimate given a time'''
 		self.advance_log(t)
 			
-		gps_raw = self._find_msg('GPS_RAW', t)
-		attitude = self._find_msg('ATTITUDE', t)
 		scaled_pressure = self._find_msg('SCALED_PRESSURE', t)
 
-		lat = self.interpolate('GPS_RAW', 'lat', t, max_deltat)
-		lon = self.interpolate('GPS_RAW', 'lon', t, max_deltat)
+		# extrapolate our latitude/longitude 
+		gps_raw = self._find_msg('GPS_RAW', t)
+		(lat, lon) = cuav_util.gps_newpos(gps_raw.lat, gps_raw.lon,
+						  gps_raw.hdg,
+						  gps_raw.v * (t - gps_raw._timestamp))
 
 		# get altitude
 		altitude = self._altitude(scaled_pressure)
