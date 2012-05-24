@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import chameleon, numpy, os, time, cv, sys, math, sys
+import numpy, os, time, cv, sys, math, sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
