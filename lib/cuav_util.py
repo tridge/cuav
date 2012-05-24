@@ -299,7 +299,10 @@ def pixel_position(xpos, ypos, height, pitch, roll, yaw,
     line = Line(camera_point, rot_point)
 
     # find the intersection with the ground
-    pt = line.plane_intersection(ground_plane)
+    pt = line.plane_intersection(ground_plane, forward_only=True)
+    if pt is None:
+	    # its pointing up into the sky
+	    return None
     return (pt.y, pt.x)
 
 
@@ -327,16 +330,21 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     This is only correct for small values of pitch/roll
     '''
 
-    (xofs, yofs) = pixel_position(xpos, ypos, height, pitch, roll, yaw,
-                                  lens=lens, sensorwidth=sensorwidth,
-                                  xresolution=xresolution, yresolution=yresolution)
+    
+    pt = pixel_position(xpos, ypos, height, pitch, roll, yaw,
+			lens=lens, sensorwidth=sensorwidth,
+			xresolution=xresolution, yresolution=yresolution)
+    if pt is None:
+	    # its pointing into the sky
+	    return None
+    (xofs, yofs) = pt
 
     bearing = math.degrees(math.atan2(xofs, yofs))
     distance = math.sqrt(xofs**2 + yofs**2)
     return gps_newpos(latitude, longitude, bearing, distance)
 
 
-def gps_position_from_image_region(region, pos, width=640, height=480):
+def gps_position_from_image_region(region, pos, width=640, height=480, lens=4.0):
 	'''return a GPS position in an image given a MavPosition object
 	and an image region tuple'''
 	(x1,y1,x2,y2) = region
@@ -344,7 +352,8 @@ def gps_position_from_image_region(region, pos, width=640, height=480):
 	y = (y1+y2)*0.5
 	return pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
 				 pos.pitch, pos.roll, pos.yaw,
-				 xresolution=width, yresolution=height)
+				 xresolution=width, yresolution=height,
+				 lens=lens)
 
 def mkdir_p(dir):
     '''like mkdir -p'''
@@ -446,6 +455,13 @@ if __name__ == "__main__":
 			  bearing, dist)
 	err = gps_distance(pos2[0], pos2[1],
 			   pos3[0], pos3[1])
+	if math.fabs(err) > 0.01:
+		raise RuntimeError('coordinate error too large')
+	# check negative distances too
+	pos4 = gps_newpos(pos3[0], pos3[1],
+			  bearing, -dist)
+	err = gps_distance(pos1[0], pos1[1],
+			   pos4[0], pos4[1])
 	if math.fabs(err) > 0.01:
 		raise RuntimeError('coordinate error too large')
 	print 'error %f m' % err
