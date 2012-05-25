@@ -23,6 +23,7 @@ parser.add_option("--max-deltat", default=1.0, type='float', help="max deltat fo
 parser.add_option("--max-attitude", default=45, type='float', help="max attitude geo-referencing")
 parser.add_option("--fill-map", default=False, action='store_true', help="show all images on map")
 parser.add_option("--joe", default=[], action='append', help="add a joe position")
+parser.add_option("--linkjoe", default=None, help="link joe images to this directory")
 parser.add_option("--show-misses", default=False, action='store_true', help="show missed Joes")
 parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
 (opts, args) = parser.parse_args()
@@ -117,6 +118,15 @@ def process(files):
 
     region_count += len(regions)
     scan_count += 1
+
+    # optionally link all the images with joe into a separate directory
+    # for faster re-running of the test with just joe images
+    if opts.linkjoe and len(regions) > 0:
+      cuav_util.mkdir_p(opts.linkjoe)
+      joepath = os.path.join(opts.linkjoe, os.path.basename(f))
+      if os.path.exists(joepath):
+        os.unlink(joepath)
+      os.link(f, joepath)
 
     if opts.mosaic:
       mosaic.add_regions(regions, img_scan, f, pos)
