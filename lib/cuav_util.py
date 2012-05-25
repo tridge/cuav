@@ -518,3 +518,12 @@ def cv_wait_quit():
 		if key in ['q', 'Q']:
 			break
 		
+
+def socket_send_queue_size(sock):
+    '''return size of the TCP send queue for a socket'''
+    import fcntl, termios, struct
+    buf = struct.pack('@l', 0)
+    ret = fcntl.ioctl(sock.fileno(), termios.TIOCOUTQ, buf)
+    v, = struct.unpack('@l', ret)
+    return v
+
