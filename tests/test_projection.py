@@ -31,46 +31,51 @@ miny = 0
 maxy = 0
 
 # show position below plane
-pyplot.plot(0, 0, 'ro')
+pyplot.plot(0, 0, 'yo')
 
 total_time = 0
 count = 0
-
-xpts = range(0, opts.xres, opts.step)
-ypts = range(0, opts.yres, opts.step)
-xpts.append(opts.xres-1)
-ypts.append(opts.yres-1)
 
 includes_sky = False
 
 print("Roll=%.1f Pitch=%.1f Yaw=%.1f Altitude=%.1f" % (opts.roll, opts.pitch, opts.yaw, opts.altitude))
 
-for x in xpts:
-    for y in ypts:
-        t0 = time.time()
-        ofs = cuav_util.pixel_position(x, y,
-                                       opts.altitude,
-                                       opts.pitch, opts.roll, opts.yaw,
-                                       opts.lens,
-                                       xresolution=opts.xres, 
-                                       yresolution=opts.yres)
-        if ofs is None:
-            includes_sky = True
-            continue
-        (ofs_x, ofs_y) = ofs
-        t1 = time.time()
-        total_time += t1 - t0
-        count += 1
-        minx = min(minx, ofs_x)
-        miny = min(miny, ofs_y)
-        maxx = max(maxx, ofs_x)
-        maxy = max(maxy, ofs_y)
-        color = 'bo'
-        if (x,y) == (0,0):
-            # show origin pixel in yellow
-            color = 'yo'
-        pyplot.plot(ofs_x, ofs_y, color)
+def plot_point(x, y):
+    '''add one point'''
+    global total_time, count, minx, maxx, miny, maxy
+    t0 = time.time()
+    ofs = cuav_util.pixel_position(x, y,
+                                   opts.altitude,
+                                   opts.pitch, opts.roll, opts.yaw,
+                                   opts.lens,
+                                   xresolution=opts.xres, 
+                                   yresolution=opts.yres)
+    if ofs is None:
+        includes_sky = True
+        return
+    (ofs_x, ofs_y) = ofs
+    t1 = time.time()
+    total_time += (t1 - t0)
+    count += 1
+    minx = min(minx, ofs_x)
+    miny = min(miny, ofs_y)
+    maxx = max(maxx, ofs_x)
+    maxy = max(maxy, ofs_y)
+    color = 'bo'
+    if x < opts.xres/4 and y < opts.yres/4:
+        # show corner in red
+        color = 'ro'
+    pyplot.plot(ofs_x, ofs_y, color)
 
+for x in range(opts.xres):
+    plot_point(x, 0)
+    plot_point(x, opts.yres/2)
+    plot_point(x, opts.yres-1)
+for y in range(opts.yres):
+    plot_point(0, y)
+    plot_point(opts.xres/2, y)
+    plot_point(opts.xres-1, y)
+        
 if includes_sky:
     print("Projection includes sky")
 
