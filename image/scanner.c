@@ -927,7 +927,7 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 	const uint16_t h = PyArray_DIM(img_in, 0);
 	const struct PACKED rgb *rgb_in = PyArray_DATA(img_in);
 	tjhandle handle=NULL;
-	const int subsamp = TJSAMP_420;
+	const int subsamp = TJSAMP_422;
 	unsigned long jpegSize = tjBufSize(w, h, subsamp);
 	unsigned char *jpegBuf = tjAlloc(jpegSize);
 
