@@ -397,7 +397,11 @@ int capture_wait(chameleon_camera_t *c, float *shutter,
 	if (timeout_ms == -1) {
 		chameleon_capture_dequeue(c, DC1394_CAPTURE_POLICY_WAIT, &frame);
 	} else {
+#if USE_LIBDC1394
 		int fd = dc1394_capture_get_fileno(c);
+#else
+		int fd = -1;
+#endif
 		struct timeval tval, tv0; 
 		fd_set	fds;
   
