@@ -5,7 +5,7 @@ Andrew Tridgell
 May 2012
 '''
 
-import numpy, os, cv, cv2, sys, cuav_util, time, math
+import numpy, os, cv, sys, cuav_util, time, math
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 import scanner
@@ -414,10 +414,11 @@ class Mosaic():
     srcpos = [(0,0), (w-1,0), (w-1,h-1), (0,h-1)]
     dstpos = [self.latlon_to_map(lat, lon) for (lat,lon) in image.boundary[0:4]]
     if self.image_area(dstpos) < 10:
-      return
-    transform = cv2.getPerspectiveTransform(numpy.array(srcpos, dtype=numpy.float32), numpy.array(dstpos, dtype=numpy.float32))
+        return
+    transform = cv.fromarray(numpy.zeros((3,3),dtype=numpy.float32))
+    cv.GetPerspectiveTransform(srcpos, dstpos, transform)
     map_bg = cv.GetImage(cv.fromarray(self.map_background))
-    cv.WarpPerspective(img, map_bg, cv.fromarray(transform), flags=0)
+    cv.WarpPerspective(img, map_bg, transform, flags=0)
     self.map_background = numpy.asarray(cv.GetMat(map_bg))
     self.refresh_map()
 
