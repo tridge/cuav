@@ -3,6 +3,8 @@
 
 import numpy, cv, math, sys, os, time, rotmat
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
+
 radius_of_earth = 6378100.0 # in meters
 
 class PGMError(Exception):
@@ -526,4 +528,16 @@ def socket_send_queue_size(sock):
     ret = fcntl.ioctl(sock.fileno(), termios.TIOCOUTQ, buf)
     v, = struct.unpack('@l', ret)
     return v
+
+
+def LoadImage(filename):
+	'''wrapper around cv.LoadImage that also handles PGM.
+	It always returns a colour image of the same size'''
+	if filename.endswith('.pgm'):
+		import scanner
+		pgm = PGM(filename)
+		im_full = numpy.zeros((960,1280,3),dtype='uint8')
+		scanner.debayer_full(pgm.array, im_full)
+		return cv.fromarray(im_full)
+	return cv.LoadImage(filename)
 

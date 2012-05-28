@@ -215,7 +215,7 @@ class Mosaic():
       scanner.debayer_full(pgm.array, im)
       mat = cv.fromarray(im)
     else:
-      mat = cv.LoadImage(region.filename)
+      mat = cuav_util.LoadImage(region.filename)
       im = numpy.asarray(cv.GetMat(mat))
     (x1,y1,x2,y2) = region.region
     if im.shape[0] == 960:
@@ -403,7 +403,7 @@ class Mosaic():
 
   def display_map_image(self, image, show_full=False):
     '''show transformed image on map'''
-    img = cv.LoadImage(image.filename)
+    img = cuav_util.LoadImage(image.filename)
     if show_full:
       self.displayed_image = DisplayedImage(image.filename, image.pos, img)
       cv.ShowImage('Image', img)
