@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''common CanberraUAV utility functions'''
 
-import numpy, cv, math, sys, os, time, rotmat
+import numpy, cv, math, sys, os, time, rotmat, cStringIO, cPickle, struct
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 
@@ -541,3 +541,47 @@ def LoadImage(filename):
 		return cv.fromarray(im_full)
 	return cv.LoadImage(filename)
 
+
+class PickleStreamIn:
+	'''a non-blocking pickle abstraction'''
+	def __init__(self):
+		self.objs = []
+		self.io = ""
+		self.prefix = ""
+		self.bytes_needed = -1
+
+	def write(self, buf):
+		'''add some data from the stream'''
+		while len(buf) != 0:
+			if len(self.prefix) < 4:
+				n = min(4 - len(self.prefix), len(buf))
+				self.prefix += buf[:n]
+				buf = buf[n:]
+			if self.bytes_needed == -1 and len(self.prefix) == 4:
+				(self.bytes_needed,) = struct.unpack('<I', self.prefix)
+			n = min(len(buf), self.bytes_needed - len(self.io))
+			self.io += buf[:n]
+			buf = buf[n:]
+			if len(self.io) == self.bytes_needed:
+				self.objs.append(cPickle.loads(self.io))
+				self.io = ""
+				self.prefix = ""
+				self.bytes_needed = -1
+
+	def get(self):
+		'''get an object if available'''
+		if len(self.objs) == 0:
+			return None
+		return self.objs.pop(0)
+
+class PickleStreamOut:
+	'''a non-blocking pickle abstraction - output side'''
+	def __init__(self, sock):
+		self.sock = sock
+
+	def send(self, obj):
+		'''send an object over the stream'''
+		buf = cPickle.dumps(obj, protocol=cPickle.HIGHEST_PROTOCOL)
+		prefix = struct.pack('<I', len(buf))
+		self.sock.send(prefix + buf)
+		
