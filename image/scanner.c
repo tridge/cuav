@@ -974,7 +974,18 @@ scanner_downsample(PyObject *self, PyObject *args)
 	Py_BEGIN_ALLOW_THREADS;
 	for (uint16_t y=0; y<HEIGHT/2; y++) {
 		for (uint16_t x=0; x<WIDTH/2; x++) {
+#if 0
 			out->data[y][x] = in->data[y*2][x*2];
+#else
+			const struct rgb *p0 = &in->data[y*2+0][x*2+0];
+			const struct rgb *p1 = &in->data[y*2+0][x*2+1];
+			const struct rgb *p2 = &in->data[y*2+1][x*2+0];
+			const struct rgb *p3 = &in->data[y*2+1][x*2+1];
+			struct rgb *d = &out->data[y][x];
+			d->b = ((uint16_t)p0->b + (uint16_t)p1->b + (uint16_t)p2->b + (uint16_t)p3->b)/4;
+			d->g = ((uint16_t)p0->g + (uint16_t)p1->g + (uint16_t)p2->g + (uint16_t)p3->g)/4;
+			d->r = ((uint16_t)p0->r + (uint16_t)p1->r + (uint16_t)p2->r + (uint16_t)p3->r)/4;
+#endif
 		}
 	}
 	Py_END_ALLOW_THREADS;
