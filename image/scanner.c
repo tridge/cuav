@@ -1189,8 +1189,8 @@ scanner_rect_extract(PyObject *self, PyObject *args)
 	x2 = x1 + w_out - 1;
 	y2 = y1 + h_out - 1;       
 
-	if (x2 >= w) x2 = w;
-	if (y2 >= h) y2 = h;
+	if (x2 >= w) x2 = w-1;
+	if (y2 >= h) y2 = h-1;
 
 	for (y=y1; y<=y2; y++) {
 		const struct rgb *in_y = in + y*w;
@@ -1249,8 +1249,8 @@ scanner_rect_overlay(PyObject *self, PyObject *args)
 	x2 = x1 + w2 - 1;
 	y2 = y1 + h2 - 1;       
 
-	if (x2 >= w1) x2 = w1;
-	if (y2 >= h1) y2 = h1;
+	if (x2 >= w1) x2 = w1-1;
+	if (y2 >= h1) y2 = h1-1;
 
 	if (skip_black) {
 		for (y=y1; y<=y2; y++) {
