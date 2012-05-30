@@ -72,7 +72,36 @@ class DisplayedImage:
 
   def __str__(self):
     return '%s %s' % (self.filename, str(self.pos))
-    
+
+def CompositeThumbnail(img, regions, thumb_size=20, quality=75):
+    '''extract a composite thumbnail for the regions of an image
+
+    The composite will consist of N thumbnails side by side
+
+    return it as a compressed jpeg bytearray
+    '''
+    composite = numpy.zeros((thumb_size, thumb_size*len(regions),3),dtype='uint8')
+    thumb = numpy.zeros((thumb_size, thumb_size,3),dtype='uint8')
+    for i in range(len(regions)):
+        (x1,y1,x2,y2) = regions[i]
+        midx = (x1+x2)/2
+        midy = (y1+y2)/2
+        x1 = max(midx - thumb_size/2, 0)
+        y1 = max(midy - thumb_size/2, 0)
+        scanner.rect_extract(img, thumb, x1, y1)
+        scanner.rect_overlay(composite, thumb, thumb_size*i, 0, True)
+    return scanner.jpeg_compress(composite, quality)
+
+def ExtractThumbs(img, count):
+    '''extract thumbnails from a composite thumbnail image'''
+    thumb_size = img.width / count
+    img = numpy.asarray(cv.GetMat(img))
+    thumbs = []
+    for i in range(count):
+        thumb = numpy.zeros((thumb_size, thumb_size,3),dtype='uint8')
+        scanner.rect_extract(img, thumb, i*thumb_size, 0)
+        thumbs.append(thumb)
+    return thumbs
 
 class Mosaic():
   '''keep a mosaic of found regions'''
@@ -206,36 +235,31 @@ class Mosaic():
     print cv.CompareHist(hist1, hist2, cv.CV_COMP_CHISQR)
 
   def display_region_image(self, region):
-    '''display the image associated with a region'''
-    jpeg_thumb = scanner.jpeg_compress(region.thumbnail, 75)
-    print '-> %s thumb=%u' % (str(region), len(jpeg_thumb))
-    if region.filename.endswith('.pgm'):
-      pgm = cuav_util.PGM(region.filename)
-      im = numpy.zeros((pgm.array.shape[0],pgm.array.shape[1],3),dtype='uint8')
-      scanner.debayer_full(pgm.array, im)
-      mat = cv.fromarray(im)
-    else:
-      mat = cuav_util.LoadImage(region.filename)
-      im = numpy.asarray(cv.GetMat(mat))
-    (x1,y1,x2,y2) = region.region
-    if im.shape[0] == 960:
-      x1 *= 2
-      y1 *= 2
-      x2 *= 2
-      y2 *= 2
-    cv.Rectangle(mat, (x1-8,y1-8), (x2+8,y2+8), (255,0,0), 2)
-    if not self.full_res:
-      display_img = cv.CreateImage((640, 480), 8, 3)
-      cv.Resize(mat, display_img)
-      mat = display_img
+      '''display the image associated with a region'''
+      try:
+          img = cuav_util.LoadImage(region.filename)
+      except Exception:
+          # file is corrupt
+          print("Unable to LoadImage %s" % region.filename)
+          return
+      (x1,y1,x2,y2) = region.region
+      if img.height == 960:
+          x1 *= 2
+          y1 *= 2
+          x2 *= 2
+          y2 *= 2
+      cv.Rectangle(img, (x1-8,y1-8), (x2+8,y2+8), (255,0,0), 2)
+      if not self.full_res:
+          display_img = cv.CreateImage((640, 480), 8, 3)
+          cv.Resize(img, display_img)
+          img = display_img
 
-    self.measure_distinctiveness(im, region)
-
-    self.displayed_image = DisplayedImage(region.filename, region.pos, mat)
-
-    cv.ShowImage('Image', mat)
-    cv.SetMouseCallback('Image', self.mouse_event_image, self)
-    cv.WaitKey(1)
+      self.measure_distinctiveness(img, region)
+      
+      self.displayed_image = DisplayedImage(region.filename, region.pos, img)
+      cv.ShowImage('Image', img)
+      cv.SetMouseCallback('Image', self.mouse_event_image, self)
+      cv.WaitKey(1)
 
 
   def mouse_event(self, event, x, y, flags, data):
@@ -403,7 +427,11 @@ class Mosaic():
 
   def display_map_image(self, image, show_full=False):
     '''show transformed image on map'''
-    img = cuav_util.LoadImage(image.filename)
+    try:
+        img = cuav_util.LoadImage(image.filename)
+    except Exception:
+        print("unable to LoadImage %s" % image.filename)
+        return
     if show_full:
       self.displayed_image = DisplayedImage(image.filename, image.pos, img)
       cv.ShowImage('Image', img)
@@ -438,63 +466,56 @@ class Mosaic():
     self.images.append(MosaicImage(filename, pos, img_boundary, center))
     self.display_map_image(self.images[-1])
 
-  def add_regions(self, regions, img, filename, pos=None):
-    '''add some regions'''
-    if getattr(img, 'shape', None) is None:
-      img = numpy.asarray(cv.GetMat(img))
-    for r in regions:
-      (x1,y1,x2,y2) = r
+  def add_regions(self, regions, thumbs, filename, pos=None):
+      '''add some regions'''
+      for i in range(len(regions)):
+          r = regions[i]
+          (x1,y1,x2,y2) = r
 
-      (mapx, mapy) = (None, None)
-      (lat, lon) = (None, None)
+          (mapx, mapy) = (None, None)
+          (lat, lon) = (None, None)
 
-      if self.boundary and pos:
-        latlon = cuav_util.gps_position_from_image_region(r, pos, lens=self.lens)
-        if latlon is None:
-          # its pointing into the sky
-          continue
-        (lat, lon) = latlon
-        if cuav_util.polygon_outside((lat, lon), self.boundary):
-          # this region is outside the search boundary
-          continue
+          if self.boundary and pos:
+              latlon = cuav_util.gps_position_from_image_region(r, pos, lens=self.lens)
+              if latlon is not None:
+                  (lat, lon) = latlon
+          else:
+              latlon = None
 
-      midx = (x1+x2)/2
-      midy = (y1+y2)/2
-      x1 = midx - self.thumb_size/2
-      y1 = midy - self.thumb_size/2
-      if x1 < 0: x1 = 0
-      if y1 < 0: y1 = 0
-      
-      # leave a 1 pixel black border
-      thumbnail = numpy.zeros((self.thumb_size-1,self.thumb_size-1,3),dtype='uint8')
-      scanner.rect_extract(img, thumbnail, x1, y1)
+          if self.boundary and latlon is None:
+              # its pointing into the sky
+              continue
+          if self.boundary:
+              if cuav_util.polygon_outside((lat, lon), self.boundary):
+                  # this region is outside the search boundary
+                  continue
 
-      idx = len(self.regions) % self.display_regions
-      
-      dest_x = (idx * self.thumb_size) % self.width
-      dest_y = ((idx * self.thumb_size) / self.width) * self.thumb_size
+          idx = len(self.regions) % self.display_regions
 
-      # overlay thumbnail on mosaic
-      scanner.rect_overlay(self.mosaic, thumbnail, dest_x, dest_y, False)
+          dest_x = (idx * self.thumb_size) % self.width
+          dest_y = ((idx * self.thumb_size) / self.width) * self.thumb_size
 
-      if (lat,lon) != (None,None):
-        # show thumbnail on map
-        (mapx, mapy) = self.latlon_to_map(lat, lon)
-        scanner.rect_overlay(self.map, thumbnail,
-                             max(0, mapx - self.thumb_size/2),
-                             max(0, mapy - self.thumb_size/2), False)
-        map = cv.fromarray(self.map)
-        (x1,y1) = (max(0, mapx - self.thumb_size/2),
-                   max(0, mapy - self.thumb_size/2))
-        (x2,y2) = (x1+self.thumb_size, y1+self.thumb_size)
-        cv.Rectangle(map, (x1,y1), (x2,y2), (255,0,0), 1)
-        self.map = numpy.asarray(map)
-        self.refresh_map()
+          # overlay thumbnail on mosaic
+          scanner.rect_overlay(self.mosaic, thumbs[i], dest_x, dest_y, False)
 
-      self.regions.append(MosaicRegion(r, filename, pos, thumbnail, latlon=(lat, lon), map_pos=(mapx, mapy)))
+          if (lat,lon) != (None,None):
+              # show thumbnail on map
+              (mapx, mapy) = self.latlon_to_map(lat, lon)
+              scanner.rect_overlay(self.map, thumbs[i],
+                                   max(0, mapx - self.thumb_size/2),
+                                   max(0, mapy - self.thumb_size/2), False)
+              map = cv.fromarray(self.map)
+              (x1,y1) = (max(0, mapx - self.thumb_size/2),
+                         max(0, mapy - self.thumb_size/2))
+              (x2,y2) = (x1+self.thumb_size, y1+self.thumb_size)
+              cv.Rectangle(map, (x1,y1), (x2,y2), (255,0,0), 1)
+              self.map = numpy.asarray(map)
+              self.refresh_map()
 
-    cv.ShowImage('Mosaic', cv.fromarray(self.mosaic))
-    cv.SetMouseCallback('Mosaic', self.mouse_event, self)
+          self.regions.append(MosaicRegion(r, filename, pos, thumbs[i], latlon=(lat, lon), map_pos=(mapx, mapy)))
+
+      cv.ShowImage('Mosaic', cv.fromarray(self.mosaic))
+      cv.SetMouseCallback('Mosaic', self.mouse_event, self)
 
 
   def check_joe_miss(self, regions, img, joes, pos, accuracy=80):
