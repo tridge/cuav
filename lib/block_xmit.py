@@ -9,9 +9,10 @@ The protocol is designed to work well with large amounts of packet loss, while
 using a fixed maximum bandwidth. The actual send bandwidth scales closely
 as the target bandwidth times the packet loss.
 
-The protocol sends arbitrary "blocks" of data. It was designed for sending images
-efficiently over a lossy wireless link. The default transport is UDP, but the user can
-specify their own message oriented transport if needed.
+The protocol sends arbitrary "blocks" of data. It was designed for
+sending images and telemetry data efficiently over a lossy wireless
+link. The default transport is UDP, but the user can specify their own
+message oriented transport if needed. 
 
 Andrew Tridgell
 May 2012
@@ -165,7 +166,7 @@ class BlockSenderChunk:
 
 class BlockSenderBlock:
     '''the state of an incoming or outgoing block'''
-    def __init__(self, blockid, size, chunk_size, dest, mss, data=None, callback=None):
+    def __init__(self, blockid, size, chunk_size, dest, mss, data=None, callback=None, priority=0):
         self.blockid = blockid
         self.size = size
         self.chunk_size = chunk_size
@@ -179,6 +180,7 @@ class BlockSenderBlock:
         self.callback = callback
         self.dest = dest
         self.next_chunk = 0
+        self.priority = priority
 
     def chunk(self, chunk_id):
         '''return data for a chunk'''
@@ -193,7 +195,8 @@ class BlockSenderBlock:
 class BlockSender:
     '''a reliable datagram block sender
 
-    port:          UDP port to listen on
+    port:          UDP port to listen on, use zero for a system allocated port. This
+                   port can be queried via get_port()
     dest_ip:       default IP to send to
     listen_ip:     IP to listen on (default is wildcard)
     bandwidth:     bandwidth to use in bytes/second (default 100000 bytes/s)
@@ -207,7 +210,7 @@ class BlockSender:
                    packet types (default is zero, meaning no limit)
     debug:         enable debugging (default False)
     '''
-    def __init__(self, port, dest_ip=None, listen_ip='', bandwidth=100000,
+    def __init__(self, port=0, dest_ip=None, listen_ip='', bandwidth=100000,
                  completed_len=1000, chunk_size=1000, backlog=100, rtt=0.01,
                  sock=None, mss=0,
                  debug=False):
@@ -217,6 +220,8 @@ class BlockSender:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.sock.bind((listen_ip, port))
             self.sock.setblocking(False)
+            if port == 0:
+                (host, port) = self.sock.getsockname()
         else:
             self.sock = sock
         self.dest_ip = dest_ip
@@ -244,6 +249,9 @@ class BlockSender:
                          self.mss < self.ack_overhead + 4):
             raise BlockSenderException('mss is too small')
 
+    def get_port(self):
+        '''return the port we are using'''
+        return self.port
 
     def set_packet_loss(self, loss):
         '''set a percentage packet loss
@@ -251,12 +259,18 @@ class BlockSender:
         '''
         self.packet_loss = loss
 
-    def send(self, data, dest=None, chunk_size=None, callback=None):
+    def set_bandwidth(self, bandwidth):
+        '''set the bandwidth on an open sender'''
+        self.bandwidth = bandwidth
+
+    def send(self, data, dest=None, chunk_size=None, callback=None, priority=0):
         '''send a data block
 
         dest:       optional (host,port) tuple
         chunk_size: network send size for this block (defaults to self.chunk_size)
         callback:   optional callback on completion of send
+        priority:   optional priority for sending this packet. Higher priority packets
+                    are sent first
         '''
         if not chunk_size:
             chunk_size = self.chunk_size
@@ -272,7 +286,10 @@ class BlockSender:
             if self.dest_ip is None:
                 raise BlockSenderException('no destination specified in send')
             dest = (self.dest_ip, self.port)
-        self.outgoing.append(BlockSenderBlock(blockid, len(data), chunk_size, dest, self.mss, data=data, callback=callback))
+        self.outgoing.append(BlockSenderBlock(blockid, len(data), chunk_size, dest, self.mss,
+                                              data=data, callback=callback, priority=priority))
+        if priority != 0:
+            self.outgoing.sort(key=lambda blk: blk.priority)
 
     def _debug(self, s):
         '''internal debug function'''
