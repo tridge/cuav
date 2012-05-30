@@ -309,18 +309,24 @@ save_pgm(PyObject *self, PyObject *args)
 }
 
 /*
-  save a file from a string
+  save a file from a bytearray
  */
 static PyObject *
 save_file(PyObject *self, PyObject *args)
 {
 	int status;
 	const char *filename;
-	char *data = NULL;
-	int size = 0;
+	PyByteArrayObject *obj;
+	char *data;
+	unsigned size;
 
-	if (!PyArg_ParseTuple(args, "ss#", &filename, &data, &size))
+	if (!PyArg_ParseTuple(args, "sO", &filename, &obj))
 		return NULL;
+	if (!PyByteArray_Check(obj))
+		return NULL;
+
+	data = PyByteArray_AS_STRING(obj);
+	size = PyByteArray_GET_SIZE(obj);
 
 	Py_BEGIN_ALLOW_THREADS;
 	status = _save_file(filename, size, data);
