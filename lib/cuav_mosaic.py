@@ -95,7 +95,7 @@ def CompositeThumbnail(img, regions, thumb_size=20, quality=75):
 
 def ExtractThumbs(img, count):
     '''extract thumbnails from a composite thumbnail image'''
-    thumb_size = img.width / count
+    thumb_size = cuav_util.image_width(img) / count
     img = numpy.asarray(cv.GetMat(img))
     thumbs = []
     for i in range(count):
@@ -104,8 +104,42 @@ def ExtractThumbs(img, count):
         thumbs.append(thumb)
     return thumbs
 
-def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
-    '''extract a composite thumbnail for the regions of an image
+class Mosaic():
+  '''keep a mosaic of found regions'''
+  def __init__(self, grid_width=30, grid_height=30, thumb_size=20, lens=4.0, fill_map=True):
+    self.thumb_size = thumb_size
+    self.width = grid_width * thumb_size
+    self.height = grid_height * thumb_size
+    self.map_width = grid_width * thumb_size
+    self.map_height = grid_height * thumb_size
+    self.mosaic = numpy.zeros((self.height,self.width,3),dtype='uint8')
+    self.map = numpy.zeros((self.map_height,self.map_width,3),dtype='uint8')
+    self.map_background = numpy.zeros((self.map_height,self.map_width,3),dtype='uint8')
+    self.display_regions = grid_width*grid_height
+    self.regions = []
+    self.images = []
+    self.full_res = False
+    self.boundary = []
+    self.fill_map = fill_map
+    self.last_map_image_idx = None
+    self.displayed_image = None
+    self.last_click_position = None
+    self.lens = lens
+
+    # map limits in form (min_lat, min_lon, max_lat, max_lon)
+    self.map_limits = [0,0,0,0]
+    cv.NamedWindow('Mosaic')
+
+  def latlon_to_map(self, lat, lon):
+    '''
+    convert a latitude/longitude to map position in pixels, with
+    0,0 in top left
+    '''
+    dlat = lat - self.map_limits[0]
+    dlon = lon - self.map_limits[1]
+    px = (dlon / (self.map_limits[3] - self.map_limits[1])) * self.map_width
+    py = (1.0 - dlat / (self.map_limits[2] - self.map_limits[0])) * self.map_height
+    return (int(px+0.5), int(py+0.5))
 
   def map_to_latlon(self, x, y):
     '''
@@ -183,7 +217,7 @@ def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
     this is currently disabled, and needs more work
     '''
     return
-    if image.shape[0] == 960:
+    if cuav_util.image_width(image) == 1280:
       r = tuple([2*v for v in r])
     (x1,y1,x2,y2) = r
 
@@ -318,8 +352,7 @@ def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
     if img is None or img.pos is None:
       return
     pos = img.pos
-    w = img.img.width
-    h = img.img.height
+    (w,h) = cuav_util.image_shape(img.img)
     latlon = cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
                                          pos.pitch, pos.roll, pos.yaw,
                                          xresolution=w, yresolution=h,
@@ -353,8 +386,7 @@ def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
     Note that one or more of the corners may return as None if
     the corner is not on the ground (it points at the sky)
     '''
-    w = img.shape[1]
-    h = img.shape[0]
+    (w,h) = cuav_util.image_shape(img)
     latlon = []
     for (x,y) in [(0,0), (w-1,0), (w-1,h-1), (0,h-1)]:
       latlon.append(cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
@@ -368,8 +400,7 @@ def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
   def image_center(self, img, pos):
     '''return a (lat,lon) for the center of the image
     '''
-    w = img.shape[1]
-    h = img.shape[0]
+    (w,h) = cuav_util.image_shape(img)
     latlon = []
     return cuav_util.pixel_coordinates(w/2, h/2, pos.lat, pos.lon, pos.altitude,
                                        pos.pitch, pos.roll, pos.yaw,
@@ -404,8 +435,7 @@ def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
       cv.ShowImage('Image', img)
       cv.SetMouseCallback('Image', self.mouse_event_image, self)
       print('=> %s %s' % (image.filename, str(image.pos)))
-    w = img.width
-    h = img.height
+    (w,h) = cuav_util.image_shape(img)
     srcpos = [(0,0), (w-1,0), (w-1,h-1), (0,h-1)]
     dstpos = [self.latlon_to_map(lat, lon) for (lat,lon) in image.boundary[0:4]]
     if self.image_area(dstpos) < 10:
