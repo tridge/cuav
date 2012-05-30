@@ -73,6 +73,9 @@ def playback(filename, images):
         for m in mout:
             m.write(msg.get_msgbuf())
         deltat = msg._timestamp - last_timestamp
+        if len(images) == 0 or images[0].frame_time > msg._timestamp + 2:
+            # run at high speed except for the portions where we have images
+            deltat /= 20
         time.sleep(deltat/opts.speedup)
         last_timestamp = msg._timestamp
         if time.time() - last_print > 2.0:
