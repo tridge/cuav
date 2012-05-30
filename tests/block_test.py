@@ -19,6 +19,7 @@ parser.add_option("--chunk-size", type='int', default=1000, help="chunk size to 
 parser.add_option("--backlog", type='int', default=100, help="number of in-flight chunks")
 parser.add_option("--loss", type='float', default=0.0, help="packet loss")
 parser.add_option("--debug", action='store_true', default=False, help="verbose debug")
+parser.add_option("--mss", type='int', default=0, help="maximum segment size")
 parser.add_option("--count", type='int', default=1, help="number of blocks to send")
 (opts, args) = parser.parse_args()
 
@@ -30,6 +31,7 @@ bs = block_xmit.BlockSender(opts.port,
 			    bandwidth=opts.bandwidth, 
 			    chunk_size=opts.chunk_size,
 			    backlog=opts.backlog,
+			    mss=opts.mss,
 			    debug=opts.debug)
 
 if opts.loss:

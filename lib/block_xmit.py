@@ -5,6 +5,14 @@ a module for reliable block data sending over UDP
 This module should only be used on private networks - it takes no account
 of network congestion.
 
+The protocol is designed to work well with large amounts of packet loss, while
+using a fixed maximum bandwidth. The actual send bandwidth scales closely
+as the target bandwidth times the packet loss.
+
+The protocol sends arbitrary "blocks" of data. It was designed for sending images
+efficiently over a lossy wireless link. The default transport is UDP, but the user can
+specify their own message oriented transport if needed.
+
 Andrew Tridgell
 May 2012
 released under the GNU GPL v3 or later
@@ -17,6 +25,9 @@ PKT_ACK = 0
 PKT_COMPLETE = 1
 PKT_CHUNK = 2
 
+# size of packet type plus crc32
+PACKET_HEADER_SIZE = 5
+
 class BlockSenderException(Exception):
 	'''block sender error class'''
 	def __init__(self, msg):
@@ -27,24 +38,35 @@ class BlockSenderSet:
     '''hold a set of chunk IDs for an identifier.
     This object is sent as a PKT_ACK to
     acknowledge receipt of data'''
-    def __init__(self, id, num_chunks):
+    def __init__(self, id, num_chunks, mss):
         self.id = id
         self.num_chunks = num_chunks
         self.chunks = set()
         self.timestamp = 0
         self.format = '<QHd'
         self.header_size = struct.calcsize(self.format)
+        self.first_missing = 0
+        self.mss = mss
 
     def __str__(self):
         return 'BlockSenderSet<%u/%u>' % (len(self.chunks), self.num_chunks)
 
-    def add(self, chunk_id):
-        '''add an extent to the list'''
-        self.chunks.add(chunk_id)
+    def update_first_missing(self):
+        '''update the first_missing field'''
+        while self.first_missing < self.num_chunks:
+            if not self.first_missing in self.chunks:
+                break
+            self.first_missing += 1
 
+    def add(self, chunk_id):
+        '''add an extent to the list. This is called when we receive a chunk of data'''
+        self.chunks.add(chunk_id)
+        self.update_first_missing()
+        
     def update(self, new):
-        '''add in new chunks'''
+        '''add in new chunks. This is called when we receive an ack packet'''
         self.chunks.update(new.chunks)
+        self.update_first_missing()
 
     def present(self, chunk_id):
         '''see if a chunk_id is present in the chunks'''
@@ -60,6 +82,8 @@ class BlockSenderSet:
         chunks.sort()
         extents = []
         for i in range(len(chunks)):
+            if chunks[i] < self.first_missing:
+                continue
             if len(extents) == 0:
                 extents.append((chunks[i], 1))
                 continue
@@ -71,6 +95,8 @@ class BlockSenderSet:
         buf = struct.pack(self.format, self.id, self.num_chunks, self.timestamp)
         for (first,count) in extents:
             buf += struct.pack('<HH', first, count)
+            if self.mss and len(buf) + 4 > self.mss:
+                break
         return buf
 
     def unpack(self, buf):
@@ -108,14 +134,15 @@ class BlockSenderComplete:
 
 class BlockSenderChunk:
     '''an incoming chunk packet. This is the main data format'''
-    def __init__(self, blockid, size, chunk_id, data, chunk_size, timestamp):
+    def __init__(self, blockid, size, chunk_id, data, chunk_size, ack_to, timestamp):
         self.blockid = blockid
         self.size = size
         self.chunk_id = chunk_id
         self.chunk_size = chunk_size
         self.data = data
+        self.ack_to = ack_to
         self.timestamp = timestamp
-        self.format = '<QLHHd'
+        self.format = '<QLHHHd'
         self.header_size = struct.calcsize(self.format)
         if data is not None:
             self.packed_size = len(data) + self.header_size
@@ -124,25 +151,26 @@ class BlockSenderChunk:
             
     def pack(self):
         '''return a linearized representation'''        
-        buf = struct.pack(self.format, self.blockid, self.size, self.chunk_id, self.chunk_size, self.timestamp)
+        buf = struct.pack(self.format, self.blockid, self.size, self.chunk_id,
+                          self.chunk_size, self.ack_to, self.timestamp)
         buf += str(self.data)
         return buf
 
     def unpack(self, buf):
         '''unpack a linearized representation into the object'''
         (self.blockid, self.size,
-         self.chunk_id, self.chunk_size, self.timestamp) = struct.unpack_from(self.format, buf, offset=0)
+         self.chunk_id, self.chunk_size, self.ack_to, self.timestamp) = struct.unpack_from(self.format, buf, offset=0)
         self.data = bytearray(buf[self.header_size:])
 
 
 class BlockSenderBlock:
     '''the state of an incoming or outgoing block'''
-    def __init__(self, blockid, size, chunk_size, dest, data=None, callback=None):
+    def __init__(self, blockid, size, chunk_size, dest, mss, data=None, callback=None):
         self.blockid = blockid
         self.size = size
         self.chunk_size = chunk_size
         self.num_chunks = int((self.size + (chunk_size-1)) / chunk_size)
-        self.acks = BlockSenderSet(blockid, self.num_chunks)
+        self.acks = BlockSenderSet(blockid, self.num_chunks, mss)
         if data is not None:
             self.data = bytearray(data)
         else:
@@ -175,11 +203,13 @@ class BlockSender:
     rtt:           initial round trip time estimate (0.01 seconds)
     sock:          a optional socket object to use, needs sendto() and recvfrom()
                    plus a fileno() method if recv() with non-zero timeout is used
+    mss:           maximum segment size for any packet. This limits all
+                   packet types (default is zero, meaning no limit)
     debug:         enable debugging (default False)
     '''
     def __init__(self, port, dest_ip=None, listen_ip='', bandwidth=100000,
                  completed_len=1000, chunk_size=1000, backlog=100, rtt=0.01,
-                 sock=None,
+                 sock=None, mss=0,
                  debug=False):
         self.bandwidth = bandwidth
         self.port = port
@@ -205,6 +235,15 @@ class BlockSender:
         self.backlog = backlog
         self.rtt_estimate = rtt
         self.rtt_max = 10
+        self.mss = mss
+
+        # work out the overheads of the packet types
+        self.chunk_overhead = BlockSenderChunk(0,0,0,'',0,0,0).header_size
+        self.ack_overhead = BlockSenderSet(0,0,0).header_size
+        if self.mss and (self.mss < self.chunk_overhead + 1 or
+                         self.mss < self.ack_overhead + 4):
+            raise BlockSenderException('mss is too small')
+
 
     def set_packet_loss(self, loss):
         '''set a percentage packet loss
@@ -221,6 +260,9 @@ class BlockSender:
         '''
         if not chunk_size:
             chunk_size = self.chunk_size
+        if self.mss and chunk_size > self.chunk_overhead + self.mss:
+            chunk_size = self.mss - self.chunk_overhead
+        
         num_chunks = int((len(data) + (chunk_size-1)) / chunk_size)
         if num_chunks > 65535:
             raise BlockSenderException('chunk_size of %u is too small for data length %u' % (chunk_size, len(data)))
@@ -230,7 +272,7 @@ class BlockSender:
             if self.dest_ip is None:
                 raise BlockSenderException('no destination specified in send')
             dest = (self.dest_ip, self.port)
-        self.outgoing.append(BlockSenderBlock(blockid, len(data), chunk_size, dest, data=data, callback=callback))
+        self.outgoing.append(BlockSenderBlock(blockid, len(data), chunk_size, dest, self.mss, data=data, callback=callback))
 
     def _debug(self, s):
         '''internal debug function'''
@@ -293,22 +335,22 @@ class BlockSender:
             # setup defaults for send based on first connection
             (self.dest_ip,self.port) = fromaddr
         try:
-            if len(buf) < 5:
+            if len(buf) < PACKET_HEADER_SIZE:
                 self._debug('bad packet %s' % msg)
                 return True
             (magic,crc) = struct.unpack_from('<Bl', buf)
-            remaining = buf[5:]
+            remaining = buf[PACKET_HEADER_SIZE:]
             if crc != binascii.crc32(remaining):
                 self._debug('bad crc')
                 return True                
             if magic == PKT_ACK:
-                obj = BlockSenderSet(0,0)
+                obj = BlockSenderSet(0,0,0)
                 obj.unpack(remaining)
             elif magic == PKT_COMPLETE:
                 obj = BlockSenderComplete(0, None, None)
                 obj.unpack(remaining)
             elif magic == PKT_CHUNK:
-                obj = BlockSenderChunk(0, 0, 0, "", 0, 0)
+                obj = BlockSenderChunk(0, 0, 0, "", 0, 0, 0)
                 obj.unpack(remaining)
             else:
                 self._debug('bad magic %u' % magic)
@@ -370,7 +412,7 @@ class BlockSender:
                     self._add_chunk(blk, obj)
                     return
             # its a new block
-            self.incoming.append(BlockSenderBlock(obj.blockid, obj.size, obj.chunk_size, fromaddr))
+            self.incoming.append(BlockSenderBlock(obj.blockid, obj.size, obj.chunk_size, fromaddr, self.mss))
             blk = self.incoming[-1]
             blk.timestamp = obj.timestamp
             self._add_chunk(blk, obj)
@@ -458,7 +500,8 @@ class BlockSender:
                     # this would take us over our bandwidth limit
                     return
 
-                chunk = BlockSenderChunk(blk.blockid, blk.size, c, blk.chunk(c), blk.chunk_size, t)
+                chunk = BlockSenderChunk(blk.blockid, blk.size, c, blk.chunk(c),
+                                         blk.chunk_size, blk.acks.first_missing, t)
 
                 if bytes_sent + chunk.packed_size > bytes_to_send:
                     # this would take us over our bandwidth limit
