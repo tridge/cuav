@@ -22,7 +22,7 @@ parser.add_option("--boundary", default=None, help="search boundary file")
 parser.add_option("--max-deltat", default=1.0, type='float', help="max deltat for interpolation")
 parser.add_option("--max-attitude", default=45, type='float', help="max attitude geo-referencing")
 parser.add_option("--fill-map", default=False, action='store_true', help="show all images on map")
-parser.add_option("--joe", default=[], action='append', help="add a joe position")
+parser.add_option("--joe", default=None, help="file containing list of joe positions")
 parser.add_option("--linkjoe", default=None, help="link joe images to this directory")
 parser.add_option("--show-misses", default=False, action='store_true', help="show missed Joes")
 parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
@@ -60,9 +60,7 @@ def process(files):
       mosaic.fill_map = True
 
   if opts.joe:
-    for joe in opts.joe:
-      (lat,lon) = joe.split(',')
-      joes.append((float(lat),float(lon)))
+    joes = cuav_util.load_joes(opts.joe)
     if boundary:
       for joe in joes:
         if cuav_util.polygon_outside(joe, boundary):
@@ -128,10 +126,13 @@ def process(files):
         os.unlink(joepath)
       os.link(f, joepath)
 
-    if opts.mosaic:
-      mosaic.add_regions(regions, img_scan, f, pos)
-      if pos:
-        mosaic.add_image(f, img_scan, pos)
+    if opts.mosaic and len(regions) > 0:
+      composite = cuav_mosaic.CompositeThumbnail(img_scan, regions, quality=opts.quality)
+      chameleon.save_file('composite.jpg', composite)
+      thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
+      mosaic.add_regions(regions, thumbs, f, pos)
+    if pos:
+      mosaic.add_image(f, img_scan, pos)
     if opts.show_misses:
       mosaic.check_joe_miss(regions, img_scan, joes, pos)
 
