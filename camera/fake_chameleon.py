@@ -51,7 +51,7 @@ def capture(h, timeout, img):
     img.data = fake_img.array.data
     if continuous_mode:
         trigger_time = time.time()
-    return frame_time, frame_counter, 0
+    return trigger_time, frame_counter, 0
 
 def close(h):
     return
