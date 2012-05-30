@@ -585,3 +585,16 @@ class PickleStreamOut:
 		prefix = struct.pack('<I', len(buf))
 		self.sock.send(prefix + buf)
 		
+
+def image_shape(img):
+	'''return (w,h) of an image, coping with different image formats'''
+	if getattr(img, 'shape', None) is not None:
+		return (img.shape[1], img.shape[0])
+	return (getattr(img, 'width'), getattr(img, 'height'))
+
+def image_width(img):
+	'''return width of an image, coping with different image formats'''
+	if getattr(img, 'shape', None) is not None:
+		return img.shape[1]
+	return getattr(img, 'width')
+
