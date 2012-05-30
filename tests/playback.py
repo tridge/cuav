@@ -26,6 +26,7 @@ parser.add_option("--baudrate", type='int', default=57600, help='baud rate')
 parser.add_option("--imagedir", default=None, help='raw image directory')
 parser.add_option("--condition", default=None, help='condition on mavlink log')
 parser.add_option("--speedup", type='float', default=1.0, help='playback speedup')
+parser.add_option("--loop", action='store_true', default=False, help='playback in a loop')
 (opts, args) = parser.parse_args()
 
 if opts.mav10:
@@ -96,7 +97,11 @@ if len(images) == 0:
     print("No images supplied")
     sys.exit(0)
 print("Found %u PGM images for %.1f minutes" % (len(images), (images[-1].frame_time-images[0].frame_time)/60.0))
+
+while True:
+    for filename in args:
+        playback(filename, images)
+    if not opts.loop:
+        break
     
-for filename in args:
-    playback(filename, images)
     
