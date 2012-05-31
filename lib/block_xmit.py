@@ -97,9 +97,9 @@ class BlockSenderSet:
 				extents[-1] = (first, count+1)
 			else:
 				extents.append((chunks[i], 1))
-		buf = bytearray(struct.pack(self.format, self.id, self.num_chunks, self.timestamp))
+		buf = bytes(struct.pack(self.format, self.id, self.num_chunks, self.timestamp))
 		for (first,count) in extents:
-			buf += bytearray(struct.pack('<HH', first, count))
+			buf += bytes(struct.pack('<HH', first, count))
 			if self.mss and len(buf) + 4 > self.mss:
 				break
 		return buf
@@ -112,7 +112,7 @@ class BlockSenderSet:
 		ofs = self.header_size
 		if (len(buf) - ofs) % 4 != 0:
 			raise BlockSenderException('invalid extents length')
-		n = (len(buf) - ofs) / 4
+		n = (len(buf) - ofs) // 4
 		for i in range(n):
 			(first, count) = struct.unpack_from('<HH', buf, ofs)
 			ofs += 4
@@ -130,7 +130,7 @@ class BlockSenderComplete:
 
 	def pack(self):
 		'''return a linearized representation'''        
-		return bytearray(struct.pack('<Qd', self.blockid, self.timestamp))
+		return bytes(struct.pack('<Qd', self.blockid, self.timestamp))
 
 	def unpack(self, buf):
 		'''unpack a linearized representation into the object'''
@@ -156,16 +156,16 @@ class BlockSenderChunk:
 
 	def pack(self):
 		'''return a linearized representation'''        
-		buf = bytearray(struct.pack(self.format, self.blockid, self.size, self.chunk_id,
+		buf = bytes(struct.pack(self.format, self.blockid, self.size, self.chunk_id,
 					    self.chunk_size, self.ack_to, self.timestamp))
-		buf += bytearray(self.data)
+		buf += bytes(self.data)
 		return buf
 
 	def unpack(self, buf):
 		'''unpack a linearized representation into the object'''
 		(self.blockid, self.size,
 		 self.chunk_id, self.chunk_size, self.ack_to, self.timestamp) = struct.unpack_from(self.format, buf, offset=0)
-		self.data = bytearray(buf[self.header_size:])
+		self.data = bytes(buf[self.header_size:])
 
 
 class BlockSenderBlock:
@@ -174,7 +174,7 @@ class BlockSenderBlock:
 		self.blockid = blockid
 		self.size = size
 		self.chunk_size = chunk_size
-		self.num_chunks = int((self.size + (chunk_size-1)) / chunk_size)
+		self.num_chunks = (self.size + (chunk_size-1)) // chunk_size
 		self.acks = BlockSenderSet(blockid, self.num_chunks, mss)
 		if data is not None:
 			self.data = bytearray(data)
@@ -292,7 +292,7 @@ class BlockSender:
 		if self.mss and chunk_size > self.chunk_overhead + self.mss:
 			chunk_size = self.mss - self.chunk_overhead
 
-		num_chunks = int((len(data) + (chunk_size-1)) / chunk_size)
+		num_chunks = (len(data) + (chunk_size-1)) // chunk_size
 		if num_chunks > 65535:
 			raise BlockSenderException('chunk_size of %u is too small for data length %u' % (chunk_size, len(data)))
 		blockid = self.next_blockid
@@ -335,7 +335,7 @@ class BlockSender:
 		try:
 			buf = obj.pack()
 			crc = self._crc(buf)
-			buf = bytearray(struct.pack('<BL', type, crc)) + buf
+			buf = bytes(struct.pack('<BL', type, crc)) + buf
 			self.sock.sendto(buf, dest)
 		except socket.error:
 			pass
@@ -625,7 +625,7 @@ if __name__ == "__main__":
 	debug = False
 	bandwidth = 1000000
 	ordered = True
-	num_blocks = 1000
+	num_blocks = 30
 	packet_loss = 30
 	average_block_size = 200000
 
@@ -644,13 +644,14 @@ if __name__ == "__main__":
 	b2.set_dest_port(b1.get_port())
 
 	# generate some data blocks to work with
-	blocks = [os.urandom(random.randint(1,average_block_size)) for i in range(num_blocks)]
+	blocks = [bytes(os.urandom(random.randint(1,average_block_size))) for i in range(num_blocks)]
 
 	total_size = sum([len(blk) for blk in blocks])
 
-	t0 = time.time()
 	print("sending %u bytes as %u blocks bandwidth=%u packet_loss=%.1f%%" %
 	      (total_size, len(blocks), bandwidth, packet_loss))
+
+	t0 = time.time()
 
 	# send them from b1 to b2 and from b2 to b1
 	for blk in blocks:
@@ -674,6 +675,8 @@ if __name__ == "__main__":
 		if blk is not None:
 			received1.append(blk)
 
+	t1 = time.time()
+
 	if not ordered:
 		blocks.sort()
 		received1.sort()
@@ -686,5 +689,4 @@ if __name__ == "__main__":
 		print("ERROR: received2 blocks not equal to sent")
 		sys.exit(1)
 
-	t1 = time.time()
 	print("%u blocks received OK %.1f bytes/second" % (num_blocks, total_size/(t1-t0)))
