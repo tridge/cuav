@@ -3,7 +3,7 @@
 benchmark the base operations
 '''
 
-import numpy, os, time, cv, sys, math, sys
+import numpy, os, time, cv, sys, math, sys, cPickle, pickle
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
@@ -14,6 +14,12 @@ from optparse import OptionParser
 parser = OptionParser("benchmark.py [options] <filename>")
 parser.add_option("--repeat", type='int', default=100, help="repeat count")
 (opts, args) = parser.parse_args()
+
+class ImagePacket:
+    '''a jpeg image sent to the ground station'''
+    def __init__(self, frame_time, jpeg):
+        self.frame_time = frame_time
+        self.jpeg = jpeg
 
 def process(filename):
   '''process one file'''
@@ -50,16 +56,29 @@ def process(filename):
   for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
     t0 = time.time()
     for i in range(opts.repeat):
-      jpeg = scanner.jpeg_compress(im_full, quality)
+      jpeg = cPickle.dumps(ImagePacket(time.time(), scanner.jpeg_compress(im_full, quality)),
+                           protocol=cPickle.HIGHEST_PROTOCOL)
     t1 = time.time()
-    print('jpeg full quality %u: %.1f fps' % (quality, opts.repeat/(t1-t0)))
+    print('jpeg full quality %u: %.1f fps  %u bytes' % (quality, opts.repeat/(t1-t0), len(bytes(jpeg))))
 
   for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
     t0 = time.time()
     for i in range(opts.repeat):
-      jpeg = scanner.jpeg_compress(im_640, quality)
+      jpeg = cPickle.dumps(ImagePacket(time.time(), scanner.jpeg_compress(im_640, quality)),
+                           protocol=cPickle.HIGHEST_PROTOCOL)
     t1 = time.time()
-    print('jpeg 640 quality %u: %.1f fps' % (quality, opts.repeat/(t1-t0)))
+    print('jpeg 640 quality %u: %.1f fps  %u bytes' % (quality, opts.repeat/(t1-t0), len(bytes(jpeg))))
+
+  for thumb_size in [10, 20, 40, 60, 80, 100]:
+    thumb = numpy.zeros((thumb_size,thumb_size,3),dtype='uint8')
+    t0 = time.time()
+    for i in range(opts.repeat):
+      scanner.rect_extract(im_full, thumb, 0, 0)
+      jpeg = cPickle.dumps(ImagePacket(time.time(), scanner.jpeg_compress(thumb, 85)),
+                           protocol=cPickle.HIGHEST_PROTOCOL)
+    t1 = time.time()
+    print('thumb %u quality 85: %.1f fps  %u bytes' % (thumb_size, opts.repeat/(t1-t0), len(bytes(jpeg))))
+    
 
 for f in args:
   process(f)
