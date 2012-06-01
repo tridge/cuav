@@ -112,16 +112,14 @@ def playback(filename, images):
 
 
 
-images = scan_image_directory(opts.imagedir)
-if len(images) == 0:
-    print("No images supplied")
-    sys.exit(0)
-print("Found %u PGM images for %.1f minutes" % (len(images), (images[-1].frame_time-images[0].frame_time)/60.0))
-
 while True:
+    images = scan_image_directory(opts.imagedir)
+    if len(images) == 0:
+        print("No images supplied")
+        sys.exit(0)
+    print("Found %u PGM images for %.1f minutes" % (len(images),
+                                                    (images[-1].frame_time-images[0].frame_time)/60.0))
     for filename in args:
         playback(filename, images)
     if not opts.loop:
         break
-    
-    
