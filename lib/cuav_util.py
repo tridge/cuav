@@ -349,6 +349,8 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
 def gps_position_from_image_region(region, pos, width=640, height=480, lens=4.0):
 	'''return a GPS position in an image given a MavPosition object
 	and an image region tuple'''
+	if pos is None:
+		return None
 	(x1,y1,x2,y2) = region
 	x = (x1+x2)*0.5
 	y = (y1+y2)*0.5
