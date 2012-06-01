@@ -71,3 +71,5 @@ while completion_count < opts.count:
 t1 = time.time()
 print("Sent %u bytes in %.1f seconds - %.1f bytes/s" % (total_size, t1-t0, total_size/(t1-t0)))
 print('rtt_estimate=%f' % bs.rtt_estimate)
+print("efficiency %.1f  bandwidth used %.1f bytes/s" % (bs.get_efficiency(),
+							bs.get_bandwidth_used()))
