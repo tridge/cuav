@@ -908,7 +908,8 @@ scanner_scan(PyObject *self, PyObject *args)
 
 
 /*
-  compress a 24 bit RGB image to a jpeg, returning as a python bytearray
+  compress a 24 bit RGB image to a jpeg, returning as python bytes (a
+  string in python 2.x)
  */
 static PyObject *
 scanner_jpeg_compress(PyObject *self, PyObject *args)
@@ -937,7 +938,7 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 		    &jpegSize, subsamp, quality, 0);
 	Py_END_ALLOW_THREADS;
 
-	PyObject *ret = PyByteArray_FromStringAndSize((const char *)jpegBuf, jpegSize);
+	PyObject *ret = PyString_FromStringAndSize((const char *)jpegBuf, jpegSize);
 	tjFree(jpegBuf);
 
 	return ret;
