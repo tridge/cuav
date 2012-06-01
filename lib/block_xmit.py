@@ -185,6 +185,7 @@ class BlockSenderBlock:
 		self.dest = dest
 		self.next_chunk = 0
 		self.priority = priority
+		self.sends = 0
 
 	def chunk(self, chunk_id):
 		'''return data for a chunk'''
@@ -210,9 +211,9 @@ class BlockSender:
 	backlog:       maximum number of packets to send per tick (default 100)
 	rtt:           initial round trip time estimate (0.01 seconds)
 	sock:          a optional socket object to use, needs sendto() and recvfrom()
-		plus a fileno() method if recv() with non-zero timeout is used
+ 		       plus a fileno() method if recv() with non-zero timeout is used
 	mss:           maximum segment size for any packet. This limits all
-		packet types (default is zero, meaning no limit)
+		       packet types (default is zero, meaning no limit)
 	ordered:       set to True to force blocks to be delivered in the sending order (default False)
 	debug:         enable debugging (default False)
 	'''
@@ -249,9 +250,12 @@ class BlockSender:
 		self.backlog = backlog
 		self.rtt_estimate = rtt
 		self.rtt_max = 5
+		self.rtt_multiplier = 3.0
 		self.mss = mss
 		self.ordered = ordered
 		self.bonus_bytes = 0
+		self.efficiency = 1.0
+		self.bandwidth_used = 0.0
 
 		# work out the overheads of the packet types
 		self.chunk_overhead = BlockSenderChunk(0,0,0,'',0,0,0).header_size
@@ -277,6 +281,20 @@ class BlockSender:
 	def set_bandwidth(self, bandwidth):
 		'''set the bandwidth on an open sender'''
 		self.bandwidth = bandwidth
+
+	def get_efficiency(self):
+		'''return the average efficiency of the link. An efficiency of 1.0 means
+		each chunk is sent just once. An efficiency of 0.2 means each chunk is
+		sent an average of 5 times'''
+		return self.efficiency
+
+	def get_rtt_estimate(self):
+		'''return an estimate of the round trip time'''
+		return self.rtt_estimate
+
+	def get_bandwidth_used(self):
+		'''return a moving average of the actual bandwidth used'''
+		return self.bandwidth_used
 
 	def send(self, data, dest=None, chunk_size=None, callback=None, priority=0):
 		'''send a data block
@@ -372,6 +390,13 @@ class BlockSender:
 		blk.data[start:start+length] = chunk.data
 		self.acks_needed.add(blk)
 
+	def _complete_send(self, blk):
+		'''complete send of a block'''
+		if blk.callback:
+			blk.callback()
+		efficiency = blk.num_chunks / float(blk.sends)
+		self.efficiency = 0.95 * self.efficiency + 0.05 * efficiency
+
 	def _check_incoming(self):
 		'''check for incoming data or acks. Return True if a packet was received'''
 		try:
@@ -424,8 +449,7 @@ class BlockSender:
 						if self.enable_debug:
 							self._debug("send complete %u" % out.blockid)
 						blk = self.outgoing.pop(i)
-						if blk.callback:
-							blk.callback()
+						self._complete_send(blk)
 					return True
 			# an ack for something already complete
 			return True
@@ -441,8 +465,7 @@ class BlockSender:
 					if self.enable_debug:
 						self._debug("send complete %u" % out.blockid)
 					blk = self.outgoing.pop(i)
-					if blk.callback:
-						blk.callback()
+					self._complete_send(blk)
 					return True
 			# an ack for something already complete
 			return True
@@ -530,8 +553,8 @@ class BlockSender:
 		if len(self.outgoing) == 0:
 			return
 
-		t = time.time()
-		deltat = t - self.last_send_time
+		tnow = time.time()
+		deltat = tnow - self.last_send_time
 		bytes_to_send = int(self.bandwidth * deltat)
 		if bytes_to_send <= 0:
 			return
@@ -551,7 +574,7 @@ class BlockSender:
 			if self.ordered and i > 0 and not self.outgoing[i-1].acks.started():
 				break
 
-			if blk.timestamp + 1.2*self.rtt_estimate > t and i < len(self.outgoing)-1:
+			if blk.timestamp + self.rtt_multiplier*self.rtt_estimate > tnow and i < len(self.outgoing)-1:
 				# some chunks from this block were sent recently, wait for some acks
 				# before sending some more if we have other blocks also waiting to be sent
 				continue
@@ -569,7 +592,7 @@ class BlockSender:
 					break
 
 				chunk = BlockSenderChunk(blk.blockid, blk.size, c, blk.chunk(c),
-							 blk.chunk_size, blk.acks.first_missing, t)
+							 blk.chunk_size, blk.acks.first_missing, tnow)
 
 				if bytes_sent + chunk.packed_size > bytes_to_send:
 					# this would take us over our bandwidth limit
@@ -582,13 +605,17 @@ class BlockSender:
 					break
 				bytes_sent += chunk.packed_size
 				blk.next_chunk = (c + 1) % blk.num_chunks
-				blk.timestamp = t
-				self.last_send_time = t
+				blk.timestamp = tnow
+				blk.sends += 1
 				chunks_sent += 1
 				if chunks_sent == self.backlog:
 					# don't send more than self.backlog per tick
 					break
+
 		self.bonus_bytes = bytes_to_send - bytes_sent
+		if bytes_sent != 0:
+			self.bandwidth_used = 0.99 * self.bandwidth_used + 0.01 * (bytes_sent/deltat)
+			self.last_send_time = tnow
 
 
 	def tick(self, packet_count=None, send_acks=True, send_outgoing=True):
@@ -623,11 +650,11 @@ if __name__ == "__main__":
 	print("block_xmit test")
 
 	debug = False
-	bandwidth = 1000000
-	ordered = True
-	num_blocks = 30
-	packet_loss = 30
-	average_block_size = 200000
+	bandwidth = 100000
+	ordered = False
+	num_blocks = 100
+	packet_loss = 0
+	average_block_size = 50000
 
 	# setup a send/recv pair
 	b1 = BlockSender(dest_ip='127.0.0.1', debug=debug, bandwidth=bandwidth, ordered=ordered)
@@ -690,3 +717,5 @@ if __name__ == "__main__":
 		sys.exit(1)
 
 	print("%u blocks received OK %.1f bytes/second" % (num_blocks, total_size/(t1-t0)))
+	print("efficiency %.1f  bandwidth used %.1f bytes/s" % (b1.get_efficiency(),
+							  b1.get_bandwidth_used()))
