@@ -29,7 +29,7 @@ class MavPosition():
 		self.time = frame_time
 
 	def __str__(self):
-		return 'MavPosition(lat=%f lon=%f alt=%.1f roll=%.1f pitch=%.1f yaw=%.1f)' % (
+		return 'MavPosition(pos %f %f alt=%.1f roll=%.1f pitch=%.1f yaw=%.1f)' % (
 			self.lat, self.lon, self.altitude,
 			self.roll, self.pitch, self.yaw)
 		
