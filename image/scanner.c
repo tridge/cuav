@@ -18,8 +18,6 @@
 #include <math.h>
 #include <arpa/inet.h>
 #include <numpy/arrayobject.h>
-#include "debayer.h"
-#include "pgm_io.h"
 
 //#undef __ARM_NEON__
 
@@ -182,6 +180,7 @@ static void colour_convert_16_8bit(const struct grey_image16 *in, struct rgb_ima
 #endif
 }
 
+
 /*
   convert a 16 bit colour chameleon image to 8 bit colour at full
   resolution. No smoothing is done
@@ -231,6 +230,8 @@ static void colour_convert_16_8bit_full(const struct grey_image16 *in, struct rg
 }
 
 
+
+
 /*
   convert a 8 bit colour chameleon image to 8 bit colour at full
   resolution. No smoothing is done
@@ -278,6 +279,36 @@ static void colour_convert_8bit_full(const struct grey_image8 *in, struct rgb_im
 	memcpy(out->data[0], out->data[1], WIDTH*3);
 	memcpy(out->data[HEIGHT-1], out->data[HEIGHT-2], WIDTH*3);
 }
+
+
+/*
+  convert a 24 bit BGR colour image to 8 bit bayer grid
+
+  this is used by the fake chameleon code
+ */
+static void rebayer_1280_960_8(const struct rgb_image8_full *in, struct grey_image8 *out)
+{
+	unsigned x, y;
+	/*
+	  layout in the input image is in blocks of 4 values. The top
+	  left corner of the image looks like this
+             G B
+	     R G
+	 */
+	for (y=1; y<HEIGHT-1; y += 2) {
+		for (x=1; x<WIDTH-1; x += 2) {
+			// note that this is used with images from
+			// opencv which are RGB, whereas we normally
+			// use BGR, so we reverse R and B in the
+			// conversion
+			out->data[y+0][x+0] = in->data[y][x].g;
+			out->data[y+0][x+1] = in->data[y][x].r;
+			out->data[y+1][x+0] = in->data[y][x].b;
+			out->data[y+1][x+1] = in->data[y][x].g;
+		}
+	}
+}
+
 
 #define HISTOGRAM_BITS_PER_COLOR 3
 #define HISTOGRAM_BITS (3*HISTOGRAM_BITS_PER_COLOR)
@@ -845,6 +876,41 @@ scanner_debayer_full(PyObject *self, PyObject *args)
 	Py_RETURN_NONE;
 }
 
+
+/*
+  rebayer a 1280x960 image from 1280x960 24 bit colour image
+ */
+static PyObject *
+scanner_rebayer_full(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+
+	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+		return NULL;
+
+	if (PyArray_DIM(img_in, 1) != WIDTH ||
+	    PyArray_DIM(img_in, 0) != HEIGHT ||
+	    PyArray_STRIDE(img_in, 0) != 3*WIDTH) {
+		PyErr_SetString(ScannerError, "input must be 1280x960 24 bit");
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 1) != WIDTH ||
+	    PyArray_DIM(img_out, 0) != HEIGHT ||
+	    PyArray_STRIDE(img_out, 0) != WIDTH) {
+		PyErr_SetString(ScannerError, "output must be 1280x960 8 bit");
+		return NULL;
+	}
+
+	const struct rgb_image8_full *in = PyArray_DATA(img_in);
+	struct grey_image8 *out = PyArray_DATA(img_out);
+
+	Py_BEGIN_ALLOW_THREADS;
+	rebayer_1280_960_8(in, out);
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
 /*
   scan an image for regions of interest and return the
   markup as a set of tuples
@@ -1285,6 +1351,7 @@ scanner_rect_overlay(PyObject *self, PyObject *args)
 static PyMethodDef ScannerMethods[] = {
 	{"debayer", scanner_debayer, METH_VARARGS, "simple debayer of 1280x960 image to 640x480 24 bit"},
 	{"debayer_full", scanner_debayer_full, METH_VARARGS, "debayer of 1280x960 image to 1280x960 24 bit"},
+	{"rebayer_full", scanner_rebayer_full, METH_VARARGS, "rebayer of 1280x960 image"},
 	{"scan", scanner_scan, METH_VARARGS, "histogram scan a 640x480 colour image"},
 	{"jpeg_compress", scanner_jpeg_compress, METH_VARARGS, "compress a 640x480 colour image to a jpeg image as a python string"},
 	{"downsample", scanner_downsample, METH_VARARGS, "downsample a 1280x960 24 bit RGB colour image to 640x480"},

@@ -26,6 +26,7 @@ parser.add_option("--imagedir", default=None, help='raw image directory')
 parser.add_option("--condition", default=None, help='condition on mavlink log')
 parser.add_option("--speedup", type='float', default=1.0, help='playback speedup')
 parser.add_option("--loop", action='store_true', default=False, help='playback in a loop')
+parser.add_option("--jpeg", action='store_true', default=False, help='use jpegs instead of PGMs')
 (opts, args) = parser.parse_args()
 
 if opts.mav10:
@@ -45,7 +46,11 @@ def scan_image_directory(dirname):
     '''scan a image directory, extracting frame_time and filename
     as a list of tuples'''
     ret = []
-    for f in glob.iglob(os.path.join(dirname, '*.pgm')):
+    if opts.jpeg:
+        pattern = '*.jpg'
+    else:
+        pattern = '*.pgm'
+    for f in glob.iglob(os.path.join(dirname, pattern)):
         ret.append(ImageFile(cuav_util.parse_frame_time(f), f))
     ret.sort(key=lambda f: f.frame_time)
     return ret
@@ -116,8 +121,8 @@ while True:
     if len(images) == 0:
         print("No images supplied")
         sys.exit(0)
-    print("Found %u PGM images for %.1f minutes" % (len(images),
-                                                    (images[-1].frame_time-images[0].frame_time)/60.0))
+    print("Found %u images for %.1f minutes" % (len(images),
+                                                (images[-1].frame_time-images[0].frame_time)/60.0))
     for filename in args:
         playback(filename, images)
     if not opts.loop:
