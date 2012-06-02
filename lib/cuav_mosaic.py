@@ -50,8 +50,8 @@ class MosaicRegion:
     if self.latlon != (None,None):
         position_string += '%s ' % str(self.latlon)
     if self.pos != None:
-        position_string += ' %.1f %s %s' % (self.pos, time.asctime(time.localtime(self.pos.time)))
-    return '%s %s' % (self.filename, position_string)
+        position_string += ' %s %s' % (str(self.pos), time.asctime(time.localtime(self.pos.time)))
+    return '%s %s' % (position_string, self.filename)
 
 
 class MosaicImage:
