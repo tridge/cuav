@@ -20,7 +20,7 @@ from optparse import OptionParser
 parser = OptionParser("playback.py [options]")
 
 parser.add_option("--mav10", action='store_true', default=False, help="Use MAVLink protocol 1.0")
-parser.add_option("--out",   help="MAVLink output port (IP:port)",action='append', default=[])
+parser.add_option("--out",   help="MAVLink output port (IP:port)", default='127.0.0.1:14550')
 parser.add_option("--baudrate", type='int', default=57600, help='baud rate')
 parser.add_option("--imagedir", default=None, help='raw image directory')
 parser.add_option("--condition", default=None, help='condition on mavlink log')
