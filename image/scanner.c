@@ -884,9 +884,6 @@ scanner_rebayer_full(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
 		return NULL;
 
-	CHECK_CONTIGUOUS(img_in);
-	CHECK_CONTIGUOUS(img_out);
-
 	if (PyArray_DIM(img_in, 1) != WIDTH ||
 	    PyArray_DIM(img_in, 0) != HEIGHT ||
 	    PyArray_STRIDE(img_in, 0) != 3*WIDTH) {

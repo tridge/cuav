@@ -1,12 +1,15 @@
 #!/usr/bin/env
 '''
 emulate a chameleon camera, getting images from a playback tool
+
+The API is the same as the chameleon module, but takes images from fake_chameleon.pgm
 '''
 
-import chameleon, time, os, sys
+import chameleon, time, os, sys, cv, numpy
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import cuav_util
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
+import cuav_util, scanner
 
 error = chameleon.error
 continuous_mode = False
@@ -25,6 +28,18 @@ def trigger(h, continuous):
     continuous_mode = continuous
     trigger_time = time.time()
 
+
+def load_image(filename):
+    if filename.endswith('.pgm'):
+        fake_img = cuav_util.PGM(filename)
+        return fake_img.array
+    img = cv.LoadImage(filename)
+    array = numpy.asarray(cv.GetMat(img))
+    grey = numpy.zeros((960,1280), dtype='uint8')
+    scanner.rebayer_full(array, grey)
+    return grey
+    
+
 def capture(h, timeout, img):
     global continuous_mode, trigger_time, frame_rate, frame_counter, fake, last_frame_time
     tnow = time.time()
@@ -33,22 +48,24 @@ def capture(h, timeout, img):
         time.sleep(due - tnow)
         timeout -= int(due*1000)
     # wait for a new image to appear
-    frame_time = cuav_util.parse_frame_time(os.path.realpath(fake))
+    filename = os.path.realpath(fake)
+    frame_time = cuav_util.parse_frame_time(filename)
     while frame_time == last_frame_time and timeout > 0:
         timeout -= 10
         time.sleep(0.01)
-        frame_time = cuav_util.parse_frame_time(os.path.realpath(fake))
+        filename = os.path.realpath(fake)
+        frame_time = cuav_util.parse_frame_time(filename)
 
     if last_frame_time == frame_time:
         raise chameleon.error("timeout waiting for fake image")
     last_frame_time = frame_time
     try:
-        fake_img = cuav_util.PGM(fake)
+        fake_img = load_image(filename)
     except Exception, msg:
         print msg
         raise chameleon.error('missing %s' % fake)
     frame_counter += 1
-    img.data = fake_img.array.data
+    img.data = fake_img.data
     if continuous_mode:
         trigger_time = time.time()
     return trigger_time, frame_counter, 0
