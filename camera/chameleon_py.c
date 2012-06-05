@@ -15,6 +15,11 @@ static PyObject *ChameleonError;
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
+#define CHECK_CONTIGUOUS(a) do { if (!PyArray_ISCONTIGUOUS(a)) { \
+	PyErr_SetString(ChameleonError, "array must be contiguous"); \
+	return NULL; \
+	}} while (0)
+
 static struct chameleon_camera* cameras[NUM_CAMERA_HANDLES] = {
   NULL, NULL
 };
@@ -103,6 +108,8 @@ chameleon_capture(PyObject *self, PyObject *args)
 	PyArrayObject* array = NULL;
 	if (!PyArg_ParseTuple(args, "iiO", &handle, &timeout_ms, &array))
 		return NULL;
+
+	CHECK_CONTIGUOUS(array);
 
 	if (handle >= 0 && handle < NUM_CAMERA_HANDLES && cameras[handle]) {
 		cam = cameras[handle];
@@ -293,6 +300,8 @@ save_pgm(PyObject *self, PyObject *args)
 
 	if (!PyArg_ParseTuple(args, "sO", &filename, &array))
 		return NULL;
+
+	CHECK_CONTIGUOUS(array);
 
 	w = PyArray_DIM(array, 1);
 	h = PyArray_DIM(array, 0);
