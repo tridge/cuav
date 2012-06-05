@@ -40,6 +40,11 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
+#define CHECK_CONTIGUOUS(a) do { if (!PyArray_ISCONTIGUOUS(a)) { \
+	PyErr_SetString(ScannerError, "array must be contiguous"); \
+	return NULL; \
+	}} while (0)
+
 static PyObject *ScannerError;
 
 #define WIDTH 1280
@@ -793,6 +798,9 @@ scanner_debayer(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
 		return NULL;
 
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
+
 	use_16_bit = (PyArray_STRIDE(img_in, 0) == WIDTH*2);
 
 	if (PyArray_DIM(img_in, 1) != WIDTH ||
@@ -832,6 +840,9 @@ scanner_debayer_full(PyObject *self, PyObject *args)
 
 	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
 		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
 
 	if (PyArray_DIM(img_in, 1) != WIDTH ||
 	    PyArray_DIM(img_in, 0) != HEIGHT) {
@@ -873,6 +884,9 @@ scanner_rebayer_full(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
 		return NULL;
 
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
+
 	if (PyArray_DIM(img_in, 1) != WIDTH ||
 	    PyArray_DIM(img_in, 0) != HEIGHT ||
 	    PyArray_STRIDE(img_in, 0) != 3*WIDTH) {
@@ -907,6 +921,8 @@ scanner_scan(PyObject *self, PyObject *args)
 
 	if (!PyArg_ParseTuple(args, "O", &img_in))
 		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
 
 	if (PyArray_DIM(img_in, 1) != WIDTH/2 ||
 	    PyArray_DIM(img_in, 0) != HEIGHT/2 ||
@@ -971,6 +987,8 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "OH", &img_in, &quality))
 		return NULL;
 
+	CHECK_CONTIGUOUS(img_in);
+
 	if (PyArray_STRIDE(img_in, 0) != 3*PyArray_DIM(img_in, 1)) {
 		PyErr_SetString(ScannerError, "input must 24 bit BGR");
 		return NULL;
@@ -1006,6 +1024,9 @@ scanner_downsample(PyObject *self, PyObject *args)
 
 	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
 		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
 
 	if (PyArray_DIM(img_in, 1) != WIDTH ||
 	    PyArray_DIM(img_in, 0) != HEIGHT ||
@@ -1058,6 +1079,9 @@ scanner_reduce_depth(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
 		return NULL;
 
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
+
 	w = PyArray_DIM(img_out, 1);
 	h = PyArray_DIM(img_out, 0);
 
@@ -1100,6 +1124,9 @@ scanner_gamma_correct(PyObject *self, PyObject *args)
 
 	if (!PyArg_ParseTuple(args, "OOH", &img_in, &img_out, &gamma))
 		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
 
 	w = PyArray_DIM(img_out, 1);
 	h = PyArray_DIM(img_out, 0);
@@ -1153,6 +1180,9 @@ scanner_rgb_to_yuv(PyObject *self, PyObject *args)
 
 	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
 		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
 
 	w = PyArray_DIM(img_in, 1);
 	h = PyArray_DIM(img_in, 0);
@@ -1215,6 +1245,9 @@ scanner_rect_extract(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "OOHH", &img_in, &img_out, &x1, &y1))
 		return NULL;
 
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
+
 	w = PyArray_DIM(img_in, 1);
 	h = PyArray_DIM(img_in, 0);
 
@@ -1273,6 +1306,9 @@ scanner_rect_overlay(PyObject *self, PyObject *args)
 
 	if (!PyArg_ParseTuple(args, "OOHHO", &img1, &img2, &x1, &y1, &skip_black_obj))
 		return NULL;
+
+	CHECK_CONTIGUOUS(img1);
+	CHECK_CONTIGUOUS(img2);
 
 	skip_black = PyObject_IsTrue(skip_black_obj);
 
