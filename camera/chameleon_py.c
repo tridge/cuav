@@ -360,6 +360,8 @@ initchameleon(void)
   if (m == NULL)
     return;
 
+  import_array();
+
   ChameleonError = PyErr_NewException("chameleon.error", NULL, NULL);
   Py_INCREF(ChameleonError);
   PyModule_AddObject(m, "error", ChameleonError);

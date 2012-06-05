@@ -111,21 +111,6 @@ static bool colour_save_pnm(const char *filename, const struct rgb_image8 *image
 #endif
 
 /*
-  find the highest individual value in 16 bit array
- */
-static uint16_t highest_uint16(const uint16_t *in, uint32_t n)
-{
-	uint32_t i;
-	uint16_t highest = 0;
-
-	for (i=0;i<n;i++) {
-		if (*in > highest) highest = *in;
-		in++;
-	}
-	return highest;
-}
-
-/*
   roughly convert a 8 bit colour chameleon image to colour at half
   the resolution. No smoothing is done
  */
@@ -1371,6 +1356,8 @@ initscanner(void)
 	m = Py_InitModule("scanner", ScannerMethods);
 	if (m == NULL)
 		return;
+
+	import_array();
 	
 	ScannerError = PyErr_NewException("scanner.error", NULL, NULL);
 	Py_INCREF(ScannerError);
