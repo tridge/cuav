@@ -128,10 +128,11 @@ def process(files):
       os.link(f, joepath)
 
     if opts.mosaic and len(regions) > 0:
-      composite = cuav_mosaic.CompositeThumbnail(img_scan, regions, quality=opts.quality)
+      composite = cuav_mosaic.CompositeThumbnail(im_full, regions, quality=opts.quality)
       chameleon.save_file('composite.jpg', composite)
       thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
-      mosaic.add_regions(regions, thumbs, f, pos)
+      latlon_list = joelog.add_regions(frame_time, regions, pos, f)
+      mosaic.add_regions(regions, thumbs, latlon_list, f, pos)
     if pos:
       mosaic.add_image(f, img_scan, pos)
     if opts.show_misses:

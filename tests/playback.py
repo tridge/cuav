@@ -19,7 +19,6 @@ import cuav_util
 from optparse import OptionParser
 parser = OptionParser("playback.py [options]")
 
-parser.add_option("--mav10", action='store_true', default=False, help="Use MAVLink protocol 1.0")
 parser.add_option("--out",   help="MAVLink output port (IP:port)", default='127.0.0.1:14550')
 parser.add_option("--baudrate", type='int', default=57600, help='baud rate')
 parser.add_option("--imagedir", default=None, help='raw image directory')
@@ -29,8 +28,6 @@ parser.add_option("--loop", action='store_true', default=False, help='playback i
 parser.add_option("--jpeg", action='store_true', default=False, help='use jpegs instead of PGMs')
 (opts, args) = parser.parse_args()
 
-if opts.mav10:
-    os.environ['MAVLINK10'] = '1'
 import mavutil
 
 if len(args) < 1:
@@ -58,9 +55,7 @@ def scan_image_directory(dirname):
 def playback(filename, images):
     '''playback one file'''
     mlog = mavutil.mavlink_connection(filename, robust_parsing=True)
-    mout = []
-    for m in opts.out:
-        mout.append(mavutil.mavlink_connection(m, input=False, baud=opts.baudrate))
+    mout = mavutil.mavlink_connection(opts.out, input=False, baud=opts.baudrate)
 
     # get first message
     msg = mlog.recv_match(condition=opts.condition)
@@ -80,13 +75,12 @@ def playback(filename, images):
             return
         if msg.get_type() == 'PARAM_VALUE':
             params.append(msg)
-        for m in mout:
-            m.write(msg.get_msgbuf())
+        mout.write(msg.get_msgbuf())
         deltat = msg._timestamp - last_timestamp
         if len(images) == 0 or images[0].frame_time > msg._timestamp + 2:
             # run at high speed except for the portions where we have images
             deltat /= 20
-        time.sleep(deltat/opts.speedup)
+        time.sleep(max(min(deltat/opts.speedup, 5), 0))
         last_timestamp = msg._timestamp
         if time.time() - last_print > 2.0:
             print('%s' % (time.asctime(time.localtime(msg._timestamp))))
@@ -103,16 +97,14 @@ def playback(filename, images):
             print(img.filename)
 
         # check for parameter fetch messages
-        for m in mout:
-            msg = m.recv_msg()
-            if msg and msg.get_type() == 'PARAM_REQUEST_LIST':
-                print("Sending %u parameters" % len(params))
-                param_send = params[:]
+        msg = mout.recv_msg()
+        if msg and msg.get_type() == 'PARAM_REQUEST_LIST':
+            print("Sending %u parameters" % len(params))
+            param_send = params[:]
 
         if len(param_send) != 0:
             p = param_send.pop(0)
-            for m in mout:
-                m.write(p.get_msgbuf())
+            mout.write(p.get_msgbuf())
 
 
 
