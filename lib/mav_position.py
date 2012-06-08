@@ -40,10 +40,12 @@ class MavInterpolator():
 		self.backlog = backlog
 		self.attitude = []
 		self.gps_raw = []
+		self.gps_raw_int = []
 		self.vfr_hud = []
 		self.scaled_pressure = []
 		self.msg_map = {
 			'GPS_RAW' : self.gps_raw,
+			'GPS_RAW_INT' : self.gps_raw_int,
 			'ATTITUDE' : self.attitude,
 			'VFR_HUD' : self.vfr_hud,
 			'SCALED_PRESSURE' : self.scaled_pressure
@@ -117,10 +119,14 @@ class MavInterpolator():
 			return
 		while True:
 			try:
+				if self.mlog.mavlink10():
+					raw = 'GPS_RAW_INT'
+				else:
+					raw = 'GPS_RAW'
 				gps_raw = self._find_msg('GPS_RAW', t)
 				attitude = self._find_msg('ATTITUDE', t)
 				scaled_pressure = self._find_msg('SCALED_PRESSURE', t)
-				if (self.msg_map['GPS_RAW'][-1]._timestamp >= t and
+				if (self.msg_map[raw][-1]._timestamp >= t and
 				    self.msg_map['ATTITUDE'][-1]._timestamp >= t and
 				    self.msg_map['SCALED_PRESSURE'][-1]._timestamp >= t):
 					return
@@ -152,10 +158,16 @@ class MavInterpolator():
 		scaled_pressure = self._find_msg('SCALED_PRESSURE', t)
 
 		# extrapolate our latitude/longitude 
-		gps_raw = self._find_msg('GPS_RAW', t)
-		(lat, lon) = cuav_util.gps_newpos(gps_raw.lat, gps_raw.lon,
-						  gps_raw.hdg,
-						  gps_raw.v * (t - gps_raw._timestamp))
+		if mavutil.mavlink10():
+			gps_raw = self._find_msg('GPS_RAW_INT', t)
+			(lat, lon) = cuav_util.gps_newpos(gps_raw.lat/1.0e7, gps_raw.lon/1.0e7,
+							  gps_raw.cog/100,
+							  (gps_raw.vel/100) * (t - gps_raw._timestamp))
+		else:
+			gps_raw = self._find_msg('GPS_RAW', t)
+			(lat, lon) = cuav_util.gps_newpos(gps_raw.lat, gps_raw.lon,
+							  gps_raw.hdg,
+							  gps_raw.v * (t - gps_raw._timestamp))
 
 		# get altitude
 		altitude = self._altitude(scaled_pressure)
