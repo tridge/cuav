@@ -67,7 +67,7 @@ def calibrate(imagedir):
   flags = 0
   flags |= cv.CV_CALIB_FIX_ASPECT_RATIO
   flags |= cv.CV_CALIB_USE_INTRINSIC_GUESS
-  #flags |= cv.CV_CALIB_ZERO_TANGENT_DIST
+  flags |= cv.CV_CALIB_ZERO_TANGENT_DIST
   flags |= cv.CV_CALIB_FIX_PRINCIPAL_POINT
   cv.CalibrateCamera2(opts, ipts, npts, size, K, D, rcv, tcv, flags)
 
@@ -81,7 +81,7 @@ def dewarp(imagedir):
   # Loading from xml files
   K = cv.Load(imagedir+"/K.xml")
   D = cv.Load(imagedir+"/D.xml")
-  print " loaded all distortion parameters"
+  print "loaded camera parameters"
   mapx = None
   mapy = None
   for f in os.listdir(imagedir):
@@ -91,9 +91,9 @@ def dewarp(imagedir):
     print image
     original = cv.LoadImage(image,cv.CV_LOAD_IMAGE_GRAYSCALE)
     dewarped = cv.CloneImage(original);
+    # setup undistort map for first time
     if (mapx == None or mapy == None):
       im_dims = (original.width, original.height)
-      print im_dims
       mapx = cv.CreateImage( im_dims, cv.IPL_DEPTH_32F, 1 );
       mapy = cv.CreateImage( im_dims, cv.IPL_DEPTH_32F, 1 );
       cv.InitUndistortMap(K,D,mapx,mapy)
