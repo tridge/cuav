@@ -6,13 +6,14 @@ import os,sys,string
 from numpy import array,zeros
 
 dims=(10,7)
-im_w = 640
-im_h = 480
 
 def calibrate(imagedir):
   nimages = 0
   datapoints = []
+  im_dims = (0,0)
   for f in os.listdir(imagedir):
+    if (f.find('pgm')<0):
+      continue
     image = imagedir+'/'+f
     grey = cv.LoadImage(image,cv.CV_LOAD_IMAGE_GRAYSCALE)
     found,points=cv.FindChessboardCorners(grey,dims,cv.CV_CALIB_CB_ADAPTIVE_THRESH)
@@ -22,6 +23,7 @@ def calibrate(imagedir):
       print 'using ', image
       nimages += 1
       datapoints.append(points)
+      im_dims = (grey.width, grey.height)
 
   #Number of points in chessboard
   num_pts = dims[0] * dims[1]
@@ -49,10 +51,10 @@ def calibrate(imagedir):
   cv.SetZero(D)
   
   # focal lengths have 1/1 ratio
-  K[0,0] = im_w
-  K[1,1] = im_w
-  K[0,2] = im_w/2
-  K[1,2] = im_h/2
+  K[0,0] = im_dims[0]
+  K[1,1] = im_dims[0]
+  K[0,2] = im_dims[0]/2
+  K[1,2] = im_dims[1]/2
   K[2,2] = 1.0
 
   rcv = cv.CreateMat(nimages, 3, cv.CV_64FC1)
@@ -62,12 +64,53 @@ def calibrate(imagedir):
   #print array(ipts)
   #print array(npts)
   size=cv.GetSize(grey)
-  cv.CalibrateCamera2(opts, ipts, npts, size, K, D, rcv, tcv, cv.CV_CALIB_FIX_ASPECT_RATIO|cv.CV_CALIB_USE_INTRINSIC_GUESS|cv.CV_CALIB_ZERO_TANGENT_DIST)
+  flags = 0
+  flags |= cv.CV_CALIB_FIX_ASPECT_RATIO
+  flags |= cv.CV_CALIB_USE_INTRINSIC_GUESS
+  #flags |= cv.CV_CALIB_ZERO_TANGENT_DIST
+  flags |= cv.CV_CALIB_FIX_PRINCIPAL_POINT
+  cv.CalibrateCamera2(opts, ipts, npts, size, K, D, rcv, tcv, flags)
 
-  return K,D
+  # storing results in xml files
+  print array(K)
+  cv.Save(imagedir+"/K.xml", K)
+  print array(D)
+  cv.Save(imagedir+"/D.xml", D)
 
-def gather(imagedir):
+def dewarp(imagedir):
+  # Loading from xml files
+  K = cv.Load(imagedir+"/K.xml")
+  D = cv.Load(imagedir+"/D.xml")
+  print " loaded all distortion parameters"
+  mapx = None
+  mapy = None
+  for f in os.listdir(imagedir):
+    if (f.find('pgm')<0):
+      continue
+    image = imagedir+'/'+f
+    print image
+    original = cv.LoadImage(image,cv.CV_LOAD_IMAGE_GRAYSCALE)
+    dewarped = cv.CloneImage(original);
+    if (mapx == None or mapy == None):
+      im_dims = (original.width, original.height)
+      print im_dims
+      mapx = cv.CreateImage( im_dims, cv.IPL_DEPTH_32F, 1 );
+      mapy = cv.CreateImage( im_dims, cv.IPL_DEPTH_32F, 1 );
+      cv.InitUndistortMap(K,D,mapx,mapy)
 
+    cv.Remap( original, dewarped, mapx, mapy )
+
+    tmp1=cv.CreateImage((im_dims[0]/2,im_dims[1]/2),8,1)
+    cv.Resize(original,tmp1)
+    tmp2=cv.CreateImage((im_dims[0]/2,im_dims[1]/2),8,1)
+    cv.Resize(dewarped,tmp2)
+
+    cv.ShowImage("Original", tmp1 )
+    cv.ShowImage("Dewarped", tmp2)
+    cv.WaitKey(-1)
+
+
+def gather(imagedir, debayer, im_w, im_h):
   c=cv.CaptureFromCAM(0)
   cv.SetCaptureProperty(c,cv.CV_CAP_PROP_FRAME_WIDTH,im_w)
   cv.SetCaptureProperty(c,cv.CV_CAP_PROP_FRAME_HEIGHT,im_h)
@@ -90,9 +133,15 @@ def gather(imagedir):
       print 'failed to capture'
       continue
     #print f.width, f.height
+    if (debayer):
+      bgr=cv.CreateImage((im_w,im_h),8,3)
+      cv.CvtColor(f,bgr,cv.CV_BayerGR2BGR)
+      f = bgr
+
     if (f.channels==3):
       cv.CvtColor(f,grey,cv.CV_BGR2GRAY)
     elif (f.channels==1):
+      # convert to 8 bit pixel depth
       cv.Convert(f,grey)
     else:
       print 'unsupported colourspace'
@@ -101,7 +150,12 @@ def gather(imagedir):
     key = key & 255
     if not key in range(128):
       # show the image
-      cv.ShowImage("calibrate", grey)
+      if (im_w > 640):
+        tmp=cv.CreateImage((im_w/2,im_h/2),8,f.channels)
+        cv.Resize(f,tmp)
+        cv.ShowImage("calibrate", tmp)
+      else:
+        cv.ShowImage("calibrate", f)
       continue
     print 'key=0x%x(\'%c\')' % (key, chr(key))
     key = chr(key)
@@ -113,7 +167,12 @@ def gather(imagedir):
       else:
         cv.DrawChessboardCorners(f,dims,points,found)
         #show the final image
-        cv.ShowImage("calibrate",f)
+        if (im_w > 640):
+          tmp=cv.CreateImage((im_w/2,im_h/2),8,f.channels)
+          cv.Resize(f,tmp)
+          cv.ShowImage("calibrate", tmp)
+        else:
+          cv.ShowImage("calibrate", f)
         #wait indefinitely
         print 'Keep this image ? y/n'
         key = chr(cv.WaitKey(0) & 255)
@@ -132,9 +191,13 @@ if __name__ == '__main__':
   from optparse import OptionParser
   parser = OptionParser("calibrate.py [options]")
   parser.add_option("--gather",dest="gather", action='store_true', default=False, help="gather calibration images")
+  parser.add_option("--width",dest="width", type='int', default=1280, help="capture width")
+  parser.add_option("--height",dest="height", type='int', default=960, help="capture height")
+  parser.add_option("--debayer",dest="debayer", action='store_true', default=False, help="debayer input images first")
+  parser.add_option("--dewarp",dest="dewarp", action='store_true', default=False, help="dewarp gathered images")
   parser.add_option("--calibrate",dest="calibrate", action='store_true', default=False, help="calculate intrinsics")
   (opts, args) = parser.parse_args()
-  
+
   if len(args) < 1:
       print("Usage: calibrate.py [options] <imagedir>")
       print("Use --help option for options")
@@ -142,11 +205,12 @@ if __name__ == '__main__':
 
   imagedir = args[0]
   if (opts.gather):
-    gather(imagedir)
+    gather(imagedir, opts.debayer, opts.width, opts.height)
 
   if (opts.calibrate):
-    K, D = calibrate(imagedir)
-    print array(K)
-    print array(D)
+    calibrate(imagedir)
+
+  if (opts.dewarp):
+    dewarp(imagedir)
 
 
