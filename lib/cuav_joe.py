@@ -20,10 +20,11 @@ class JoePosition():
       self.image_filename = image_filename
 
   def __str__(self):
-    return 'JoePosition(lat=%f lon=%f %s %s %s %s)' % (self.latlon[0], self.latlon[1],
-                                                       self.pos, self.image_filename,
-                                                       str(self.r),
-                                                       time.asctime(time.localtime(self.frame_time)))
+    return 'JoePosition(lat=%f lon=%f %s %s %s %s raw%s.pgm)' % (self.latlon[0], self.latlon[1],
+                                                                 self.pos, self.image_filename,
+                                                                 str(self.r),
+                                                                 time.asctime(time.localtime(self.frame_time)),
+                                                                 cuav_util.frame_time(self.frame_time))
       
 class JoeLog():
   '''a Joe position logger'''
