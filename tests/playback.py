@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..
 import cuav_util
 
 from optparse import OptionParser
-parser = OptionParser("playback.py [options]")
+parser = OptionParser("playback.py [options] <flight-log>")
 
 parser.add_option("--out",   help="MAVLink output port (IP:port)", default='127.0.0.1:14550')
 parser.add_option("--baudrate", type='int', default=57600, help='baud rate')
