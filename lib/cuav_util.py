@@ -4,6 +4,7 @@
 import numpy, cv, math, sys, os, time, rotmat, cStringIO, cPickle, struct
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'uav'))
 
 radius_of_earth = 6378100.0 # in meters
 
@@ -249,6 +250,52 @@ def pixel_position_old(xpos, ypos, height, pitch, roll, yaw,
     y = range_c * math.sin(angle_c)
 
     return (xcenter+x, ycenter+y)
+
+def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw,
+                        lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960):
+    '''
+    find the offset on the ground in meters of a pixel in a ground image
+    given height above the ground in meters, and pitch/roll/yaw in degrees, the
+    lens and image parameters
+
+    The xpos,ypos is from the top-left of the image
+    The height is in meters
+    
+    The yaw is from grid north. Positive yaw is clockwise
+    The roll is from horiznotal. Positive roll is down on the right
+    The pitch is from horiznotal. Positive pitch is up in the front
+    lens is in mm
+    sensorwidth is in mm
+    xresolution and yresolution is in pixels
+    
+    return result is a tuple, with meters east and north of current GPS position
+
+    '''
+    from numpy import array
+    from uav import uavxfer
+    from math import pi
+  
+    # compute focal length in pixels
+    f_p = xresolution * lens / sensorwidth
+  
+    xfer = uavxfer()
+    xfer.setCameraParams(f_p, f_p, xresolution/2, yresolution/2)
+    xfer.setCameraOrientation( 0.0, 0.0, pi/2 )
+    xfer.setFlatEarth(0);
+    xfer.setPlatformPose(0, 0, -height, math.radians(roll), math.radians(pitch), math.radians(yaw))
+  
+    # negative scale means camera pointing above horizon
+    # large scale means a long way away also unreliable
+    (joe_w, scale) = xfer.imageToWorld(xpos, ypos)
+    if (scale < 0 or scale > 500):
+      return None
+
+    #(te, tn) = pixel_position_tridge(xpos, ypos, height, pitch, roll, yaw, lens, sensorwidth, xresolution, yresolution)
+    #diff = (te-joe_w[1], tn-joe_w[0])
+    #print 'diff: ', diff
+
+    # east and north
+    return (joe_w[1], joe_w[0])
 
 
 def pixel_position(xpos, ypos, height, pitch, roll, yaw,
