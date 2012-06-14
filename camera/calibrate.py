@@ -35,17 +35,19 @@ def calibrate(imagedir):
 
   for i in range(0,nimages):
     k=i*num_pts
+    squareSize = 1.0
+    # squareSize is 1.0 (i.e. units of checkerboard)
     for j in range(num_pts):
       cv.Set2D(ipts,k,0,datapoints[i][j][0])
       cv.Set2D(ipts,k,1,datapoints[i][j][1])
-      cv.Set2D(opts,k,0,float(j)/float(dims[0]))
-      cv.Set2D(opts,k,1,float(j)%float(dims[0]))
+      cv.Set2D(opts,k,0,float(j%dims[0])*squareSize)
+      cv.Set2D(opts,k,1,float(j/dims[0])*squareSize)
       cv.Set2D(opts,k,2,0.0)
       k=k+1
     cv.Set2D(npts,i,0,num_pts)
 
   K = cv.CreateMat(3, 3, cv.CV_64FC1)
-  D = cv.CreateMat(4, 1, cv.CV_64FC1)
+  D = cv.CreateMat(5, 1, cv.CV_64FC1)
   
   cv.SetZero(K)
   cv.SetZero(D)
@@ -60,15 +62,19 @@ def calibrate(imagedir):
   rcv = cv.CreateMat(nimages, 3, cv.CV_64FC1)
   tcv = cv.CreateMat(nimages, 3, cv.CV_64FC1)
 
+  #print 'object'
   #print array(opts)
+  #print 'image'
   #print array(ipts)
+  #print 'npts'
   #print array(npts)
+
   size=cv.GetSize(grey)
   flags = 0
-  flags |= cv.CV_CALIB_FIX_ASPECT_RATIO
-  flags |= cv.CV_CALIB_USE_INTRINSIC_GUESS
-  flags |= cv.CV_CALIB_ZERO_TANGENT_DIST
-  flags |= cv.CV_CALIB_FIX_PRINCIPAL_POINT
+  #flags |= cv.CV_CALIB_FIX_ASPECT_RATIO
+  #flags |= cv.CV_CALIB_USE_INTRINSIC_GUESS
+  #flags |= cv.CV_CALIB_ZERO_TANGENT_DIST
+  #flags |= cv.CV_CALIB_FIX_PRINCIPAL_POINT
   cv.CalibrateCamera2(opts, ipts, npts, size, K, D, rcv, tcv, flags)
 
   # storing results in xml files
