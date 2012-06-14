@@ -9,7 +9,7 @@ import numpy, os, cv, sys, cuav_util, time, math
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
-import scanner, mp_image
+import scanner, mp_image, mp_slipmap
 
 def compute_signatures(hist1, hist2):
     '''
@@ -196,8 +196,7 @@ class Mosaic():
                     self.latlon_to_map(lat2, lon2),
                     (0,255,0), 3)
         self.map = numpy.asarray(cv.GetMat(img))
-
-        self.slipmap.add_polygon('boundary', self.boundary, layer=1, linewidth=2, colour=(0,255,0))
+        self.slipmap.add_object(mp_slipmap.SlipPolygon('boundary', self.boundary, layer=1, linewidth=2, colour=(0,255,0)))
 
 
     def histogram(self, image, bins=10):
@@ -501,8 +500,9 @@ class Mosaic():
                 self.map = numpy.asarray(map)
                 self.refresh_map()
 
-                self.slipmap.add_thumbnail((lat,lon),(lat,lon),cv.fromarray(thumb),
-                                           layer=2, border_width=1, border_colour=(255,0,0))
+                self.slipmap.add_object(mp_slipmap.SlipThumbnail((lat,lon),(lat,lon),
+                                                                 img=cv.fromarray(thumb),
+                                                                 layer=2, border_width=1, border_colour=(255,0,0)))
 
             self.regions.append(MosaicRegion(r, filename, pos, thumbs[i], latlon=(lat, lon), map_pos=(mapx, mapy)))
 
