@@ -5,7 +5,7 @@ Andrew Tridgell
 May 2012
 '''
 
-import numpy, os, cv, sys, cuav_util, time, math
+import numpy, os, cv, sys, cuav_util, time, math, functools
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
@@ -136,10 +136,38 @@ class Mosaic():
         self.image_mosaic = mp_image.MPImage()
         self.slipmap = slipmap
 
+        self.slipmap.add_callback(functools.partial(self.map_callback))
+
         # map limits in form (min_lat, min_lon, max_lat, max_lon)
         self.map_limits = [0,0,0,0]
 
+    def map_callback(self, event):
+        '''called when an event happens on the slipmap'''
+        if not isinstance(event, mp_slipmap.SlipMouseEvent):
+            return
+        if len(event.selected) == 0:
+            # no objects were selected
+            return
+        # use just the first elected object, which is the one
+        # closest to the mouse position
+        key = str(event.selected[0].objkey)
+        if not key.startswith("region "):
+            return
+        r = key.split()
+        ridx = int(r[1])
+        print("Selected %s ridx=%u" % (key, ridx))
+        if ridx < 0 or ridx >= len(self.regions):
+            print("Invalid region %u selected" % ridx)
+            return
 
+        region = self.regions[ridx]
+        thumbnail = cv.CloneImage(cv.GetImage(cv.fromarray(region.thumbnail)))
+        # slipmap wants it as RGB
+        cv.CvtColor(thumbnail, thumbnail, cv.CV_BGR2RGB)
+        self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
+        region_text = "Selected region %u\n%s\n%s" % (ridx, str(region.latlon), os.path.basename(region.filename))
+        self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
+            
 
     def latlon_to_map(self, lat, lon):
         '''
@@ -486,6 +514,10 @@ class Mosaic():
             # overlay thumbnail on mosaic
             scanner.rect_overlay(self.mosaic, thumb, dest_x, dest_y, False)
 
+            # use the index into self.regions[] as the key for thumbnails
+            # displayed on the map
+            ridx = len(self.regions)
+
             if (lat,lon) != (None,None):
                 # show thumbnail on map
                 (mapx, mapy) = self.latlon_to_map(lat, lon)
@@ -500,7 +532,7 @@ class Mosaic():
                 self.map = numpy.asarray(map)
                 self.refresh_map()
 
-                self.slipmap.add_object(mp_slipmap.SlipThumbnail((lat,lon),(lat,lon),
+                self.slipmap.add_object(mp_slipmap.SlipThumbnail("region %u" % ridx, (lat,lon),
                                                                  img=cv.fromarray(thumb),
                                                                  layer=2, border_width=1, border_colour=(255,0,0)))
 
