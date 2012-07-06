@@ -62,7 +62,6 @@ def capture(h, timeout, img):
     try:
         fake_img = load_image(filename)
     except Exception, msg:
-        print msg
         raise chameleon.error('missing %s' % fake)
     frame_counter += 1
     img.data = fake_img.data

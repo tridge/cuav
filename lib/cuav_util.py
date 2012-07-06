@@ -18,7 +18,7 @@ class PGM(object):
 	'''8/16 bit 1280x960 PGM image handler'''
 	def __init__(self, filename):
 		self.filename = filename
-        
+
 		f = open(filename, mode='r')
 		fmt = f.readline()
 		if fmt.strip() != 'P5':
@@ -39,15 +39,17 @@ class PGM(object):
 		else:
 			raise PGMError('Expected 8/16 bit image image in %s - got %s' % (filename, line))
 		ofs = f.tell()
-		f.close()
 		if self.eightbit:
-			rawdata = numpy.memmap(filename, dtype='uint8', mode='c', order='C', shape=(960,1280), offset=ofs)
+			rawdata = numpy.fromfile(f, dtype='uint8')
+			numpy.reshape(rawdata, (960,1280))
 			self.img = cv.CreateImageHeader((1280, 960), 8, 1)
 		else:
-			rawdata = numpy.memmap(filename, dtype='uint16', mode='c', order='C', shape=(960,1280), offset=ofs)
-			self.img = cv.CreateImageHeader((1280, 960), 16, 1)
-		self.rawdata = rawdata.copy()
-		del(rawdata)
+			rawdata = numpy.fromfile(f, dtype='uint16')
+			rawdata = rawdata.byteswap(True)
+			numpy.reshape(rawdata, (960,1280))
+			self.img = cv.CreateImageHeader((1280, 960), 8, 1)
+		f.close()
+		self.rawdata = rawdata
 		self.array = self.rawdata.byteswap(True)
 		cv.SetData(self.img, self.array.tostring(), self.array.dtype.itemsize*1*1280)
 
