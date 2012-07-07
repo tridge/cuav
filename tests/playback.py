@@ -79,7 +79,7 @@ def playback(filename, images):
         deltat = msg._timestamp - last_timestamp
         if len(images) == 0 or images[0].frame_time > msg._timestamp + 2:
             # run at high speed except for the portions where we have images
-            deltat /= 20
+            deltat /= 60
         time.sleep(max(min(deltat/opts.speedup, 5), 0))
         last_timestamp = msg._timestamp
         if time.time() - last_print > 2.0:
