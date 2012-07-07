@@ -41,12 +41,12 @@ class PGM(object):
 		ofs = f.tell()
 		if self.eightbit:
 			rawdata = numpy.fromfile(f, dtype='uint8')
-			numpy.reshape(rawdata, (960,1280))
+			rawdata = numpy.reshape(rawdata, (960,1280))
 			self.img = cv.CreateImageHeader((1280, 960), 8, 1)
 		else:
 			rawdata = numpy.fromfile(f, dtype='uint16')
 			rawdata = rawdata.byteswap(True)
-			numpy.reshape(rawdata, (960,1280))
+			rawdata = numpy.reshape(rawdata, (960,1280))
 			self.img = cv.CreateImageHeader((1280, 960), 8, 1)
 		f.close()
 		self.rawdata = rawdata
