@@ -151,7 +151,7 @@ class MavInterpolator():
 			raise MavInterpolatorDeltaTException('exceeded max_deltat %.1f' % (t2-t1))
 		return v1 + ((t-t1)/(t2-t1))*(v2-v1)
     
-	def position(self, t, max_deltat=0):
+	def position(self, t, max_deltat=0,roll=None):
 		'''return a MavPosition estimate given a time'''
 		self.advance_log(t)
 			
@@ -173,7 +173,8 @@ class MavInterpolator():
 		altitude = self._altitude(scaled_pressure)
 
 		# and attitude
-		roll  = math.degrees(self.interpolate('ATTITUDE', 'roll', t, max_deltat))
+		if roll is None:
+			roll  = math.degrees(self.interpolate('ATTITUDE', 'roll', t, max_deltat))
 		pitch = math.degrees(self.interpolate('ATTITUDE', 'pitch', t, max_deltat))
 		yaw   = math.degrees(self.interpolate('ATTITUDE', 'yaw', t, max_deltat))
 

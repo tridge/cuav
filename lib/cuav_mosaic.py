@@ -9,7 +9,7 @@ import numpy, os, cv, sys, cuav_util, time, math, functools
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
-import scanner, mp_image, mp_slipmap
+import scanner
 
 def compute_signatures(hist1, hist2):
     '''
@@ -133,6 +133,7 @@ class Mosaic():
         self.displayed_image = None
         self.last_click_position = None
         self.lens = lens
+        import mp_image
         self.image_mosaic = mp_image.MPImage()
         self.slipmap = slipmap
 
@@ -143,6 +144,7 @@ class Mosaic():
 
     def map_callback(self, event):
         '''called when an event happens on the slipmap'''
+        import mp_slipmap
         if not isinstance(event, mp_slipmap.SlipMouseEvent):
             return
         if len(event.selected) == 0:
@@ -163,6 +165,7 @@ class Mosaic():
         region = self.regions[ridx]
         thumbnail = cv.CloneImage(cv.GetImage(cv.fromarray(region.thumbnail)))
         # slipmap wants it as RGB
+        import mp_slipmap
         cv.CvtColor(thumbnail, thumbnail, cv.CV_BGR2RGB)
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
         region_text = "Selected region %u\n%s\n%s" % (ridx, str(region.latlon), os.path.basename(region.filename))
@@ -224,6 +227,7 @@ class Mosaic():
                     self.latlon_to_map(lat2, lon2),
                     (0,255,0), 3)
         self.map = numpy.asarray(cv.GetMat(img))
+        import mp_slipmap
         self.slipmap.add_object(mp_slipmap.SlipPolygon('boundary', self.boundary, layer=1, linewidth=2, colour=(0,255,0)))
 
 
