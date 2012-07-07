@@ -536,6 +536,7 @@ class Mosaic():
                 self.map = numpy.asarray(map)
                 self.refresh_map()
 
+                import mp_slipmap
                 self.slipmap.add_object(mp_slipmap.SlipThumbnail("region %u" % ridx, (lat,lon),
                                                                  img=cv.fromarray(thumb),
                                                                  layer=2, border_width=1, border_colour=(255,0,0)))
