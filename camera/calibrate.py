@@ -4,6 +4,7 @@
 import cv
 import os,sys,string
 from numpy import array,zeros
+from camera import CameraParams
 
 dims=(10,7)
 
@@ -77,16 +78,19 @@ def calibrate(imagedir):
   #flags |= cv.CV_CALIB_FIX_PRINCIPAL_POINT
   cv.CalibrateCamera2(opts, ipts, npts, size, K, D, rcv, tcv, flags)
 
-  # storing results in xml files
+  # storing results using CameraParams
+  C = CameraParams(xresolution=im_dims[0], yresolution=im_dims[1])
   print array(K)
-  cv.Save(imagedir+"/K.xml", K)
   print array(D)
-  cv.Save(imagedir+"/D.xml", D)
+  C.setParams(K, D)
+  C.save(imagedir+"/params.json")
 
 def dewarp(imagedir):
-  # Loading from xml files
-  K = cv.Load(imagedir+"/K.xml")
-  D = cv.Load(imagedir+"/D.xml")
+  # Loading from json file
+  C = CameraParams()
+  C.load(imagedir+"/params.json")
+  K = cv.fromarray(C.K)
+  D = cv.fromarray(C.D)
   print "loaded camera parameters"
   mapx = None
   mapy = None
@@ -195,7 +199,7 @@ def gather(imagedir, debayer, im_w, im_h):
 
 if __name__ == '__main__':
   from optparse import OptionParser
-  parser = OptionParser("calibrate.py [options]")
+  parser = OptionParser("calibrate.py [options] <imagedir>")
   parser.add_option("--gather",dest="gather", action='store_true', default=False, help="gather calibration images")
   parser.add_option("--width",dest="width", type='int', default=1280, help="capture width")
   parser.add_option("--height",dest="height", type='int', default=960, help="capture height")
