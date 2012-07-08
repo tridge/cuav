@@ -6,6 +6,8 @@ Created by Stephen Dade (stephen_dade@hotmail.com)
 '''
 
 import numpy, os, time, sys, xml.dom.minidom
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
+import mp_slipmap, mp_util
 
 class MissionGenerator():
     '''Mission Generator Class'''
@@ -104,43 +106,45 @@ class MissionGenerator():
 
         #mow the lawn, every 2nd row:
         while True:
-            (nextW, nextnextW) = self.projectBearing(self.searchBearing, nextWaypoint, self.searchArea)
+            pts = self.projectBearing(self.searchBearing, nextWaypoint, self.searchArea)
+            #check if we're outside the search area
+            if pts == 0:
+                break
+            (nextW, nextnextW) = (pts[0], pts[1])
             if self.getDistAndBearing(nextWaypoint, nextW)[0] < self.getDistAndBearing(nextWaypoint, nextnextW)[0]:
                 self.SearchPattern.append(nextW)
                 self.SearchPattern.append(nextnextW)
+                #now turn 90degrees from bearing and width distance
+                nextWaypoint = self.addDistBearing(nextnextW, width*2, self.crossBearing)
             else:
                 self.SearchPattern.append(nextnextW)
                 self.SearchPattern.append(nextW)
+                #now turn 90degrees from bearing and width distance
+                nextWaypoint = self.addDistBearing(nextW, width*2, self.crossBearing)
 
-            #now turn 90degrees from bearing and width distance, from the midpoint of the prev 2 points
-            nextWaypoint = ((nextW[0]+nextnextW[0])/2, (nextW[1]+nextnextW[1])/2) 
-            nextWaypoint = self.addDistBearing(nextWaypoint, width*2, self.crossBearing)
             print "Next = " + str(nextWaypoint)
-            #self.SearchPattern.append(nextWaypoint)
-            if self.isOutsideSearchAreaBoundingBox(nextWaypoint[0], nextWaypoint[1]):
-                print "Stopped = " + str(nextWaypoint)
-                break
         
         #go back and do the rows we missed
         self.crossBearing = (self.crossBearing + 180) % 360
         nextWaypoint = self.addDistBearing(self.SearchPattern[-1], width, self.crossBearing)
         while True:
-            (nextW, nextnextW) = self.projectBearing(self.searchBearing, nextWaypoint, self.searchArea)
+            pts = self.projectBearing(self.searchBearing, nextWaypoint, self.searchArea)
+            #check if we're outside the search area
+            if pts == 0:
+                break
+            (nextW, nextnextW) = (pts[0], pts[1])
             if self.getDistAndBearing(nextWaypoint, nextW)[0] < self.getDistAndBearing(nextWaypoint, nextnextW)[0]:
                 self.SearchPattern.append(nextW)
                 self.SearchPattern.append(nextnextW)
+                #now turn 90degrees from bearing and width distance
+                nextWaypoint = self.addDistBearing(nextnextW, width*2, self.crossBearing)
             else:
                 self.SearchPattern.append(nextnextW)
                 self.SearchPattern.append(nextW)
+                #now turn 90degrees from bearing and width distance
+                nextWaypoint = self.addDistBearing(nextW, width*2, self.crossBearing)
 
-            #now turn 90degrees from bearing and width distance
-            nextWaypoint = ((nextW[0]+nextnextW[0])/2, (nextW[1]+nextnextW[1])/2) 
-            nextWaypoint = self.addDistBearing(nextWaypoint, width*2, self.crossBearing)
             print "Next = " + str(nextWaypoint)
-            #self.SearchPattern.append(nextWaypoint)
-            if self.isOutsideSearchAreaBoundingBox(nextWaypoint[0], nextWaypoint[1]):
-                break
-        print("here")
 
     def isOutsideSearchAreaBoundingBox(self, lat, longy):
         '''Checks if the long/lat pair is inside the search area
@@ -258,34 +262,92 @@ class MissionGenerator():
         '''Projects bearing from startPos until it reaches the edge(s) of
         searchArea (list of lat/long tuples. Returns the First/Last position(s)'''
 
-        #the resolution of the search pattern (m)
-        delta = 5
+        coPoints = []
 
-        #first, project along until we reach the edge of the bounding box
-        BoundaryWaypoint = self.addDistBearing(startPos, delta, bearing)
-        while self.isOutsideSearchAreaBoundingBox(BoundaryWaypoint[0], BoundaryWaypoint[1]) == 0:
-             BoundaryWaypoint = self.addDistBearing(BoundaryWaypoint, delta, bearing)
+        #for each line in the search are border, get any overlaps with startPos on bearing(+-180)
+        for point in searchArea:
+            (dist, theta2) = self.getDistAndBearing(point, searchArea[searchArea.index(point)-1])
+            posn = self.Intersection(startPos, bearing, point, theta2)
+            if posn != 0 and self.getDistAndBearing(posn, point)[0] < dist:
+                coPoints.append(posn)
+            posn = self.Intersection(startPos, (bearing + 180) % 360, point, theta2)
+            if posn != 0 and self.getDistAndBearing(posn, point)[0] < dist:
+                coPoints.append(posn)
 
-        #now project back until we're just outside the search area
-        FirstWaypoint = BoundaryWaypoint
-        while self.polygon_outside(FirstWaypoint, self.searchArea):
-             FirstWaypoint = self.addDistBearing(FirstWaypoint, delta, (bearing + 180) % 360)
-        FirstWaypoint = self.addDistBearing(FirstWaypoint, delta, bearing)
+        #if there's more than two points in coPoints, return the furthest away points
+        if len(coPoints) < 2:
+            return 0
+        elif len(coPoints) == 2:
+            return coPoints
+        else:
+            dist = 0
+            for point in coPoints:
+                for pt in coPoints:
+                    if self.getDistAndBearing(pt, point)[0] > dist:
+                        dist = self.getDistAndBearing(pt, point)[0]
+                        newcoPoints = [point, pt]
+            return newcoPoints
 
-        #and keep going until we're at the other end of the search area
-        LastWaypoint = self.addDistBearing(FirstWaypoint, delta, (bearing + 180) % 360)
-        while self.polygon_outside(LastWaypoint, self.searchArea) == 0:
-             LastWaypoint = self.addDistBearing(LastWaypoint, delta, (bearing + 180) % 360)
 
-        #and return
-        return (FirstWaypoint, LastWaypoint)
+    def Intersection(self, pos1, theta1, pos2, theta2):
+        '''This will find the intersection between two positions and bearings
+           it will return the intersection lat/long, or 0 if no intersection'''
+        brng1 = theta1
+        brng2 = theta2
+        lat1 = numpy.radians(pos1[0])
+        lon1 = numpy.radians(pos1[1])
+        lat2 = numpy.radians(pos2[0])
+        lon2 = numpy.radians(pos2[1])
+        brng13 = numpy.radians(brng1)
+        brng23 = numpy.radians(brng2)
+        dLat = lat2-lat1
+        dLon = lon2-lon1
+  
+        dist12 = 2*numpy.arcsin( numpy.sqrt( numpy.sin(dLat/2)*numpy.sin(dLat/2) + numpy.cos(lat1)*numpy.cos(lat2)*numpy.sin(dLon/2)*numpy.sin(dLon/2) ) )
+        if dist12 == 0:
+            return 0
+  
+        #initial/final bearings between points
+        brngA = numpy.arccos( ( numpy.sin(lat2) - numpy.sin(lat1)*numpy.cos(dist12) ) / ( numpy.sin(dist12)*numpy.cos(lat1) ) )
+        #if (isNaN(brngA)) brngA = 0;  // protect against rounding
+        brngB = numpy.arccos( ( numpy.sin(lat1) - numpy.sin(lat2)*numpy.cos(dist12) ) / ( numpy.sin(dist12)*numpy.cos(lat2) ) )
+  
+        if numpy.sin(lon2-lon1) > 0:
+            brng12 = brngA
+            brng21 = 2*numpy.pi - brngB
+        else:
+           brng12 = 2*numpy.pi - brngA
+           brng21 = brngB
+  
+        alpha1 = (brng13 - brng12 + numpy.pi) % (2*numpy.pi) - numpy.pi  # angle 2-1-3
+        alpha2 = (brng21 - brng23 + numpy.pi) % (2*numpy.pi) - numpy.pi  # angle 1-2-3
+  
+        if numpy.sin(alpha1)==0 and numpy.sin(alpha2)==0:
+            return 0  # infinite intersections
+        if numpy.sin(alpha1)*numpy.sin(alpha2) < 0:
+            return 0      # ambiguous intersection
+   
+        alpha3 = numpy.arccos( -numpy.cos(alpha1)*numpy.cos(alpha2) + numpy.sin(alpha1)*numpy.sin(alpha2)*numpy.cos(dist12) )
+        dist13 = numpy.arctan2( numpy.sin(dist12)*numpy.sin(alpha1)*numpy.sin(alpha2), numpy.cos(alpha2)+numpy.cos(alpha1)*numpy.cos(alpha3) )
+        lat3 = numpy.arcsin( numpy.sin(lat1)*numpy.cos(dist13) + numpy.cos(lat1)*numpy.sin(dist13)*numpy.cos(brng13) )
+        dLon13 = numpy.arctan2( numpy.sin(brng13)*numpy.sin(dist13)*numpy.cos(lat1), numpy.cos(dist13)-numpy.sin(lat1)*numpy.sin(lat3) )
+        lon3 = lon1+dLon13
+        lon3 = (lon3+3*numpy.pi) % (2*numpy.pi) - numpy.pi  # normalise to -180..+180
+  
+        return (numpy.degrees(lat3), numpy.degrees(lon3));
 
+    def getMapPolygon(self):
+        '''Returns a mp_Slipmap compatible polygon'''
+        return self.SearchPattern
+
+    def getPolygonLength(self)
+        '''Returns the path length
 
 if __name__ == "__main__":
 
     from optparse import OptionParser
     parser = OptionParser("mp_missiongenerator.py [options]")
-    parser.add_option("--file", type='string', default='obc.kml', help="input file")
+    parser.add_option("--file", type='string', default='OBC Waypoints.kml', help="input file")
 
     (opts, args) = parser.parse_args()
 
@@ -296,6 +358,13 @@ if __name__ == "__main__":
     gen.CreateSearchPattern()
     gen.ExportSearchPattern()
 
+    #start a map
+    sm = mp_slipmap.MPSlipMap(lat=gen.getMapPolygon()[0][0], lon=gen.getMapPolygon()[0][1], elevation=True)
+    sm.add_object(mp_slipmap.SlipPolygon('Search Pattern', gen.getMapPolygon(), layer=1, linewidth=2, colour=(0,255,0)))
+
+    #test function
+    #posn = gen.Intersection((51.885, 0.235), 108.63, (49.008, 2.549), 32.72)
+    #print "Intersection test = " + str(posn)
 
 
 
