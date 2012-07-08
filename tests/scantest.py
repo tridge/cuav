@@ -5,7 +5,7 @@ import numpy, os, time, cv, sys, math, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util, cuav_mosaic, mav_position, chameleon, cuav_joe
+import scanner, cuav_util, cuav_mosaic, mav_position, chameleon, cuav_joe, mp_slipmap
 
 from optparse import OptionParser
 parser = OptionParser("scantest.py [options] <filename..>")
@@ -21,7 +21,6 @@ parser.add_option("--mavlog", default=None, help="flight log for geo-referencing
 parser.add_option("--boundary", default=None, help="search boundary file")
 parser.add_option("--max-deltat", default=1.0, type='float', help="max deltat for interpolation")
 parser.add_option("--max-attitude", default=45, type='float', help="max attitude geo-referencing")
-parser.add_option("--fill-map", default=False, action='store_true', help="show all images on map")
 parser.add_option("--joe", default=None, help="file containing list of joe positions")
 parser.add_option("--linkjoe", default=None, help="link joe images to this directory")
 parser.add_option("--show-misses", default=False, action='store_true', help="show missed Joes")
@@ -53,11 +52,10 @@ def process(files):
     boundary = None
 
   if opts.mosaic:
-    mosaic = cuav_mosaic.Mosaic(lens=opts.lens)
+    slipmap = mp_slipmap.MPSlipMap(service='GoogleSat', elevation=True, title='Map')
+    mosaic = cuav_mosaic.Mosaic(slipmap, lens=opts.lens)
     if boundary is not None:
       mosaic.set_boundary(boundary)
-    if opts.fill_map:
-      mosaic.fill_map = True
 
   if opts.joe:
     joes = cuav_util.load_joes(opts.joe)
@@ -74,7 +72,7 @@ def process(files):
     if mpos:
       try:
         pos = mpos.position(frame_time, opts.max_deltat)
-      except mav_position.MavInterpolatorDeltaTException:
+      except mav_position.MavInterpolatorException:
         pos = None
     else:
       pos = None
@@ -131,7 +129,9 @@ def process(files):
       composite = cuav_mosaic.CompositeThumbnail(img_scan, regions, quality=opts.quality)
       chameleon.save_file('composite.jpg', composite)
       thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
-      mosaic.add_regions(regions, thumbs, f, pos)
+      latlon_list = joelog.add_regions(frame_time, regions, pos, f)
+      print pos, latlon_list
+      mosaic.add_regions(regions, thumbs, latlon_list, f, pos)
     if pos:
       mosaic.add_image(f, img_scan, pos)
     if opts.show_misses:
@@ -163,7 +163,7 @@ def process(files):
       cv.WaitKey(1)
 
     total_time += (t1-t0)
-    print('%s scan %f fps  %u regions [%u/%u]' % (
+    print('%s scan %.1f fps  %u regions [%u/%u]' % (
       f, count/total_time, region_count, scan_count, num_files))
     
 
