@@ -340,8 +340,9 @@ class MissionGenerator():
         '''Returns a mp_Slipmap compatible polygon'''
         return self.SearchPattern
 
-    def getPolygonLength(self)
-        '''Returns the path length
+    def getPolygonLength(self):
+        '''Returns the path length'''
+        pass
 
 if __name__ == "__main__":
 
@@ -359,7 +360,7 @@ if __name__ == "__main__":
     gen.ExportSearchPattern()
 
     #start a map
-    sm = mp_slipmap.MPSlipMap(lat=gen.getMapPolygon()[0][0], lon=gen.getMapPolygon()[0][1], elevation=True)
+    sm = mp_slipmap.MPSlipMap(lat=gen.getMapPolygon()[0][0], lon=gen.getMapPolygon()[0][1], elevation=True, service='GoogleSat')
     sm.add_object(mp_slipmap.SlipPolygon('Search Pattern', gen.getMapPolygon(), layer=1, linewidth=2, colour=(0,255,0)))
 
     #test function
