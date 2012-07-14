@@ -40,17 +40,14 @@ class JoeLog():
         
   def add_regions(self, frame_time, regions, pos, image_filename, width=640, height=480):
     '''add a set of regions to the log, applying geo-referencing.
-    Return a list of (lat,lon) tuples for the positions of the regions
+    Add latlon attribute to regions
     '''
     ret = []
     for r in regions:
       latlon = cuav_util.gps_position_from_image_region(r, pos, width, height)
       if latlon is not None:
-        (lat, lon) = latlon
-        self.add((lat,lon), frame_time, r, pos, image_filename)
-        ret.append((lat,lon))
-      else:
-        ret.append((None,None))
+        r.latlon = latlon
+        self.add(latlon, frame_time, r, pos, image_filename)
     return ret
         
             

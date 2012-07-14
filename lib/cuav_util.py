@@ -400,9 +400,8 @@ def gps_position_from_image_region(region, pos, width=640, height=480, lens=4.0)
 	and an image region tuple'''
 	if pos is None:
 		return None
-	(x1,y1,x2,y2) = region
-	x = (x1+x2)*0.5
-	y = (y1+y2)*0.5
+	x = (region.x1+region.x2)*0.5
+	y = (region.y1+region.y2)*0.5
 	return pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
 				 pos.pitch, pos.roll, pos.yaw,
 				 xresolution=width, yresolution=height,
@@ -628,42 +627,6 @@ def OverlayImage(img, img2, x, y):
 	cv.SetImageROI(img, (x, y, w, h))
 	cv.Copy(img2, img)
 	cv.ResetImageROI(img)
-	
-
-def hsv_score(hsv):
-	'''try to score a HSV image based on how "interesting" it is for joe detection'''
-	(width,height) = cv.GetSize(hsv)
-	score = 0
-	for x in range(width):
-		for y in range(height):
-			(h,s,v) = hsv[y,x]
-			if h < 22 and s > 50:
-				score += 3
-				#print h,s,v,'B'
-			if h > 120 and h < 200:
-				score += 1
-				#print h,s,v,'R'
-			if v > 160 and s > 100:
-				score += (v-160)/10
-				#print h,s,v,'V'
-			if h>70 and s > 110 and v > 50:
-				score += 2
-				#print h,s,v,'S'
-		return score
-
-def filter_regions(img, regions):
-	'''filter the regions using HSV values'''
-	ret = []
-	img = cv.GetImage(cv.fromarray(img))
-	for r in regions:
-		(x1,y1,x2,y2) = r
-		cv.SetImageROI(img, (x1,y1,x2-x1,y2-y1))
-		hsv = cv.CreateImage((x2-x1,y2-y1), 8, 3)
-		cv.CvtColor(img, hsv, cv.CV_RGB2HSV)
-		cv.ResetImageROI(img)
-		if hsv_score(hsv) >= 4:
-			ret.append(r)
-	return ret
 
 if __name__ == "__main__":
 	pos1 = (-35.36048084339494,  149.1647973335984)

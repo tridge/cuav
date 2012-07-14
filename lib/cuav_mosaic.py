@@ -5,7 +5,7 @@ Andrew Tridgell
 May 2012
 '''
 
-import numpy, os, cv, sys, cuav_util, time, math, functools
+import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
@@ -57,7 +57,7 @@ def CompositeThumbnail(img, regions, thumb_size=100, quality=75, xsize=640):
     '''
     composite = cv.CreateImage((thumb_size*len(regions), thumb_size),8,3)
     for i in range(len(regions)):
-        (x1,y1,x2,y2) = regions[i]
+        (x1,y1,x2,y2) = regions[i].tuple()
         midx = (x1+x2)/2
         midy = (y1+y2)/2
 
@@ -132,7 +132,8 @@ class Mosaic():
         import mp_slipmap
         cv.CvtColor(thumbnail, thumbnail, cv.CV_BGR2RGB)
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
-        region_text = "Selected region %u\n%s\n%s" % (ridx, str(region.latlon), os.path.basename(region.filename))
+        region_text = "Selected region %u score=%u\n%s\n%s" % (ridx, region.region.score,
+                                                               str(region.latlon), os.path.basename(region.filename))
         self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
             
 
@@ -149,9 +150,6 @@ class Mosaic():
         '''display the thumbnail associated with a region'''
         print('-> %s' % str(region))
         img = cv.fromarray(region.thumbnail)
-#      cv.ShowImage('Thumb', img)
-#      cv.WaitKey(1)
-
 
     def mouse_event(self, event, x, y, flags, data):
         '''called on mouse events'''
@@ -241,13 +239,13 @@ class Mosaic():
         return (maxy-miny)*(maxx-minx)
 
 
-    def add_regions(self, regions, thumbs, latlon_list, filename, pos=None):
+    def add_regions(self, regions, thumbs, filename, pos=None):
         '''add some regions'''
         for i in range(len(regions)):
             r = regions[i]
-            (x1,y1,x2,y2) = r
+            (x1,y1,x2,y2) = r.tuple()
 
-            (lat, lon) = latlon_list[i]
+            (lat, lon) = r.latlon
 
             if self.boundary and (lat,lon) == (None,None):
                 # its pointing into the sky
@@ -288,35 +286,3 @@ class Mosaic():
 
         self.image_mosaic.set_image(self.mosaic, bgr=True)
 #      cv.SetMouseCallback('Mosaic', self.mouse_event, self)
-
-
-    def check_joe_miss(self, regions, img, joes, pos, accuracy=80):
-        '''check for false negatives from Joe scanner'''
-
-        # work out the lat,lon coordinates of the four corners of the image
-        image_boundary = self.image_boundary(img, pos)
-
-        if None in image_boundary:
-            # an image corner extends into the sky
-            return
-
-        for joe in joes:
-            if cuav_util.polygon_outside(joe, image_boundary):
-                continue
-            # this joe should be in this image
-            (joe_lat, joe_lon) = joe
-            min_error = -1
-            for r in regions:
-                latlon = cuav_util.gps_position_from_image_region(r, pos, lens=self.lens)
-                if latlon is None:
-                    # its in the sky
-                    continue
-                (lat, lon) = latlon
-                if cuav_util.polygon_outside((lat,lon), image_boundary):
-                    print("Found position outside image boundary??", r, str(pos), (lat,lon), image_boundary)
-                error = cuav_util.gps_distance(joe_lat, joe_lon, lat, lon)
-                if min_error == -1 or error < min_error:
-                    min_error = error
-            if min_error > accuracy:
-                # we got a false negative
-                print("False negative min_error=%f" % min_error)

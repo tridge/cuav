@@ -5,7 +5,7 @@ import numpy, os, time, cv, sys, math, sys, glob
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util, cuav_mosaic, mav_position, chameleon, cuav_joe, mp_slipmap, mp_image
+import scanner, cuav_util, cuav_mosaic, mav_position, chameleon, cuav_joe, mp_slipmap, mp_image, cuav_region
 
 from optparse import OptionParser
 parser = OptionParser("scantest.py [options] <directory>")
@@ -22,7 +22,6 @@ parser.add_option("--max-deltat", default=0.0, type='float', help="max deltat fo
 parser.add_option("--max-attitude", default=45, type='float', help="max attitude geo-referencing")
 parser.add_option("--joe", default=None, help="file containing list of joe positions")
 parser.add_option("--linkjoe", default=None, help="link joe images to this directory")
-parser.add_option("--show-misses", default=False, action='store_true', help="show missed Joes")
 parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
 parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
 parser.add_option("--gps-lag", default=0.0, type='float', help="GPS lag in seconds")
@@ -143,10 +142,11 @@ def process(args):
       else:
         regions = scanner.scan(img_scan)
       count += 1
+    regions = cuav_region.RegionsConvert(regions)
     t1=time.time()
 
     if opts.filter:
-      regions = cuav_util.filter_regions(img_scan, regions)
+      regions = cuav_region.filter_regions(img_scan, regions)
 
     region_count += len(regions)
     scan_count += 1
@@ -169,8 +169,7 @@ def process(args):
         width = 640
         height = 480
       
-      latlon_list = joelog.add_regions(frame_time, regions, pos, f, width, height)
-      print pos, latlon_list
+      joelog.add_regions(frame_time, regions, pos, f, width, height)
 
     if opts.mosaic and len(regions) > 0:
       if opts.fullres:
@@ -180,9 +179,7 @@ def process(args):
       composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions, quality=opts.quality, xsize=xsize)
       chameleon.save_file('composite.jpg', composite)
       thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
-      mosaic.add_regions(regions, thumbs, latlon_list, f, pos)
-    if opts.show_misses:
-      mosaic.check_joe_miss(regions, img_scan, joes, pos)
+      mosaic.add_regions(regions, thumbs, f, pos)
 
     if opts.compress:
       jpeg = scanner.jpeg_compress(im_full, opts.quality)
@@ -198,7 +195,8 @@ def process(args):
       else:
         img_view = img_scan
       mat = cv.fromarray(img_view)
-      for (x1,y1,x2,y2) in regions:
+      for r in regions:
+        (x1,y1,x2,y2) = r.tuple()
         if opts.fullres:
           x1 *= 2
           y1 *= 2
