@@ -513,7 +513,7 @@ def LoadImage(filename):
 		pgm = PGM(filename)
 		im_full = numpy.zeros((960,1280,3),dtype='uint8')
 		scanner.debayer_full(pgm.array, im_full)
-		return cv.fromarray(im_full)
+		return cv.GetImage(cv.fromarray(im_full))
 	return cv.LoadImage(filename)
 
 
@@ -586,6 +586,84 @@ def cv_wait_quit():
 		if key in ['q', 'Q']:
 			break
 
+def SubImage(img, region):
+	'''return a subimage as a new image. This allows
+	for the region going past the edges.
+	region is of the form (x1,y1,width,height)'''
+	(x1,y1,width,height) = region
+	zeros = numpy.zeros((height,width,3),dtype='uint8')
+	ret = cv.GetImage(cv.fromarray(zeros))
+	(img_width,img_height) = cv.GetSize(img)
+	if x1 < 0:
+		sx1 = 0
+		xofs = -x1
+	else:
+		sx1 = x1
+		xofs = 0
+	if y1 < 0:
+		sy1 = 0
+		yofs = -y1
+	else:
+		sy1 = y1
+		yofs = 0
+	if sx1 + width <= img_width:
+		w = width
+	else:
+		w = img_width - sx1
+	if sy1 + height <= img_height:
+		h = height
+	else:
+		h = img_height - sy1
+	cv.SetImageROI(img, (sx1, sy1, w-xofs, h-yofs))
+	cv.SetImageROI(ret, (xofs, yofs, w-xofs, h-yofs))
+	cv.Copy(img, ret)
+	cv.ResetImageROI(img)
+	cv.ResetImageROI(ret)
+	return ret
+
+def OverlayImage(img, img2, x, y):
+	'''overlay a 2nd image on a first image, at position x,y
+	on the first image'''
+	(w,h) = cv.GetSize(img2)
+	cv.SetImageROI(img, (x, y, w, h))
+	cv.Copy(img2, img)
+	cv.ResetImageROI(img)
+	
+
+def hsv_score(hsv):
+	'''try to score a HSV image based on how "interesting" it is for joe detection'''
+	(width,height) = cv.GetSize(hsv)
+	score = 0
+	for x in range(width):
+		for y in range(height):
+			(h,s,v) = hsv[y,x]
+			if h < 22 and s > 50:
+				score += 3
+				#print h,s,v,'B'
+			if h > 120 and h < 200:
+				score += 1
+				#print h,s,v,'R'
+			if v > 160 and s > 100:
+				score += (v-160)/10
+				#print h,s,v,'V'
+			if h>70 and s > 110 and v > 50:
+				score += 2
+				#print h,s,v,'S'
+		return score
+
+def filter_regions(img, regions):
+	'''filter the regions using HSV values'''
+	ret = []
+	img = cv.GetImage(cv.fromarray(img))
+	for r in regions:
+		(x1,y1,x2,y2) = r
+		cv.SetImageROI(img, (x1,y1,x2-x1,y2-y1))
+		hsv = cv.CreateImage((x2-x1,y2-y1), 8, 3)
+		cv.CvtColor(img, hsv, cv.CV_RGB2HSV)
+		cv.ResetImageROI(img)
+		if hsv_score(hsv) >= 4:
+			ret.append(r)
+	return ret
 
 if __name__ == "__main__":
 	pos1 = (-35.36048084339494,  149.1647973335984)

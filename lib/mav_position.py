@@ -104,6 +104,12 @@ class MavInterpolator():
 		if offset < self.boot_offset:
 			self.boot_offset = offset
 			#print("link_lag=%f" % offset)
+		# limit latency to 1 second
+		if self.boot_offset + sec > msg._timestamp:
+			self.boot_offset = msg._timestamp - sec
+		if self.boot_offset + sec < msg._timestamp-1:
+			self.boot_offset = (msg._timestamp-1) - sec
+		
 				 
 	def add_msg(self, msg):
 		'''add in a mavlink message'''
