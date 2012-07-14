@@ -65,7 +65,7 @@ def filter_boundary(regions, boundary):
 	'''filter a list of regions using a search boundary'''
         ret = []
         for r in regions:
-            if cuav_util.polygon_outside(r.latlon, boundary):
+            if r.latlon is None or cuav_util.polygon_outside(r.latlon, boundary):
                 continue
             ret.append(r)
         return ret
