@@ -13,7 +13,6 @@ parser.add_option("--repeat", type='int', default=1, help="scan repeat count")
 parser.add_option("--view", action='store_true', default=False, help="show images")
 parser.add_option("--fullres", action='store_true', default=False, help="show full resolution")
 parser.add_option("--gamma", type='int', default=0, help="gamma for 16 -> 8 conversion")
-parser.add_option("--yuv", action='store_true', default=False, help="use YUV conversion")
 parser.add_option("--compress", action='store_true', default=False, help="compress images to *.jpg")
 parser.add_option("--quality", type='int', default=95, help="jpeg compression quality")
 parser.add_option("--mosaic", action='store_true', default=False, help="build a mosaic of regions")
@@ -27,11 +26,13 @@ parser.add_option("--show-misses", default=False, action='store_true', help="sho
 parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
 parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
 parser.add_option("--gps-lag", default=0.0, type='float', help="GPS lag in seconds")
+parser.add_option("--filter", default=False, action='store_true', help="filter using HSV")
 (opts, args) = parser.parse_args()
 
 class state():
   def __init__(self):
     pass
+
 
 slipmap = None
 
@@ -90,7 +91,6 @@ def process(args):
     viewer = mp_image.MPImage(title='Image')
 
   for f in files:
-    time.sleep(0.3)
     frame_time = cuav_util.parse_frame_time(f)
     if mpos:
       try:
@@ -134,18 +134,19 @@ def process(args):
 
     count = 0
     total_time = 0
-
-    if opts.yuv:
-      img_scan = numpy.zeros((480,640,3),dtype='uint8')
-      scanner.rgb_to_yuv(im_640, img_scan)
-    else:
-      img_scan = im_640
+    img_scan = im_640
 
     t0=time.time()
     for i in range(opts.repeat):
-      regions = scanner.scan(img_scan)
+      if opts.fullres:
+        regions = scanner.scan_full(im_full)
+      else:
+        regions = scanner.scan(img_scan)
       count += 1
     t1=time.time()
+
+    if opts.filter:
+      regions = cuav_util.filter_regions(img_scan, regions)
 
     region_count += len(regions)
     scan_count += 1
@@ -161,16 +162,25 @@ def process(args):
         os.symlink(f, joepath)
 
     if pos and len(regions) > 0:
-      latlon_list = joelog.add_regions(frame_time, regions, pos, f)
+      if opts.fullres:
+        width = 1280
+        height = 960
+      else:
+        width = 640
+        height = 480
+      
+      latlon_list = joelog.add_regions(frame_time, regions, pos, f, width, height)
       print pos, latlon_list
 
     if opts.mosaic and len(regions) > 0:
-      composite = cuav_mosaic.CompositeThumbnail(im_full, regions, quality=opts.quality)
+      if opts.fullres:
+        xsize = 1280
+      else:
+        xsize = 640
+      composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions, quality=opts.quality, xsize=xsize)
       chameleon.save_file('composite.jpg', composite)
       thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
       mosaic.add_regions(regions, thumbs, latlon_list, f, pos)
-    if pos:
-      mosaic.add_image(f, img_scan, pos)
     if opts.show_misses:
       mosaic.check_joe_miss(regions, img_scan, joes, pos)
 
