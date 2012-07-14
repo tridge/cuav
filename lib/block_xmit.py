@@ -239,6 +239,7 @@ class BlockSender:
 		self.incoming = []
 		self.next_blockid = os.getpid() << 20
 		self.last_send_time = time.time()
+		self.last_recv_time = time.time()
 		self.acks_needed = set()
 		self.packet_loss = 0
 		self.completed_len = completed_len
@@ -256,6 +257,8 @@ class BlockSender:
 		self.bonus_bytes = 0
 		self.efficiency = 1.0
 		self.bandwidth_used = 0.0
+		self.send_count = 0
+		self.recv_count = 0
 
 		# work out the overheads of the packet types
 		self.chunk_overhead = BlockSenderChunk(0,0,0,'',0,0,0).header_size
@@ -355,13 +358,17 @@ class BlockSender:
 			crc = self._crc(buf)
 			buf = bytes(struct.pack('<BL', type, crc)) + buf
 			self.sock.sendto(buf, dest)
+			self.send_count += 1
 		except socket.error:
 			pass
 
 	def _send_acks(self):
 		'''send extents objects to acknowledge data'''
+		tnow = time.time()
+		deltat = tnow - self.last_recv_time
+		self.last_recv_time = tnow
 		if self.acks_needed and self.enable_debug:
-			self._debug("sending %u acks" % len(self.acks_needed))
+			print("sending %u acks deltat=%.2f" % (len(self.acks_needed), deltat))
 		acks_needed = self.acks_needed.copy()
 		for obj in acks_needed:
 			try:
@@ -395,6 +402,7 @@ class BlockSender:
 		if blk.callback:
 			blk.callback()
 		efficiency = blk.num_chunks / float(blk.sends)
+		#print("_complete_send: efficiency=%.2f sends=%u recvs=%u" % (efficiency, self.send_count, self.recv_count))
 		self.efficiency = 0.95 * self.efficiency + 0.05 * efficiency
 
 	def _check_incoming(self):
@@ -405,6 +413,7 @@ class BlockSender:
 			return False
 		if len(buf) == 0:
 			return False
+		self.recv_count += 1
 		if self.dest_ip is None:
 			if self.enable_debug:
 				self._debug('connection from %s' % str(fromaddr))
@@ -484,7 +493,7 @@ class BlockSender:
 					# we have an existing incoming object
 					blk.timestamp = obj.timestamp
 					self._add_chunk(blk, obj)
-					return
+					return True
 			# its a new block
 			self.incoming.append(BlockSenderBlock(obj.blockid, obj.size, obj.chunk_size, fromaddr, self.mss))
 			blk = self.incoming[-1]
@@ -508,6 +517,7 @@ class BlockSender:
 		for i in range(imax):
 			if self.incoming[i].complete():
 				blk = self.incoming.pop(i)
+				#print("available sends=%u recvs=%u" % (self.send_count, self.recv_count))
 				self.completed.append(blk.blockid)
 				while len(self.completed) > self.completed_len:
 					self.completed.pop(0)        
