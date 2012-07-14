@@ -90,6 +90,13 @@ struct rgb_image8 {
 };
 
 /*
+  half size colour 8 bit per channel YUV image
+ */
+struct yuv_image8 {
+	struct yuv data[HEIGHT/2][WIDTH/2];
+};
+
+/*
   full size colour 8 bit per channel RGB image
  */
 struct rgb_image8_full {
@@ -300,7 +307,7 @@ static void rebayer_1280_960_8(const struct rgb_image8_full *in, struct grey_ima
 }
 
 
-#define HISTOGRAM_BITS_PER_COLOR 3
+#define HISTOGRAM_BITS_PER_COLOR 4
 #define HISTOGRAM_BITS (3*HISTOGRAM_BITS_PER_COLOR)
 #define HISTOGRAM_BINS (1<<HISTOGRAM_BITS)
 #define HISTOGRAM_COUNT_THRESHOLD 50
@@ -311,7 +318,8 @@ struct histogram {
 
 
 #ifdef __ARM_NEON__
-static void NOINLINE get_min_max_neon(const struct rgb_image8 * __restrict in, 
+static void NOINLINE get_min_max_neon(const struct rgb * __restrict in, 
+				      uint32_t size,
 				      struct rgb *min, 
 				      struct rgb *max)
 {
@@ -323,8 +331,8 @@ static void NOINLINE get_min_max_neon(const struct rgb_image8 * __restrict in,
 	rmin = gmin = bmin = vdup_n_u8(255);
 	rmax = gmax = bmax = vdup_n_u8(0);
 
-	src = (const uint8_t *)&in->data[0][0];
-	for (i=0; i<(WIDTH/2)*(HEIGHT/2)/8; i++) {
+	src = (const uint8_t *)in;
+	for (i=0; i<size/8; i++) {
 		rgb = vld3_u8(src);
 		bmin = vmin_u8(bmin, rgb.val[0]);
 		bmax = vmax_u8(bmax, rgb.val[0]);
@@ -352,25 +360,24 @@ static void NOINLINE get_min_max_neon(const struct rgb_image8 * __restrict in,
   find the min and max of each color over an image. Used to find
   bounds of histogram bins
  */
-static void get_min_max(const struct rgb_image8 * __restrict in, 
+static void get_min_max(const struct rgb * __restrict in, 
+			uint32_t size,
 			struct rgb *min, 
 			struct rgb *max)
 {
-	unsigned x, y;
+	uint32_t i;
 
 	min->r = min->g = min->b = 255;
 	max->r = max->g = max->b = 0;
 
-	for (y=0; y<HEIGHT/2; y++) {
-		for (x=0; x<WIDTH/2; x++) {
-			const struct rgb *v = &in->data[y][x];
-			if (v->r < min->r) min->r = v->r;
-			if (v->g < min->g) min->g = v->g;
-			if (v->b < min->b) min->b = v->b;
-			if (v->r > max->r) max->r = v->r;
-			if (v->g > max->g) max->g = v->g;
-			if (v->b > max->b) max->b = v->b;
-		}
+	for (i=0; i<size; i++) {
+		const struct rgb *v = &in[i];
+		if (v->r < min->r) min->r = v->r;
+		if (v->g < min->g) min->g = v->g;
+		if (v->b < min->b) min->b = v->b;
+		if (v->r > max->r) max->r = v->r;
+		if (v->g > max->g) max->g = v->g;
+		if (v->b > max->b) max->b = v->b;
 	}	
 }
 
@@ -378,29 +385,34 @@ static void get_min_max(const struct rgb_image8 * __restrict in,
 /*
   quantise an RGB image
  */
-static void quantise_image(const struct rgb_image8 *in,
-			   struct rgb_image8 *out,
+static void quantise_image(const struct rgb *in,
+			   uint32_t size,
+			   struct rgb *out,
 			   const struct rgb *min, 
 			   const struct rgb *bin_spacing)
 {
 	unsigned i;
 	uint8_t btab[0x100], gtab[0x100], rtab[0x100];
-	const struct rgb *pin;
-	struct rgb *pout;
 
 	for (i=0; i<0x100; i++) {
 		btab[i] = (i - min->b) / bin_spacing->b;
 		gtab[i] = (i - min->g) / bin_spacing->g;
 		rtab[i] = (i - min->r) / bin_spacing->r;
+		if (btab[i] >= (1<<HISTOGRAM_BITS_PER_COLOR)) {
+			btab[i] = (1<<HISTOGRAM_BITS_PER_COLOR)-1;
+		}
+		if (gtab[i] >= (1<<HISTOGRAM_BITS_PER_COLOR)) {
+			gtab[i] = (1<<HISTOGRAM_BITS_PER_COLOR)-1;
+		}
+		if (rtab[i] >= (1<<HISTOGRAM_BITS_PER_COLOR)) {
+			rtab[i] = (1<<HISTOGRAM_BITS_PER_COLOR)-1;
+		}
 	}
 
-	pin = &in->data[0][0];
-	pout = &out->data[0][0];
-
-	for (i=0; i<(WIDTH/2)*(HEIGHT/2); i++) {
-		pout[i].b = btab[pin[i].b];
-		pout[i].g = gtab[pin[i].g];
-		pout[i].r = rtab[pin[i].r];
+	for (i=0; i<size; i++) {
+		out[i].b = btab[in[i].b];
+		out[i].g = gtab[in[i].g];
+		out[i].r = rtab[in[i].r];
 	}
 }
 
@@ -440,18 +452,27 @@ static inline uint16_t rgb_bin(const struct rgb *in)
 }
 
 /*
+  calculate a histogram bin for a yuv value
+ */
+static inline uint16_t yuv_bin(const struct yuv *in)
+{
+	return (in->u << (HISTOGRAM_BITS_PER_COLOR)) |
+		in->v;
+}
+
+/*
   build a histogram of an image
  */
-static void build_histogram(const struct rgb_image8 *in,
+static void build_histogram(const struct rgb *in,
+			    uint32_t size,
 			    struct histogram *out)
 {
 	unsigned i;
-	const struct rgb *pin = &in->data[0][0];
 
 	memset(out->count, 0, sizeof(out->count));
 
-	for (i=0; i<(WIDTH/2)*(HEIGHT/2); i++) {
-		uint16_t b = rgb_bin(&pin[i]);
+	for (i=0; i<size; i++) {
+		uint16_t b = rgb_bin(&in[i]);
 		out->count[b]++;
 	}	
 }
@@ -488,18 +509,21 @@ static void histogram_threshold(struct rgb_image8 *in,
   expensive to calculate, but also makes it much less susceptible to
   edge effects in the histogram
  */
-static void histogram_threshold_neighbours(const struct rgb_image8 *in,
-					   struct rgb_image8 *out,
+static void histogram_threshold_neighbours(const struct rgb *in,
+					   uint32_t size,
+					   struct rgb *out,
 					   const struct histogram *histogram,
 					   unsigned threshold)
 {
-	unsigned i;
-	const struct rgb *pin = &in->data[0][0];
-	struct rgb *pout = &out->data[0][0];
+	uint32_t i;
 
-	for (i=0; i<(WIDTH/2)*(HEIGHT/2); i++) {
-		struct rgb v = pin[i];
+	for (i=0; i<size; i++) {
+		struct rgb v = in[i];
 		int8_t rofs, gofs, bofs;
+
+		if (histogram->count[rgb_bin(&v)] > threshold) {
+			goto zero;
+		}
 
 		for (rofs=-1; rofs<= 1; rofs++) {
 			for (gofs=-1; gofs<= 1; gofs++) {
@@ -516,10 +540,55 @@ static void histogram_threshold_neighbours(const struct rgb_image8 *in,
 				}
 			}
 		}
-		pout[i] = pin[i];
+		out[i] = in[i];
 		continue;
 	zero:
-		pout[i].b = pout[i].g = pout[i].r = 0;
+		out[i].b = out[i].g = out[i].r = 0;
+	}	
+}
+
+
+/*
+  threshold an image by its histogram, Pixels that have a histogram
+  count of more than threshold are set to zero value. 
+
+  This also zeros pixels which have a directly neighboring colour
+  value which is above the threshold. That makes it much more
+  expensive to calculate, but also makes it much less susceptible to
+  edge effects in the histogram
+ */
+static void histogram_threshold_neighbours_yuv(const struct yuv *in,
+					       uint32_t size,
+					       struct yuv *out,
+					       const struct histogram *histogram,
+					       unsigned threshold)
+{
+	uint32_t i;
+
+	for (i=0; i<size; i++) {
+		struct yuv v = in[i];
+		int8_t uofs, vofs;
+
+		if (histogram->count[yuv_bin(&v)] > threshold) {
+			goto zero;
+		}
+
+		for (uofs=-1; uofs<= 1; vofs++) {
+			for (vofs=-1; vofs<= 1; vofs++) {
+				struct yuv v2 = { .y=0, .u=v.u+uofs, .v=v.v+vofs };
+				if (v2.u >= (1<<HISTOGRAM_BITS_PER_COLOR) ||
+				    v2.v >= (1<<HISTOGRAM_BITS_PER_COLOR)) {
+					continue;
+				}
+				if (histogram->count[yuv_bin(&v2)] > threshold) {
+					goto zero;
+				}
+			}
+		}
+		out[i] = in[i];
+		continue;
+	zero:
+		out[i].y = out[i].u = out[i].v = 0;
 	}	
 }
 
@@ -544,9 +613,177 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 #endif
 
 #ifdef __ARM_NEON__
-	get_min_max_neon(in, &min, &max);
+	get_min_max_neon(&in->data[0][0], (WIDTH/2)*(HEIGHT/2), &min, &max);
 #else
-	get_min_max(in, &min, &max);
+	get_min_max(&in->data[0][0], (WIDTH/2)*(HEIGHT/2), &min, &max);
+#endif
+
+#if 0
+	struct rgb min2, max2;
+	if (!rgb_equal(&min, &min2) ||
+	    !rgb_equal(&max, &max2)) {
+		printf("get_min_max_neon failure\n");
+	}
+#endif
+
+
+	bin_spacing.r = 1 + (max.r - min.r) / num_bins;
+	bin_spacing.g = 1 + (max.g - min.g) / num_bins;
+	bin_spacing.b = 1 + (max.b - min.b) / num_bins;
+
+#if 0
+	// try using same spacing on all axes
+	if (bin_spacing.r < bin_spacing.g) bin_spacing.r = bin_spacing.g;
+	if (bin_spacing.r < bin_spacing.b) bin_spacing.r = bin_spacing.b;
+	bin_spacing.g = bin_spacing.r;
+	bin_spacing.b = bin_spacing.b;
+#endif
+
+	quantise_image(&in->data[0][0], (WIDTH/2)*(HEIGHT/2), &quantised->data[0][0], &min, &bin_spacing);
+
+#if SAVE_INTERMEDIATE
+	unquantise_image(quantised, unquantised, &min, &bin_spacing);
+	colour_save_pnm("unquantised.pnm", unquantised);
+#endif
+
+	build_histogram(&quantised->data[0][0], (WIDTH/2)*(HEIGHT/2), histogram);
+
+#if SAVE_INTERMEDIATE
+	*qsaved = *quantised;
+	histogram_threshold(quantised, histogram, HISTOGRAM_COUNT_THRESHOLD);
+	unquantise_image(quantised, unquantised, &min, &bin_spacing);
+	colour_save_pnm("thresholded.pnm", unquantised);
+	*quantised = *qsaved;
+#endif
+
+
+	histogram_threshold_neighbours(&quantised->data[0][0], (WIDTH/2)*(HEIGHT/2), 
+				       &neighbours->data[0][0], histogram, HISTOGRAM_COUNT_THRESHOLD);
+#if SAVE_INTERMEDIATE
+	unquantise_image(neighbours, unquantised, &min, &bin_spacing);
+	colour_save_pnm("neighbours.pnm", unquantised);
+#endif
+
+	*out = *neighbours;
+
+	free(quantised);
+	free(neighbours);
+	free(histogram);
+#if SAVE_INTERMEDIATE
+	free(unquantised);
+	free(qsaved);
+#endif
+}
+
+
+static void colour_histogram_yuv(const struct rgb_image8 *in, struct rgb_image8 *out)
+{
+	struct rgb min, max;
+	struct rgb bin_spacing;
+	struct rgb_image8 *quantised, *neighbours;
+	struct histogram *histogram;
+	unsigned num_bins = (1<<HISTOGRAM_BITS_PER_COLOR);
+#if SAVE_INTERMEDIATE
+	struct rgb_image8 *qsaved;
+	struct rgb_image8 *unquantised;
+#endif
+
+	ALLOCATE(quantised);
+	ALLOCATE(neighbours);
+	ALLOCATE(histogram);
+#if SAVE_INTERMEDIATE
+	ALLOCATE(unquantised);
+	ALLOCATE(qsaved);
+#endif
+
+#ifdef __ARM_NEON__
+	get_min_max_neon(&in->data[0][0], (WIDTH/2)*(HEIGHT/2), &min, &max);
+#else
+	get_min_max(&in->data[0][0], (WIDTH/2)*(HEIGHT/2), &min, &max);
+#endif
+
+#if 0
+	struct rgb min2, max2;
+	if (!rgb_equal(&min, &min2) ||
+	    !rgb_equal(&max, &max2)) {
+		printf("get_min_max_neon failure\n");
+	}
+#endif
+
+
+	bin_spacing.r = 1 + (max.r - min.r) / num_bins;
+	bin_spacing.g = 1 + (max.g - min.g) / num_bins;
+	bin_spacing.b = 1 + (max.b - min.b) / num_bins;
+
+#if 0
+	// try using same spacing on all axes
+	if (bin_spacing.r < bin_spacing.g) bin_spacing.r = bin_spacing.g;
+	if (bin_spacing.r < bin_spacing.b) bin_spacing.r = bin_spacing.b;
+	bin_spacing.g = bin_spacing.r;
+	bin_spacing.b = bin_spacing.b;
+#endif
+
+	quantise_image(&in->data[0][0], (WIDTH/2)*(HEIGHT/2), &quantised->data[0][0], &min, &bin_spacing);
+
+#if SAVE_INTERMEDIATE
+	unquantise_image(quantised, unquantised, &min, &bin_spacing);
+	colour_save_pnm("unquantised.pnm", unquantised);
+#endif
+
+	build_histogram(&quantised->data[0][0], (WIDTH/2)*(HEIGHT/2), histogram);
+
+#if SAVE_INTERMEDIATE
+	*qsaved = *quantised;
+	histogram_threshold(quantised, histogram, HISTOGRAM_COUNT_THRESHOLD);
+	unquantise_image(quantised, unquantised, &min, &bin_spacing);
+	colour_save_pnm("thresholded.pnm", unquantised);
+	*quantised = *qsaved;
+#endif
+
+
+	histogram_threshold_neighbours_yuv(&quantised->data[0][0], (WIDTH/2)*(HEIGHT/2), 
+					   &neighbours->data[0][0], histogram, HISTOGRAM_COUNT_THRESHOLD);
+#if SAVE_INTERMEDIATE
+	unquantise_image(neighbours, unquantised, &min, &bin_spacing);
+	colour_save_pnm("neighbours.pnm", unquantised);
+#endif
+
+	*out = *neighbours;
+
+	free(quantised);
+	free(neighbours);
+	free(histogram);
+#if SAVE_INTERMEDIATE
+	free(unquantised);
+	free(qsaved);
+#endif
+}
+
+
+static void colour_histogram_full(const struct rgb_image8_full *in, struct rgb_image8_full *out)
+{
+	struct rgb min, max;
+	struct rgb bin_spacing;
+	struct rgb_image8_full *quantised, *neighbours;
+	struct histogram *histogram;
+	unsigned num_bins = (1<<HISTOGRAM_BITS_PER_COLOR);
+#if SAVE_INTERMEDIATE
+	struct rgb_image8_full *qsaved;
+	struct rgb_image8_full *unquantised;
+#endif
+
+	ALLOCATE(quantised);
+	ALLOCATE(neighbours);
+	ALLOCATE(histogram);
+#if SAVE_INTERMEDIATE
+	ALLOCATE(unquantised);
+	ALLOCATE(qsaved);
+#endif
+
+#ifdef __ARM_NEON__
+	get_min_max_neon(&in->data[0][0], WIDTH*HEIGHT, &min, &max);
+#else
+	get_min_max(&in->data[0][0], WIDTH*HEIGHT, &min, &max);
 #endif
 
 #if 0
@@ -571,14 +808,14 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 #endif
 
 
-	quantise_image(in, quantised, &min, &bin_spacing);
+	quantise_image(&in->data[0][0], WIDTH*HEIGHT, &quantised->data[0][0], &min, &bin_spacing);
 
 #if SAVE_INTERMEDIATE
-	unquantise_image(quantised, unquantised, &min, &bin_spacing);
+	unquantise_image_full(quantised, unquantised, &min, &bin_spacing);
 	colour_save_pnm("unquantised.pnm", unquantised);
 #endif
 
-	build_histogram(quantised, histogram);
+	build_histogram(&quantised->data[0][0], WIDTH*HEIGHT, histogram);
 
 #if SAVE_INTERMEDIATE
 	*qsaved = *quantised;
@@ -589,7 +826,8 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 #endif
 
 
-	histogram_threshold_neighbours(quantised, neighbours, histogram, HISTOGRAM_COUNT_THRESHOLD);
+	histogram_threshold_neighbours(&quantised->data[0][0], WIDTH*HEIGHT, 
+				       &neighbours->data[0][0], histogram, HISTOGRAM_COUNT_THRESHOLD);
 #if SAVE_INTERMEDIATE
 	unquantise_image(neighbours, unquantised, &min, &bin_spacing);
 	colour_save_pnm("neighbours.pnm", unquantised);
@@ -618,6 +856,16 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 struct regions {
 	unsigned num_regions;
 	int16_t data[HEIGHT/2][WIDTH/2];
+	uint16_t region_size[MAX_REGIONS];
+	struct {
+		uint16_t minx, miny;
+		uint16_t maxx, maxy;
+	} bounds[MAX_REGIONS];
+};
+
+struct regions_full {
+	unsigned num_regions;
+	int16_t data[HEIGHT][WIDTH];
 	uint16_t region_size[MAX_REGIONS];
 	struct {
 		uint16_t minx, miny;
@@ -713,10 +961,120 @@ static void assign_regions(const struct rgb_image8 *in, struct regions *out)
 	}	
 }
 
+
+/*
+  expand a region by looking for neighboring non-zero pixels
+ */
+static void expand_region_full(const struct rgb_image8_full *in, struct regions_full *out,
+			       unsigned y, unsigned x)
+{
+	int yofs, xofs;
+
+	for (yofs= y>0?-1:0; yofs <= (y<HEIGHT-1?1:0); yofs++) {
+		for (xofs= x>0?-1:0; xofs <= (x<WIDTH-1?1:0); xofs++) {
+			uint16_t r;
+
+			if (out->data[y+yofs][x+xofs] != REGION_UNKNOWN) {
+				continue;
+			}
+			if (is_zero_rgb(&in->data[y+yofs][x+xofs])) {
+				out->data[y+yofs][x+xofs] = REGION_NONE;
+				continue;
+			}
+			r = out->data[y][x];
+			out->data[y+yofs][x+xofs] = r;
+			out->region_size[r]++;
+			if (out->region_size[r] > MAX_REGION_SIZE) {
+				return;
+			}
+
+			out->bounds[r].minx = MIN(out->bounds[r].minx, x+xofs);
+			out->bounds[r].miny = MIN(out->bounds[r].miny, y+yofs);
+			out->bounds[r].maxx = MAX(out->bounds[r].maxx, x+xofs);
+			out->bounds[r].maxy = MAX(out->bounds[r].maxy, y+yofs);
+
+			expand_region_full(in, out, y+yofs, x+xofs);
+		}
+	}
+}
+
+/*
+  assign region numbers to contigouus regions of non-zero data in an
+  image
+ */
+static void assign_regions_full(const struct rgb_image8_full *in, struct regions_full *out)
+{
+	unsigned x, y;
+
+	memset(out, 0, sizeof(*out));
+	for (y=0; y<HEIGHT; y++) {
+		for (x=0; x<WIDTH; x++) {
+			out->data[y][x] = REGION_UNKNOWN;
+		}
+	}
+
+	for (y=0; y<HEIGHT; y++) {
+		for (x=0; x<WIDTH; x++) {
+			if (out->data[y][x] != REGION_UNKNOWN) {
+				/* already assigned a region */
+				continue;
+			}
+			if (is_zero_rgb(&in->data[y][x])) {
+				out->data[y][x] = REGION_NONE;
+				continue;
+			}
+
+			if (out->num_regions == MAX_REGIONS) {
+				return;
+			}
+
+			/* a new region */
+			unsigned r = out->num_regions;
+
+			out->data[y][x] = r;
+			out->region_size[r] = 1;
+			out->bounds[r].minx = x;
+			out->bounds[r].maxx = x;
+			out->bounds[r].miny = y;
+			out->bounds[r].maxy = y;
+
+			out->num_regions++;
+
+			expand_region_full(in, out, y, x);
+		}
+	}	
+}
+
 /*
   remove any too small or large regions
  */
 static void prune_regions(struct regions *in)
+{
+	unsigned i;
+	for (i=0; i<in->num_regions; i++) {
+		if (in->region_size[i] < MIN_REGION_SIZE ||
+		    in->region_size[i] > MAX_REGION_SIZE ||
+		    (in->bounds[i].maxx - in->bounds[i].minx) > MAX_REGION_SIZE_XY ||
+		    (in->bounds[i].maxx - in->bounds[i].minx) < MIN_REGION_SIZE_XY ||
+		    (in->bounds[i].maxy - in->bounds[i].miny) > MAX_REGION_SIZE_XY ||
+		    (in->bounds[i].maxy - in->bounds[i].miny) < MIN_REGION_SIZE_XY) {
+			memmove(&in->region_size[i], &in->region_size[i+1], 
+				sizeof(in->region_size[i])*(in->num_regions-(i+1)));
+			memmove(&in->bounds[i], &in->bounds[i+1], 
+				sizeof(in->bounds[i])*(in->num_regions-(i+1)));
+			if (in->num_regions > 0) {
+				in->num_regions--;
+			}
+			i--;
+		}
+		    
+	}
+}
+
+/*
+  remove any too small or large regions
+ */
+static void prune_regions_full(struct regions_full *in)
 {
 	unsigned i;
 	for (i=0; i<in->num_regions; i++) {
@@ -942,6 +1300,134 @@ scanner_scan(PyObject *self, PyObject *args)
 	ALLOCATE(himage);
 	ALLOCATE(jimage);
 	colour_histogram(in, himage);
+	assign_regions(himage, regions);
+	prune_regions(regions);
+
+#if SAVE_INTERMEDIATE
+	struct rgb_image8 *marked;
+	ALLOCATE(marked);
+	*marked = *in;
+	mark_regions(marked, regions);
+	colour_save_pnm("marked.pnm", marked);
+	free(marked);
+#endif
+
+	free(himage);
+	free(jimage);
+	Py_END_ALLOW_THREADS;
+
+	PyObject *list = PyList_New(regions->num_regions);
+	for (unsigned i=0; i<regions->num_regions; i++) {
+		PyObject *t = Py_BuildValue("(iiii)", 
+					    regions->bounds[i].minx,
+					    regions->bounds[i].miny,
+					    regions->bounds[i].maxx,
+					    regions->bounds[i].maxy);
+		PyList_SET_ITEM(list, i, t);
+	}
+
+	free(regions);
+
+	return list;
+}
+
+
+/*
+  scan an 1280x960 image for regions of interest and return the
+  markup as a set of tuples
+ */
+static PyObject *
+scanner_scan_full(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in;
+
+	if (!PyArg_ParseTuple(args, "O", &img_in))
+		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
+
+	if (PyArray_DIM(img_in, 1) != WIDTH ||
+	    PyArray_DIM(img_in, 0) != HEIGHT ||
+	    PyArray_STRIDE(img_in, 0) != 3*WIDTH) {
+		PyErr_SetString(ScannerError, "input must 1280x960 24 bit");		
+		return NULL;
+	}
+	
+	const struct rgb_image8_full *in = PyArray_DATA(img_in);
+
+	struct rgb_image8_full *himage, *jimage;
+	struct regions_full *regions;
+	
+	ALLOCATE(regions);
+
+	Py_BEGIN_ALLOW_THREADS;
+	ALLOCATE(himage);
+	ALLOCATE(jimage);
+	colour_histogram_full(in, himage);
+	assign_regions_full(himage, regions);
+	prune_regions_full(regions);
+
+#if SAVE_INTERMEDIATE
+	struct rgb_image8 *marked;
+	ALLOCATE(marked);
+	*marked = *in;
+	mark_regions(marked, regions);
+	colour_save_pnm("marked.pnm", marked);
+	free(marked);
+#endif
+
+	free(himage);
+	free(jimage);
+	Py_END_ALLOW_THREADS;
+
+	PyObject *list = PyList_New(regions->num_regions);
+	for (unsigned i=0; i<regions->num_regions; i++) {
+		PyObject *t = Py_BuildValue("(iiii)", 
+					    regions->bounds[i].minx,
+					    regions->bounds[i].miny,
+					    regions->bounds[i].maxx,
+					    regions->bounds[i].maxy);
+		PyList_SET_ITEM(list, i, t);
+	}
+
+	free(regions);
+
+	return list;
+}
+
+
+/*
+  scan a YUV image for regions of interest and return the
+  markup as a set of tuples
+ */
+static PyObject *
+scanner_scan_yuv(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in;
+
+	if (!PyArg_ParseTuple(args, "O", &img_in))
+		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
+
+	if (PyArray_DIM(img_in, 1) != WIDTH/2 ||
+	    PyArray_DIM(img_in, 0) != HEIGHT/2 ||
+	    PyArray_STRIDE(img_in, 0) != 3*(WIDTH/2)) {
+		PyErr_SetString(ScannerError, "input must 640x480 24 bit");		
+		return NULL;
+	}
+	
+	const struct yuv_image8 *in = PyArray_DATA(img_in);
+
+	struct yuv_image8 *himage, *jimage;
+	struct regions *regions;
+	
+	ALLOCATE(regions);
+
+	Py_BEGIN_ALLOW_THREADS;
+	ALLOCATE(himage);
+	ALLOCATE(jimage);
+	colour_histogram_yuv(in, himage);
 	assign_regions(himage, regions);
 	prune_regions(regions);
 
@@ -1374,6 +1860,7 @@ static PyMethodDef ScannerMethods[] = {
 	{"debayer_full", scanner_debayer_full, METH_VARARGS, "debayer of 1280x960 image to 1280x960 24 bit"},
 	{"rebayer_full", scanner_rebayer_full, METH_VARARGS, "rebayer of 1280x960 image"},
 	{"scan", scanner_scan, METH_VARARGS, "histogram scan a 640x480 colour image"},
+	{"scan_full", scanner_scan_full, METH_VARARGS, "histogram scan a 1280x960 colour image"},
 	{"jpeg_compress", scanner_jpeg_compress, METH_VARARGS, "compress a 640x480 colour image to a jpeg image as a python string"},
 	{"downsample", scanner_downsample, METH_VARARGS, "downsample a 1280x960 24 bit RGB colour image to 640x480"},
 	{"reduce_depth", scanner_reduce_depth, METH_VARARGS, "reduce greyscale bit depth from 16 bit to 8 bit"},
