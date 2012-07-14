@@ -15,10 +15,11 @@ from exceptions import Exception
 class CameraParams:
   # A default constructor based on sensor and lens specs only
   def __init__(self, lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960):
-    # self.sensorwidth = 5.0
     self.version = 0
-    self.xresolution = 1280
-    self.yresolution = 960
+    self.sensorwidth = sensorwidth
+    self.lens = lens
+    self.xresolution = xresolution
+    self.yresolution = yresolution
 
     # compute focal length in pixels
     f_p = xresolution * lens / sensorwidth
@@ -36,6 +37,8 @@ class CameraParams:
   def todict(self):
     data = {}
     data['version'] = self.version
+    data['lens'] = self.lens
+    data['sensorwidth'] = self.sensorwidth
     data['xresolution'] = self.xresolution
     data['yresolution'] = self.yresolution
     data['K'] = self.K.tolist()
@@ -45,6 +48,8 @@ class CameraParams:
   def fromdict(self, data):
     self.version = data['version']
     if self.version == 0:
+      self.lens = data['lens']
+      self.sensorwidth = data['sensorwidth']
       self.xresolution = data['xresolution']
       self.yresolution = data['yresolution']
       self.K = array(data['K'])

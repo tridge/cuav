@@ -31,6 +31,9 @@ class uavxfer:
   
   def setCameraParams(self, fu, fv, cu, cv):
     K  = array([[fu, 0.0, cu],[0.0, fv, cv],[0.0, 0.0, 1.0]])
+    self.setCameraMatrix(K)
+
+  def setCameraMatrix(self, K):
     K_i = linalg.inv(K)
     self.Tk = eye(4,4)
     self.Tk[:3,:3] = K;
