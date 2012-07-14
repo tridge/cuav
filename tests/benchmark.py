@@ -42,6 +42,42 @@ def process(filename):
   print('debayer_full: %.1f fps' % (opts.repeat/(t1-t0)))
 
   t0 = time.time()
+  im_full2 = cv.CreateImage((1280,960),8,3)
+  img_full_grey2 = cv.GetImage(cv.fromarray(img_full_grey)) 
+  for i in range(opts.repeat):
+      cv.CvtColor(img_full_grey2, im_full2, cv.CV_BayerBG2BGR)
+  t1 = time.time()
+  print('debayer_cv_full: %.1f fps' % (opts.repeat/(t1-t0)))
+
+  t0 = time.time()
+  for i in range(opts.repeat):
+      img = cv.GetImage(cv.fromarray(im_full))
+      cv.CvtColor(img, img, cv.CV_RGB2HSV)
+  t1 = time.time()
+  print('RGB2HSV_full: %.1f fps' % (opts.repeat/(t1-t0)))
+
+  t0 = time.time()
+  for i in range(opts.repeat):
+      img = cv.GetImage(cv.fromarray(im_640))
+      cv.CvtColor(img, img, cv.CV_RGB2HSV)
+  t1 = time.time()
+  print('RGB2HSV_640: %.1f fps' % (opts.repeat/(t1-t0)))
+
+  t0 = time.time()
+  for i in range(opts.repeat):
+      thumb = numpy.empty((100,100,3),dtype='uint8')
+      scanner.rect_extract(im_full, thumb, 120, 125)
+  t1 = time.time()
+  print('rect_extract: %.1f fps' % (opts.repeat/(t1-t0)))
+
+  t0 = time.time()
+  for i in range(opts.repeat):
+      thumb = cuav_util.SubImage(cv.GetImage(cv.fromarray(im_full)), (120,125,100,100))
+  t1 = time.time()
+  print('SubImage: %.1f fps' % (opts.repeat/(t1-t0)))
+
+
+  t0 = time.time()
   for i in range(opts.repeat):
     scanner.downsample(im_full, im_640)
   t1 = time.time()
