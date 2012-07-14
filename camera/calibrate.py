@@ -4,7 +4,7 @@
 import cv
 import os,sys,string
 from numpy import array,zeros
-from camera import CameraParams
+from cam_params import CameraParams
 
 dims=(10,7)
 

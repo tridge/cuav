@@ -8,8 +8,10 @@ May 2012
 import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
 import scanner
+from cam_params import CameraParams
 
 class MosaicRegion:
     def __init__(self, region, filename, pos, thumbnail, latlon=(None,None)):
@@ -87,7 +89,7 @@ def ExtractThumbs(img, count):
 class Mosaic():
     '''keep a mosaic of found regions'''
     def __init__(self, slipmap,
-                 grid_width=20, grid_height=20, thumb_size=30, lens=4.0):
+                 grid_width=20, grid_height=20, thumb_size=30, C=CameraParams()):
         self.thumb_size = thumb_size
         self.width = grid_width * thumb_size
         self.height = grid_height * thumb_size
@@ -99,7 +101,7 @@ class Mosaic():
         self.boundary = []
         self.displayed_image = None
         self.last_click_position = None
-        self.lens = lens
+        self.c_params = C
         import mp_image
         self.image_mosaic = mp_image.MPImage(title='Mosaic')
         self.slipmap = slipmap
@@ -182,7 +184,7 @@ class Mosaic():
         latlon = cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
                                              pos.pitch, pos.roll, pos.yaw,
                                              xresolution=w, yresolution=h,
-                                             lens=self.lens)
+                                             C=self.c_params)
         if latlon is None:
             print("Unable to find pixel coordinates")
             return
@@ -203,12 +205,16 @@ class Mosaic():
         the corner is not on the ground (it points at the sky)
         '''
         (w,h) = cuav_util.image_shape(img)
+        # scale to sensor dimensions
+        scale_x = float(self.c_params.xresolution)/float(w)
+        scale_y = float(self.c_params.yresolution)/float(h)
         latlon = []
         for (x,y) in [(0,0), (w-1,0), (w-1,h-1), (0,h-1)]:
+            x *=scale_x
+	    y *=scale_y
             latlon.append(cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
                                                       pos.pitch, pos.roll, pos.yaw,
-                                                      xresolution=w, yresolution=h,
-                                                      lens=self.lens))
+                                                      C=self.c_params))
         # make it a complete polygon by appending the first point
         latlon.append(latlon[0])
         return latlon
@@ -217,11 +223,14 @@ class Mosaic():
         '''return a (lat,lon) for the center of the image
         '''
         (w,h) = cuav_util.image_shape(img)
-        latlon = []
-        return cuav_util.pixel_coordinates(w/2, h/2, pos.lat, pos.lon, pos.altitude,
+        # scale to sensor dimensions
+        scale_x = float(self.c_params.xresolution)/float(w)
+        scale_y = float(self.c_params.yresolution)/float(h)
+        x = scale_x*w
+        y = scale_y*h
+        return cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
                                            pos.pitch, pos.roll, pos.yaw,
-                                           xresolution=w, yresolution=h,
-                                           lens=self.lens)
+                                           C=self.c_params)
 
     def image_area(self, corners):
         '''return approximage area of an image delimited by the 4 corners

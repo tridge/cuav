@@ -6,7 +6,9 @@ import numpy, sys, time, os
 from matplotlib import pyplot
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
 import cuav_util
+import cam_params
 
 from optparse import OptionParser
 parser = OptionParser("test_projection.py [options]")
@@ -44,12 +46,14 @@ def plot_point(x, y):
     '''add one point'''
     global total_time, count, minx, maxx, miny, maxy
     t0 = time.time()
+    C_params = cam_params.CameraParams(lens=opts.lens,
+                            xresolution=opts.xres,
+                            yresolution=opts.yres)
+
     ofs = cuav_util.pixel_position(x, y,
                                    opts.altitude,
                                    opts.pitch, opts.roll, opts.yaw,
-                                   opts.lens,
-                                   xresolution=opts.xres, 
-                                   yresolution=opts.yres)
+                                   C_params)
     if ofs is None:
         includes_sky = True
         return

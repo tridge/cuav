@@ -5,6 +5,9 @@ import numpy, cv, math, sys, os, time, rotmat, cStringIO, cPickle, struct
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'uav'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
+
+from cam_params import CameraParams
 
 radius_of_earth = 6378100.0 # in meters
 
@@ -253,8 +256,7 @@ def pixel_position_old(xpos, ypos, height, pitch, roll, yaw,
 
     return (xcenter+x, ycenter+y)
 
-def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw,
-                        lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960):
+def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C):
     '''
     find the offset on the ground in meters of a pixel in a ground image
     given height above the ground in meters, and pitch/roll/yaw in degrees, the
@@ -266,9 +268,6 @@ def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw,
     The yaw is from grid north. Positive yaw is clockwise
     The roll is from horiznotal. Positive roll is down on the right
     The pitch is from horiznotal. Positive pitch is up in the front
-    lens is in mm
-    sensorwidth is in mm
-    xresolution and yresolution is in pixels
     
     return result is a tuple, with meters east and north of current GPS position
 
@@ -281,7 +280,7 @@ def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw,
     f_p = xresolution * lens / sensorwidth
   
     xfer = uavxfer()
-    xfer.setCameraParams(f_p, f_p, xresolution/2, yresolution/2)
+    xfer.setCameraMatrix(C.K)
     xfer.setCameraOrientation( 0.0, 0.0, pi/2 )
     xfer.setFlatEarth(0);
     xfer.setPlatformPose(0, 0, -height, math.radians(roll), math.radians(pitch), math.radians(yaw))
@@ -300,8 +299,7 @@ def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw,
     return (joe_w[1], joe_w[0])
 
 
-def pixel_position(xpos, ypos, height, pitch, roll, yaw,
-                   lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960):
+def pixel_position(xpos, ypos, height, pitch, roll, yaw, C):
     '''
     find the offset on the ground in meters of a pixel in a ground image
     given height above the ground in meters, and pitch/roll/yaw in degrees, the
@@ -325,7 +323,7 @@ def pixel_position(xpos, ypos, height, pitch, roll, yaw,
     from math import radians
     
     # get pixel sizes in meters, this assumes we are pointing straight down with square pixels
-    pw = pixel_width(height, xresolution=xresolution, lens=lens, sensorwidth=sensorwidth)
+    pw = pixel_width(height, xresolution=C.xresolution, lens=C.lens, sensorwidth=C.sensorwidth)
 
     # ground plane
     ground_plane = Plane()
@@ -335,8 +333,8 @@ def pixel_position(xpos, ypos, height, pitch, roll, yaw,
     camera_point = Vector3(0, 0, -height)
 
     # get position on ground relative to camera assuming camera is pointing straight down
-    ground_point = Vector3(-pw * (ypos - (yresolution/2)),
-			   pw * (xpos - (xresolution/2)),
+    ground_point = Vector3(-pw * (ypos - (C.yresolution/2)),
+			   pw * (xpos - (C.xresolution/2)),
 			   height)
     
     # form a rotation matrix from our current attitude
@@ -357,8 +355,7 @@ def pixel_position(xpos, ypos, height, pitch, roll, yaw,
     return (pt.y, pt.x)
 
 
-def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
-                      lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960):
+def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw, C):
     '''
     find the latitude/longitude of a pixel in a ground image given
     our GPS position, our height above the ground in meters, and pitch/roll/yaw in degrees,
@@ -370,11 +367,8 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     The height is in meters
     
     The yaw is from grid north. Positive yaw is clockwise
-    The roll is from horiznotal. Positive roll is down on the right
-    The pitch is from horiznotal. Positive pitch is up in the front
-    lens is in mm
-    sensorwidth is in mm
-    xresolution and yresolution is in pixels
+    The roll is from horizontal. Positive roll is down on the right
+    The pitch is from horizontal. Positive pitch is up in the front
     
     return result is a tuple, with meters east and north of current GPS position
 
@@ -382,9 +376,7 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     '''
 
     
-    pt = pixel_position(xpos, ypos, height, pitch, roll, yaw,
-			lens=lens, sensorwidth=sensorwidth,
-			xresolution=xresolution, yresolution=yresolution)
+    pt = pixel_position(xpos, ypos, height, pitch, roll, yaw, C)
     if pt is None:
 	    # its pointing into the sky
 	    return None
@@ -394,18 +386,23 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     distance = math.sqrt(xofs**2 + yofs**2)
     return gps_newpos(latitude, longitude, bearing, distance)
 
+def gps_position_from_image_region(region, pos, width=640, height=480, C=CameraParams()):
+    '''
+    return a GPS position in an image given a MavPosition object
+    and an image region tuple
+    '''
+    if pos is None:
+        return None
 
-def gps_position_from_image_region(region, pos, width=640, height=480, lens=4.0):
-	'''return a GPS position in an image given a MavPosition object
-	and an image region tuple'''
-	if pos is None:
-		return None
-	x = (region.x1+region.x2)*0.5
-	y = (region.y1+region.y2)*0.5
-	return pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
-				 pos.pitch, pos.roll, pos.yaw,
-				 xresolution=width, yresolution=height,
-				 lens=lens)
+    x = (region.x1+region.x2)*0.5
+    y = (region.y1+region.y2)*0.5
+    # assume the image came from the same camera but may no longer be original size
+    scale_x = float(C.xresolution)/float(width)
+    scale_y = float(C.yresolution)/float(height)
+    x *= scale_x
+    y *= scale_y
+    return pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
+                             pos.pitch, pos.roll, pos.yaw, C)
 
 def mkdir_p(dir):
     '''like mkdir -p'''
