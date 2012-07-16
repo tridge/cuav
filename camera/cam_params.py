@@ -25,7 +25,7 @@ class CameraParams:
     f_p = xresolution * lens / sensorwidth
 
     self.K = array([[f_p, 0.0, xresolution/2],[0.0, f_p, yresolution/2], [0.0,0.0,1.0]])
-    self.D = array([0.0, 0.0, 0.0, 0.0, 0.0])
+    self.D = array([[0.0, 0.0, 0.0, 0.0, 0.0]])
 
   def __repr__(self):
       return json.dumps(self.todict(),indent=2)

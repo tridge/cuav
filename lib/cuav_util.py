@@ -276,18 +276,27 @@ def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C):
     from uav import uavxfer
     from math import pi
   
-    # compute focal length in pixels
-    f_p = xresolution * lens / sensorwidth
-  
     xfer = uavxfer()
     xfer.setCameraMatrix(C.K)
     xfer.setCameraOrientation( 0.0, 0.0, pi/2 )
     xfer.setFlatEarth(0);
     xfer.setPlatformPose(0, 0, -height, math.radians(roll), math.radians(pitch), math.radians(yaw))
-  
+
+    # compute the undistorted points for the ideal camera matrix
+    src = cv.CreateMat(1, 1, cv.CV_64FC2)
+    src[0,0] = (xpos, ypos)
+    dst = cv.CreateMat(1, 1, cv.CV_64FC2)
+    K = cv.fromarray(C.K)
+    print C.K
+    D = cv.fromarray(C.D)
+    print C.D
+    cv.UndistortPoints(src, dst, K, D)
+    x = dst[0,0][0]
+    y = dst[0,0][1]
+    print '(', xpos,',', ypos,') -> (', x, ',', y, ')'
     # negative scale means camera pointing above horizon
     # large scale means a long way away also unreliable
-    (joe_w, scale) = xfer.imageToWorld(xpos, ypos)
+    (joe_w, scale) = xfer.imageToWorld(x, y)
     if (scale < 0 or scale > 500):
       return None
 
