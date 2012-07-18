@@ -5,7 +5,7 @@ import numpy, os, time, cv, sys, math, sys, glob
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util, cuav_mosaic, mav_position, chameleon, cuav_joe, mp_slipmap, mp_image, cuav_region
+import scanner, cuav_util, cuav_mosaic, mav_position, chameleon, cuav_joe, mp_slipmap, mp_image, cuav_region, cam_params
 
 from optparse import OptionParser
 parser = OptionParser("scantest.py [options] <directory>")
@@ -69,7 +69,8 @@ def process(args):
     slipmap.add_object(mp_slipmap.SlipIcon('plane', (0,0), icon, layer=3, rotation=0,
                                            follow=True,
                                            trail=mp_slipmap.SlipTrail()))
-    mosaic = cuav_mosaic.Mosaic(slipmap, lens=opts.lens)
+    C_params = cam_params.CameraParams(lens=opts.lens)
+    mosaic = cuav_mosaic.Mosaic(slipmap, C=C_params)
     if boundary is not None:
       mosaic.set_boundary(boundary)
 
