@@ -85,6 +85,30 @@ def calibrate(imagedir):
   C.setParams(K, D)
   C.save(imagedir+"/params.json")
 
+# distort a single point
+def distort(K, D, p):
+  u = p[0]
+  v = p[1]
+  d = D.flatten()
+  x = (u - K[0,2])/K[0,0]
+  y = (v - K[1,2])/K[1,1]
+  print 'x,y', x,y
+  x2 = x**2
+  y2 = y**2
+  r2 = x2 + y2
+  r4 = r2*r2
+  r6 = r2*r4
+  radial = (1.0 + d[0]*r2 + d[1]*r4 + d[4]*r6)
+  tanx = 2.0*d[2]*x*y + d[3]*(r2 + 2.0*x2)
+  tany = d[2]*(r2 + 2.0*y2) + 2.0*d[3]*x*y
+
+  x_ = x*radial + tanx
+  y_ = y*radial + tany
+
+  u_ = x_*K[0,0] + K[0,2]
+  v_ = y_*K[1,1] + K[1,2]
+  return (u_, v_)
+
 def dewarp(imagedir):
   # Loading from json file
   C = CameraParams()
