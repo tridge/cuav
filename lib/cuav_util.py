@@ -384,7 +384,7 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     '''
 
     
-    pt = pixel_position(xpos, ypos, height, pitch, roll, yaw, C)
+    pt = pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C)
     if pt is None:
 	    # its pointing into the sky
 	    return None

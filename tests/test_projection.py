@@ -21,6 +21,7 @@ parser.add_option("--xres", type='int', default=640, help="X resolution")
 parser.add_option("--yres", type='int', default=480, help="Y resolution")
 parser.add_option("--step", type='int', default=16, help="display grid resolution")
 parser.add_option("--border", type='int', default=200, help="border size")
+parser.add_option("--cam-params", default=None, help="camera parameters file")
 (opts, args) = parser.parse_args()
 
 
@@ -42,18 +43,21 @@ includes_sky = False
 
 print("Roll=%.1f Pitch=%.1f Yaw=%.1f Altitude=%.1f" % (opts.roll, opts.pitch, opts.yaw, opts.altitude))
 
+C_params = cam_params.CameraParams(lens=opts.lens,
+                                   xresolution=opts.xres,
+                                   yresolution=opts.yres)
+if opts.cam_params:
+    C_params.load(opts.cam_params)
+
 def plot_point(x, y):
     '''add one point'''
-    global total_time, count, minx, maxx, miny, maxy
+    global total_time, count, minx, maxx, miny, maxy, C_params
     t0 = time.time()
-    C_params = cam_params.CameraParams(lens=opts.lens,
-                            xresolution=opts.xres,
-                            yresolution=opts.yres)
 
-    ofs = cuav_util.pixel_position(x, y,
-                                   opts.altitude,
-                                   opts.pitch, opts.roll, opts.yaw,
-                                   C_params)
+    ofs = cuav_util.pixel_position_matt(x, y,
+                                        opts.altitude,
+                                        opts.pitch, opts.roll, opts.yaw,
+                                        C_params)
     if ofs is None:
         includes_sky = True
         return
