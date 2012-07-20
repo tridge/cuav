@@ -3,7 +3,7 @@
 
 import cv
 import os,sys,string
-from numpy import array,zeros
+from numpy import array, zeros, ones
 from cam_params import CameraParams
 
 dims=(10,7)
@@ -108,6 +108,26 @@ def distort(K, D, p):
   u_ = x_*K[0,0] + K[0,2]
   v_ = y_*K[1,1] + K[1,2]
   return (u_, v_)
+
+def genReversMaps(K, D, C):
+  map_u = -9999*ones(C.yresolution, C.xresolution, dtype=int)
+  map_v = -9999*ones(C.yresolution, C.xresolution, dtype=int)
+
+  # fill what we can by forward lookup
+  for v in range(0, C.yresolution):
+    for u in range(0, C.xresolution):
+      if (map_u[int(v_), int(u_)] == -9999):
+        (u_,v_) = distort(u, v)
+        map_u[int(v_), int(u_)] = u
+        map_v[int(v_), int(u_)] = v
+
+  #something like
+  #for v_ in range(0, C.yresolution):
+  #  for u_ in range(0, C.xresolution):
+  #    if (map_u[int(v_), int(u_)] == -9999):
+  #      (u, v) = solve((u_, v_), distort)
+  #      map_u[int(v_), int(u_)] = u
+  #      map_v[int(v_), int(u_)] = v
 
 def dewarp(imagedir):
   # Loading from json file
