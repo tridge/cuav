@@ -272,7 +272,7 @@ def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C):
     return result is a tuple, with meters east and north of current GPS position
 
     '''
-    from numpy import array
+    from numpy import array,eye
     from uav import uavxfer
     from math import pi
   
@@ -286,14 +286,13 @@ def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C):
     src = cv.CreateMat(1, 1, cv.CV_64FC2)
     src[0,0] = (xpos, ypos)
     dst = cv.CreateMat(1, 1, cv.CV_64FC2)
+    R = cv.fromarray(eye(3))
     K = cv.fromarray(C.K)
-    print C.K
     D = cv.fromarray(C.D)
-    print C.D
-    cv.UndistortPoints(src, dst, K, D)
+    cv.UndistortPoints(src, dst, K, D, R, K)
     x = dst[0,0][0]
     y = dst[0,0][1]
-    print '(', xpos,',', ypos,') -> (', x, ',', y, ')'
+    #print '(', xpos,',', ypos,') -> (', x, ',', y, ')'
     # negative scale means camera pointing above horizon
     # large scale means a long way away also unreliable
     (joe_w, scale) = xfer.imageToWorld(x, y)
