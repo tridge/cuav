@@ -217,7 +217,7 @@ class MavInterpolator():
 		return self.boot_offset + sec		
 			
     
-	def position(self, t, max_deltat=0,roll=None):
+	def position(self, t, max_deltat=0,roll=None, maxroll=45):
 		'''return a MavPosition estimate given a time'''
 		self.advance_log(t)
 			
@@ -243,8 +243,16 @@ class MavInterpolator():
 		altitude = self._altitude(scaled_pressure)
 
 		# and attitude
+		mavroll  = math.degrees(self.interpolate_angle('ATTITUDE', 'roll', t, max_deltat))
 		if roll is None:
-			roll  = math.degrees(self.interpolate_angle('ATTITUDE', 'roll', t, max_deltat))
+			roll = mavroll
+		elif abs(mavroll) < maxroll:
+			roll = 0
+		elif mavroll > 45:
+			roll = mavroll - maxroll
+		else:
+			roll = mavroll + maxroll
+			
 		pitch = math.degrees(self.interpolate_angle('ATTITUDE', 'pitch', t, max_deltat))
 		yaw   = math.degrees(self.interpolate_angle('ATTITUDE', 'yaw', t, max_deltat))
 
