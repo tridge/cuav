@@ -75,14 +75,14 @@ def plot_point(x, y):
         color = 'ro'
     pyplot.plot(ofs_x, ofs_y, color)
 
-for x in range(opts.xres):
+for x in range(C_params.xresolution):
     plot_point(x, 0)
-    plot_point(x, opts.yres/2)
-    plot_point(x, opts.yres-1)
-for y in range(opts.yres):
+    plot_point(x, C_params.yresolution/2)
+    plot_point(x, C_params.yresolution-1)
+for y in range(C_params.yresolution):
     plot_point(0, y)
-    plot_point(opts.xres/2, y)
-    plot_point(opts.xres-1, y)
+    plot_point(C_params.xresolution/2, y)
+    plot_point(C_params.xresolution-1, y)
         
 if includes_sky:
     print("Projection includes sky")
