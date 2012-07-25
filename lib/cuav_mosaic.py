@@ -14,12 +14,13 @@ import scanner
 from cam_params import CameraParams
 
 class MosaicRegion:
-    def __init__(self, region, filename, pos, thumbnail, latlon=(None,None)):
+    def __init__(self, region, filename, pos, full_thumbnail, small_thumbnail, latlon=(None,None)):
         # self.region is a (minx,miny,maxy,maxy) rectange in image coordinates
         self.region = region
         self.filename = filename
         self.pos = pos
-        self.thumbnail = thumbnail
+        self.full_thumbnail = full_thumbnail
+        self.small_thumbnail = small_thumbnail
         self.latlon = latlon
 
     def __str__(self):
@@ -94,19 +95,36 @@ class Mosaic():
         self.width = grid_width * thumb_size
         self.height = grid_height * thumb_size
         self.mosaic = cv.CreateImage((self.height,self.width),8,3)
+        cuav_util.zero_image(self.mosaic)
         self.display_regions = grid_width*grid_height
         self.regions = []
+        self.page = 0
         self.images = []
         self.full_res = False
         self.boundary = []
         self.displayed_image = None
         self.last_click_position = None
         self.c_params = C
-        import mp_image
-        self.image_mosaic = mp_image.MPImage(title='Mosaic')
+        import mp_image, wx
+        self.image_mosaic = mp_image.MPImage(title='Mosaic', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
         self.slipmap = slipmap
 
         self.slipmap.add_callback(functools.partial(self.map_callback))
+
+
+    def show_region(self, ridx):
+        '''display a region on the map'''
+        region = self.regions[ridx]
+        thumbnail = cv.CloneImage(region.full_thumbnail)
+        # slipmap wants it as RGB
+        import mp_slipmap
+        cv.CvtColor(thumbnail, thumbnail, cv.CV_BGR2RGB)
+        thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
+        self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
+        self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
+        region_text = "Selected region %u score=%u\n%s\n%s" % (ridx, region.region.score,
+                                                               str(region.latlon), os.path.basename(region.filename))
+        self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
 
     def map_callback(self, event):
         '''called when an event happens on the slipmap'''
@@ -127,18 +145,7 @@ class Mosaic():
         if ridx < 0 or ridx >= len(self.regions):
             print("Invalid region %u selected" % ridx)
             return
-
-        region = self.regions[ridx]
-        thumbnail = cv.CloneImage(region.thumbnail)
-        # slipmap wants it as RGB
-        import mp_slipmap
-        cv.CvtColor(thumbnail, thumbnail, cv.CV_BGR2RGB)
-        thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
-        self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
-        self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
-        region_text = "Selected region %u score=%u\n%s\n%s" % (ridx, region.region.score,
-                                                               str(region.latlon), os.path.basename(region.filename))
-        self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
+        self.show_region(ridx)
             
 
     def set_boundary(self, boundary):
@@ -150,105 +157,56 @@ class Mosaic():
         self.slipmap.add_object(mp_slipmap.SlipPolygon('boundary', self.boundary, layer=1, linewidth=2, colour=(0,255,0)))
 
 
-    def display_region_image(self, region):
-        '''display the thumbnail associated with a region'''
-        print('-> %s' % str(region))
-        img = cv.fromarray(region.thumbnail)
-
-    def mouse_event(self, event, x, y, flags, data):
+    def mouse_event(self, event):
         '''called on mouse events'''
-        if flags & cv.CV_EVENT_FLAG_RBUTTON:
-            self.full_res = not self.full_res
-            print("full_res: %s" % self.full_res)
-        if not (flags & cv.CV_EVENT_FLAG_LBUTTON):
-            return
         # work out which region they want, taking into account wrap
-        idx = (x/self.thumb_size) + (self.width/self.thumb_size)*(y/self.thumb_size)
-        if idx >= len(self.regions):
+        x = event.X
+        y = event.Y
+        page_idx = (x/self.thumb_size) + (self.width/self.thumb_size)*(y/self.thumb_size)
+        ridx = page_idx + self.page * self.display_regions
+        if ridx >= len(self.regions):
             return
-        first = (len(self.regions)/self.display_regions) * self.display_regions
-        idx += first
-        if idx >= len(self.regions):
-            idx -= self.display_regions
-        region = self.regions[idx]
+        self.show_region(ridx)
+        region = self.regions[ridx]
+        if region.latlon != (None,None):
+            import mp_slipmap
+            self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
 
-        self.display_region_image(region)
+    def key_event(self, event):
+        '''called on key events'''
+        last_page = self.page
+        if event.KeyCode == ord('N'):
+            self.page += 1
+        if event.KeyCode == ord('P'):
+            self.page -= 1
+        if self.page < 0:
+            self.page = 0
+        if self.page > len(self.regions) / self.display_regions:
+            self.page = len(self.regions) / self.display_regions
+        if last_page != self.page:
+            print("Page %u" % self.page)
+            self.redisplay_mosaic()
 
-    def mouse_event_image(self, event, x, y, flags, data):
-        '''called on mouse events on a displayed image'''
-        if not (flags & cv.CV_EVENT_FLAG_LBUTTON):
+    def display_mosaic_region(self, ridx):
+        '''display a thumbnail on the mosaic'''
+        region = self.regions[ridx]
+        page_idx = ridx - self.page * self.display_regions
+        if page_idx < 0 or page_idx >= self.display_regions:
+            # its not on this page
             return
-        img = self.displayed_image
-        if img is None or img.pos is None:
-            return
-        pos = img.pos
-        (w,h) = cuav_util.image_shape(img.img)
-        latlon = cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
-                                             pos.pitch, pos.roll, pos.yaw,
-                                             xresolution=w, yresolution=h,
-                                             C=self.c_params)
-        if latlon is None:
-            print("Unable to find pixel coordinates")
-            return
-        (lat,lon) = latlon
-        print("=> %s %f %f %s" % (img.filename, lat, lon, str(pos)))
-        if self.last_click_position:
-            (last_lat, last_lon) = self.last_click_position
-            print("distance from last click: %.1f m" % (cuav_util.gps_distance(lat, lon, last_lat, last_lon)))
-        self.last_click_position = (lat,lon)
+        dest_x = (page_idx * self.thumb_size) % self.width
+        dest_y = ((page_idx * self.thumb_size) / self.width) * self.thumb_size
 
+        # overlay thumbnail on mosaic
+        cuav_util.OverlayImage(self.mosaic, region.small_thumbnail, dest_x, dest_y)
 
-    def image_boundary(self, img, pos):
-        '''return a set of 4 (lat,lon) coordinates for the 4 corners
-        of an image in the order
-        (left,top), (right,top), (right,bottom), (left,bottom)
-
-        Note that one or more of the corners may return as None if
-        the corner is not on the ground (it points at the sky)
-        '''
-        (w,h) = cuav_util.image_shape(img)
-        # scale to sensor dimensions
-        scale_x = float(self.c_params.xresolution)/float(w)
-        scale_y = float(self.c_params.yresolution)/float(h)
-        latlon = []
-        for (x,y) in [(0,0), (w-1,0), (w-1,h-1), (0,h-1)]:
-            x *=scale_x
-	    y *=scale_y
-            latlon.append(cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
-                                                      pos.pitch, pos.roll, pos.yaw,
-                                                      C=self.c_params))
-        # make it a complete polygon by appending the first point
-        latlon.append(latlon[0])
-        return latlon
-
-    def image_center(self, img, pos):
-        '''return a (lat,lon) for the center of the image
-        '''
-        (w,h) = cuav_util.image_shape(img)
-        # scale to sensor dimensions
-        scale_x = float(self.c_params.xresolution)/float(w)
-        scale_y = float(self.c_params.yresolution)/float(h)
-        x = scale_x*w
-        y = scale_y*h
-        return cuav_util.pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
-                                           pos.pitch, pos.roll, pos.yaw,
-                                           C=self.c_params)
-
-    def image_area(self, corners):
-        '''return approximage area of an image delimited by the 4 corners
-        use the min and max coordinates, thus giving a overestimate
-        '''
-        minx = corners[0][0]
-        maxx = corners[0][0]
-        miny = corners[0][1]
-        maxy = corners[0][1]
-        for (x,y) in corners:
-            minx = min(minx, x)
-            miny = min(miny, y)
-            maxx = max(maxx, x)
-            maxy = max(maxy, y)
-        return (maxy-miny)*(maxx-minx)
-
+    def redisplay_mosaic(self):
+        '''re-display whole mosaic page'''
+        self.mosaic = cv.CreateImage((self.height,self.width),8,3)
+        cuav_util.zero_image(self.mosaic)
+        for ridx in range(len(self.regions)):
+            self.display_mosaic_region(ridx)
+        self.image_mosaic.set_image(self.mosaic, bgr=True)
 
     def add_regions(self, regions, thumbs, filename, pos=None):
         '''add some regions'''
@@ -275,17 +233,10 @@ class Mosaic():
                                                     self.thumb_size,
                                                     self.thumb_size))
 
-            idx = len(self.regions) % self.display_regions
-
-            dest_x = (idx * self.thumb_size) % self.width
-            dest_y = ((idx * self.thumb_size) / self.width) * self.thumb_size
-
-            # overlay thumbnail on mosaic
-            cuav_util.OverlayImage(self.mosaic, thumb, dest_x, dest_y)
-
-            # use the index into self.regions[] as the key for thumbnails
-            # displayed on the map
             ridx = len(self.regions)
+            self.regions.append(MosaicRegion(r, filename, pos, thumbs[i], thumb, latlon=(lat, lon)))
+
+            self.display_mosaic_region(ridx)
 
             if (lat,lon) != (None,None):
                 import mp_slipmap
@@ -293,7 +244,16 @@ class Mosaic():
                                                                  img=thumb,
                                                                  layer=2, border_width=1, border_colour=(255,0,0)))
 
-            self.regions.append(MosaicRegion(r, filename, pos, thumbs[i], latlon=(lat, lon)))
-
         self.image_mosaic.set_image(self.mosaic, bgr=True)
-#      cv.SetMouseCallback('Mosaic', self.mouse_event, self)
+
+
+    def check_events(self):
+        '''check for mouse/keyboard events'''
+        if not self.image_mosaic.is_alive():
+            return
+        for event in self.image_mosaic.events():
+            if event.ClassName == 'wxMouseEvent':
+                self.mouse_event(event)
+            if event.ClassName == 'wxKeyEvent':
+                self.key_event(event)
+        

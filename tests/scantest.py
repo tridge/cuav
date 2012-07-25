@@ -109,6 +109,7 @@ def process(args):
     # check for any events from the map
     if opts.mosaic:
       slipmap.check_events()
+      mosaic.check_events()
 
     if f.endswith('.pgm'):
       pgm = cuav_util.PGM(f)

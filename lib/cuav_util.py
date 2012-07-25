@@ -717,3 +717,7 @@ def SaturateImage(img, scale=2, brightness=2):
 
 
 
+def zero_image(img):
+	'''zero an image'''
+        cv.ConvertScale(img, img, scale=0)
+
