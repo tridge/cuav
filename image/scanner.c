@@ -410,9 +410,17 @@ static void quantise_image(const struct rgb *in,
 	}
 
 	for (i=0; i<size; i++) {
-		out[i].b = btab[in[i].b];
-		out[i].g = gtab[in[i].g];
-		out[i].r = rtab[in[i].r];
+		if (in[i].b > in[i].r+5 && 
+		    in[i].b > in[i].g+5) {
+			// special case for blue pixels
+			out[i].b = (1<<HISTOGRAM_BITS_PER_COLOR)-1;
+			out[i].g = 0;
+			out[i].r = 0;
+		} else {
+			out[i].b = btab[in[i].b];
+			out[i].g = gtab[in[i].g];
+			out[i].r = rtab[in[i].r];
+		}
 	}
 }
 
