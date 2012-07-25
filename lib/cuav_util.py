@@ -394,16 +394,13 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     distance = math.sqrt(xofs**2 + yofs**2)
     return gps_newpos(latitude, longitude, bearing, distance)
 
-def gps_position_from_image_region(region, pos, width=640, height=480, C=CameraParams()):
+def gps_position_from_xy(x, y, pos, width=640, height=480, C=CameraParams()):
     '''
     return a GPS position in an image given a MavPosition object
-    and an image region tuple
+    and an image x,y position
     '''
     if pos is None:
         return None
-
-    x = (region.x1+region.x2)*0.5
-    y = (region.y1+region.y2)*0.5
     # assume the image came from the same camera but may no longer be original size
     scale_x = float(C.xresolution)/float(width)
     scale_y = float(C.yresolution)/float(height)
@@ -411,6 +408,17 @@ def gps_position_from_image_region(region, pos, width=640, height=480, C=CameraP
     y *= scale_y
     return pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
                              pos.pitch, pos.roll, pos.yaw, C)
+
+def gps_position_from_image_region(region, pos, width=640, height=480, C=CameraParams()):
+    '''
+    return a GPS position in an image given a MavPosition object
+    and an image region tuple
+    '''
+    if pos is None:
+        return None
+    x = (region.x1+region.x2)*0.5
+    y = (region.y1+region.y2)*0.5
+    return gps_position_from_xy(x, y, pos, width=width, height=height, C=C)
 
 def mkdir_p(dir):
     '''like mkdir -p'''

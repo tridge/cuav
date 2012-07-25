@@ -214,7 +214,11 @@ class MavInterpolator():
 		sec = usec*1.0e-6
 		if self.boot_offset == 0:
 			return gps_raw._timestamp
-		return self.boot_offset + sec		
+		ret = self.boot_offset + sec
+		# limit lag to 1.5 seconds
+		if abs(ret - gps_raw._timestamp) > 1.5:
+			return gps_raw._timestamp
+		return ret
 			
     
 	def position(self, t, max_deltat=0,roll=None, maxroll=45):

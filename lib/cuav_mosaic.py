@@ -33,20 +33,10 @@ class MosaicRegion:
 
 
 class MosaicImage:
-    def __init__(self, filename, pos, boundary, center):
+    def __init__(self, frame_time, filename, pos):
+        self.frame_time = frame_time
         self.filename = filename
         self.pos = pos
-        self.boundary = boundary
-        self.center = center
-
-    def __str__(self):
-        return '%s %s' % (self.filename, str(self.pos))
-
-class DisplayedImage:
-    def __init__(self, filename, pos, img):
-        self.filename = filename
-        self.pos = pos
-        self.img = img
 
     def __str__(self):
         return '%s %s' % (self.filename, str(self.pos))
@@ -100,6 +90,7 @@ class Mosaic():
         self.regions = []
         self.page = 0
         self.images = []
+        self.current_view = 0
         self.full_res = False
         self.boundary = []
         self.displayed_image = None
@@ -108,6 +99,8 @@ class Mosaic():
         import mp_image, wx
         self.image_mosaic = mp_image.MPImage(title='Mosaic', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
         self.slipmap = slipmap
+
+        self.view_image = None
 
         self.slipmap.add_callback(functools.partial(self.map_callback))
 
@@ -126,10 +119,36 @@ class Mosaic():
                                                                str(region.latlon), os.path.basename(region.filename))
         self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
 
+    def show_closest(self, latlon):
+        '''show closest camera image'''
+        (lat, lon) = latlon
+        closest = -1
+        closest_distance = -1
+        for idx in range(len(self.images)):
+            pos = self.images[idx].pos
+            if pos is not None:
+                distance = cuav_util.gps_distance(lat, lon, pos.lat, pos.lon)
+                if closest == -1 or distance < closest_distance:
+                    closest_distance = distance
+                    closest = idx
+        if closest == -1:
+            return
+        self.current_view = closest
+        image = self.images[closest]
+        img = cv.LoadImage(image.filename)
+        if self.view_image is None or not self.view_image.is_alive():
+            import mp_image, wx
+            self.view_image = mp_image.MPImage(title='View', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
+        self.view_image.set_image(img, bgr=True)
+
     def map_callback(self, event):
         '''called when an event happens on the slipmap'''
         import mp_slipmap
         if not isinstance(event, mp_slipmap.SlipMouseEvent):
+            return
+        if event.event.m_middleDown:
+            # show closest image from history
+            self.show_closest(event.latlon)
             return
         if len(event.selected) == 0:
             # no objects were selected
@@ -171,6 +190,16 @@ class Mosaic():
         if region.latlon != (None,None):
             import mp_slipmap
             self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
+
+    def mouse_event_view(self, event):
+        '''called on mouse events in View window'''
+        x = event.X
+        y = event.Y
+        if self.current_view >= len(self.images):
+            return
+        image = self.images[self.current_view]
+        latlon = cuav_util.gps_position_from_xy(x, y, image.pos, C=self.c_params)
+        print("-> %s %s" % (latlon, image.filename))
 
     def key_event(self, event):
         '''called on key events'''
@@ -246,14 +275,21 @@ class Mosaic():
 
         self.image_mosaic.set_image(self.mosaic, bgr=True)
 
+    def add_image(self, frame_time, filename, pos):
+        '''add a camera image'''
+        self.images.append(MosaicImage(frame_time, filename, pos))
 
     def check_events(self):
         '''check for mouse/keyboard events'''
-        if not self.image_mosaic.is_alive():
-            return
-        for event in self.image_mosaic.events():
-            if event.ClassName == 'wxMouseEvent':
-                self.mouse_event(event)
-            if event.ClassName == 'wxKeyEvent':
-                self.key_event(event)
+        if self.image_mosaic.is_alive():
+            for event in self.image_mosaic.events():
+                if event.ClassName == 'wxMouseEvent':
+                    self.mouse_event(event)
+                if event.ClassName == 'wxKeyEvent':
+                    self.key_event(event)
+        if self.view_image and self.view_image.is_alive():
+            for event in self.view_image.events():
+                if event.ClassName == 'wxMouseEvent':
+                    self.mouse_event_view(event)
+            
         
