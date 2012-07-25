@@ -696,3 +696,24 @@ if __name__ == "__main__":
 		if outside != polygon_outside((lat, lon), OBC_boundary):
 			raise RuntimeError('OBC_boundary test error', lat, lon)
 			
+
+def SaturateImage(img, scale=2, brightness=2):
+	'''return a zoomed saturated image. Assumes a RGB image'''
+	(w,h) = cv.GetSize(img)
+	(w2,h2) = (w//scale, h//scale)
+        cv.SetImageROI(img, ((w//2)-(w2//2),(h//2)-(h2//2),w2,h2))
+        img2 = cv.CreateImage((w,h), 8, 3)
+        cv.Resize(img, img2)
+        cv.ResetImageROI(img)
+	cv.CvtColor(img2, img2, cv.CV_RGB2HSV)	
+        for x in range(w):
+            for y in range(h):
+                (hue,s,v) = img2[y,x]
+                img2[y,x] = (hue,255,v)
+        cv.CvtColor(img2, img2, cv.CV_HSV2RGB)
+	if brightness != 1:
+		cv.ConvertScale(img2, img2, scale=brightness)
+	return img2
+
+
+

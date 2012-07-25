@@ -133,6 +133,8 @@ class Mosaic():
         # slipmap wants it as RGB
         import mp_slipmap
         cv.CvtColor(thumbnail, thumbnail, cv.CV_BGR2RGB)
+        thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
+        self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
         region_text = "Selected region %u score=%u\n%s\n%s" % (ridx, region.region.score,
                                                                str(region.latlon), os.path.basename(region.filename))
