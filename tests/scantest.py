@@ -34,11 +34,12 @@ class state():
 
 
 slipmap = None
+mosaic = None
 
 def process(args):
   '''process a set of files'''
 
-  global slipmap
+  global slipmap, mosaic
   scan_count = 0
   files = []
   for a in args:
@@ -173,6 +174,9 @@ def process(args):
       
       joelog.add_regions(frame_time, regions, pos, f, width, height)
 
+      if boundary:
+        regions = cuav_region.filter_boundary(regions, boundary, pos)
+
     if opts.mosaic and len(regions) > 0:
       if opts.fullres:
         xsize = 1280
@@ -220,5 +224,6 @@ process(args)
 while True:
   if opts.mosaic:
     slipmap.check_events()
+    mosaic.check_events()
   time.sleep(0.01)
   
