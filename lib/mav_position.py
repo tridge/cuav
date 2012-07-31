@@ -252,7 +252,7 @@ class MavInterpolator():
 			roll = mavroll
 		elif abs(mavroll) < maxroll:
 			roll = 0
-		elif mavroll > 45:
+		elif mavroll >= maxroll:
 			roll = mavroll - maxroll
 		else:
 			roll = mavroll + maxroll
