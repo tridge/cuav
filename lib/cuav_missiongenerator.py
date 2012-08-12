@@ -8,7 +8,9 @@ Created by Stephen Dade (stephen_dade@hotmail.com)
 import numpy, os, time, sys, xml.dom.minidom, math, numpy
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'mavlink', 'pymavlink'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
 import mp_slipmap, mp_util, cuav_util, mp_elevation, mavwp, mavutil
+from cam_params import CameraParams
 
 class MissionGenerator():
     '''Mission Generator Class'''
@@ -33,7 +35,7 @@ class MissionGenerator():
         for point in airf:
             if self.getElement(point.getElementsByTagName('name')[0]) == "Airfield Home":
                 self.airfieldHome = (float(self.getElement(point.getElementsByTagName('latitude')[0])), float(self.getElement(point.getElementsByTagName('longitude')[0])))
-                print "Airfield Home = " + str(self.airfieldHome)
+                #print "Airfield Home = " + str(self.airfieldHome)
             if searchMask in self.getElement(point.getElementsByTagName('name')[0]):
                 self.searchArea.append((float(self.getElement(point.getElementsByTagName('latitude')[0])), float(self.getElement(point.getElementsByTagName('longitude')[0]))))
             if missionBoundaryMask in self.getElement(point.getElementsByTagName('name')[0]):
@@ -53,7 +55,9 @@ class MissionGenerator():
             if point[1] < self.boundingBoxLong[0]:
                 self.boundingBoxLong[0] = point[1]
             if point[1] > self.boundingBoxLong[1]:
-                self.boundingBoxLong[1] = point[1]   
+                self.boundingBoxLong[1] = point[1]  
+
+        self.boundingBox = [(self.boundingBoxLat[0], self.boundingBoxLong[0]), (self.boundingBoxLat[1], self.boundingBoxLong[0]), (self.boundingBoxLat[0], self.boundingBoxLong[1]), (self.boundingBoxLat[1], self.boundingBoxLong[1])] 
         #print "Bounding box is: " + str(self.boundingBoxLat) + " ... " + str(self.boundingBoxLong)
 
         #for point in self.searchArea:
@@ -61,7 +65,9 @@ class MissionGenerator():
 
     def CreateEntryExitPoints(self, entryLane, exitLane, alt=100):
         '''Create the waypoints for the entry and exit waypoints to fly
-        before/after the search pattern'''
+        before/after the search pattern. alt is the altitude (relative 
+        to ground) of the points'''
+
         self.entryPoints = []
         self.exitPoints = []
         listentry = entryLane.split(',')
@@ -83,8 +89,8 @@ class MissionGenerator():
 
     def CreateSearchPattern(self, width=50.0, overlap=10.0, offset=10, wobble=1, alt=100):
         '''Generate the waypoints for the search pattern, using alternating strips
-        width is the width (m) of each strip
-        overlap is the % overlap between strips'''
+        width is the width (m) of each strip, overlap is the % overlap between strips, 
+        alt is the altitude (relative to ground) of the points'''
         self.SearchPattern = []
 
         #find the nearest point to Airfield Home - use this as a starting point
@@ -115,10 +121,6 @@ class MissionGenerator():
         else:
             self.crossBearing = (self.searchBearing - 90) % 360
         #print "Cross bearing is: " + str(self.crossBearing)
-
-        #function check
-        #newposn = cuav_util.gps_newpos(nearest[0], nearest[1], 358, nearestdist)
-        #print "Going back to start: " + str(newposn)
 
         #the distance between runs is this:
         self.deltaRowDist = width - width*(float(overlap)/100)
@@ -157,13 +159,13 @@ class MissionGenerator():
 
             #print "Next = " + str(nextWaypoint)
         
-        #go back and do the rows we missed. There might be one more row to do in this direction,
-        #so check for that first
+        #go back and do the rows we missed. There still might be one more row to do in 
+        # the crossbearing direction, so check for that first
         nextWaypoint = cuav_util.gps_newpos(nextWaypoint[0], nextWaypoint[1], self.crossBearing, self.deltaRowDist)
         pts = self.projectBearing(self.searchBearing, nextWaypoint, self.searchArea)
         if pts == 0:
-            self.crossBearing = (self.crossBearing + 180) % 360
             nextWaypoint = cuav_util.gps_newpos(self.SearchPattern[-1][0], self.SearchPattern[-1][1], self.crossBearing, self.deltaRowDist)
+            self.crossBearing = (self.crossBearing + 180) % 360
         else:
             self.crossBearing = (self.crossBearing + 180) % 360
 
@@ -190,22 +192,23 @@ class MissionGenerator():
 
             #print "Next = " + str(nextWaypoint)
 
+        #add in the altitude points (relative to airfield home)
+        for point in self.SearchPattern:
+            self.SearchPattern[self.SearchPattern.index(point)] = (point[0], point[1], alt)
+
 
     def isOutsideSearchAreaBoundingBox(self, lat, longy):
         '''Checks if the long/lat pair is inside the search area
         bounding box. Returns true if it is inside'''
-        if lat < self.boundingBoxLat[0]:
+
+        if cuav_util.polygon_outside((lat, longy), self.boundingBox):
             return 1
-        if lat > self.boundingBoxLat[1]:
-            return 1
-        if longy < self.boundingBoxLong[0]:
-            return 1
-        if longy > self.boundingBoxLong[1]:
-            return 1
-        return 0
+        else:
+            return 0
 
     def ExportSearchPattern(self, filename='search.kml'):
         '''Exports the current search pattern to Google Earth kml file'''
+
         if len(self.SearchPattern) == 0:
             return
 
@@ -244,10 +247,12 @@ class MissionGenerator():
 
 
     def getElement(self, element):
+        '''Get and XML element'''
         return self.getText(element.childNodes)
 
 
     def getText(self, nodelist):
+        '''Get the text inside an XML node'''
         rc = ""
         for node in nodelist:
             if node.nodeType == node.TEXT_NODE:
@@ -333,9 +338,15 @@ class MissionGenerator():
   
         return (numpy.degrees(lat3), numpy.degrees(lon3));
 
-    def getMapPolygon(self):
-        '''Returns a mp_Slipmap compatible (2d)polygon'''
-        tmp = self.entryPoints + self.SearchPattern + self.exitPoints
+    def getMapPolygon(self, loiterInSearchArea=1):
+        '''Returns a mp_Slipmap compatible (2d) polygon'''
+        meanPoint = tuple(numpy.average(self.SearchPattern, axis=0))
+        print "Mean = " + str(meanPoint)
+
+        if loiterInSearchArea == 1:
+            tmp = self.entryPoints + self.SearchPattern + self.exitPoints
+        else:
+            tmp = self.entryPoints + self.SearchPattern + self.exitPoints
 
         return [(row[0], row[1]) for row in tmp]
 
@@ -351,18 +362,20 @@ class MissionGenerator():
         return int(distance)
 
     def altitudeCompensation(self, heightAGL, numMaxPoints=100, threshold=5):
-        '''Creates height points (ASL) for each point in searchArea
-        such that the plane stays a const altitude above the ground,
+        '''Creates height points (ASL) for each point in searchArea,
+        entry and exit points such that the plane stays a constant altitude above the ground,
         constrained by a max number of waypoints'''
         maxDeltaAlt = 0
         maxDeltaAltPoints = []
         maxDeltapercentAlong = 0
 
         EleModel = mp_elevation.ElevationModel()
-        #make sure the tiles are downloaded
+        #make sure the SRTM tiles are downloaded
         EleModel.GetElevation(self.SearchPattern[0][0], self.SearchPattern[0][1])
 
-        #do the entry and exit points and initial search pattern
+        #get the ASL height of the airfield home, entry and exit points and initial search pattern
+        # and add the heightAGL to them
+        self.airportHeight = EleModel.GetElevation(self.airfieldHome[0], self.airfieldHome[1])
         self.airfieldHome = (self.airfieldHome[0], self.airfieldHome[1], heightAGL+EleModel.GetElevation(self.airfieldHome[0], self.airfieldHome[1]))
 
         for point in self.entryPoints:
@@ -374,7 +387,8 @@ class MissionGenerator():
         for point in self.SearchPattern:
             self.SearchPattern[self.SearchPattern.index(point)] = (point[0], point[1], heightAGL+EleModel.GetElevation(point[0], point[1]))
 
-        #keep looping through the waypoints and add new waypoints where needed to maintain const height above terrain
+        #keep looping through the search area waypoints and add new waypoints where needed 
+        #to maintain const height above terrain
         print "---Starting terrain tracking optimisation---"
         while True:
             maxDeltaAlt = 0
@@ -405,9 +419,15 @@ class MissionGenerator():
                 break
         print "---Done terrain tracking optimisation---"
 
-    def exportToMAVProxy(self, MAVpointLoader):
-        '''Exports the entry points + search pattern + exit points to MAVProxy'''
+    def exportToMAVProxy(self, MAVpointLoader=None, loiterInSearchArea=1):
+        '''Exports the airfield home, entry points, search pattern and exit points to MAVProxy'''
         numWaypoints = 0
+
+        #make a fake waypoint loader for testing purposes, if we're not
+        #running within MAVProxy
+        if MAVpointLoader is None:
+            print "No loader - creating one"
+            MAVpointLoader = mavwp.MAVWPLoader()
 
         #clear out all the old waypoints
         MAVpointLoader.clear()
@@ -421,29 +441,79 @@ class MissionGenerator():
         else:
             fn = mavutil.mavlink.MAVLink_waypoint_message
 
-        #add "airfield home" as waypoint 0
+        #WP0 - add "airfield home" as waypoint 0
         w = fn(TargetSys, TargetComp, numWaypoints, 0, 16, 1, 1, 0, 0, 0, 0, self.airfieldHome[0], self.airfieldHome[1], int(self.airfieldHome[2]))
         MAVpointLoader.add(w)
         # form is fn(target_system=0, target_component=0, seq, frame=0/3, command=16, current=1/0, autocontinue=1, param1=0, param2=0, param3=0, param4=0, x, y, z)
 
-        #and add in the rest of the waypoints - Entry lane, search area, exit lane
+        #WP1 - add in a jmp to entry lanes
+        numWaypoints += 1
+        w = fn(TargetSys, TargetComp, numWaypoints, 177, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w)
+
+        #WP2 - takeoff, then jump to entry lanes
+        numWaypoints += 1
+        w = fn(TargetSys, TargetComp, numWaypoints, 22, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w)
+        numWaypoints += 1
+        w = fn(TargetSys, TargetComp, numWaypoints, 177, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w)
+
+        #WP2 - WP11 - temp - add in ~10 ghost points
+        for i in range(10):
+            numWaypoints += 1
+            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, -24, 143, int(590-self.airportHeight))
+            MAVpointLoader.add(w)
+
+        #print "Done AF home"
+        #WP12 - WPn - and add in the rest of the waypoints - Entry lane, search area, exit lane
         for point in self.entryPoints:
             numWaypoints += 1
-            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]))
+            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
             MAVpointLoader.add(w)
 
         for point in self.SearchPattern:
             numWaypoints += 1
-            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]))
-            MAVpointLoader.add(w)
-        for point in self.exitPoints:
-            numWaypoints += 1
-            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]))
+            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
             MAVpointLoader.add(w)
 
-        #MAVpointLoader.save("way.txt")
+        #print "Done SA points"
+        #if desired, loiter in the search area for a bit
+        if loiterInSearchArea == 1:
+            numWaypoints += 1
+            meanPoint = tuple(numpy.average(self.SearchPattern, axis=0))
+            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, meanPoint[0], meanPoint[1], int(meanPoint[2]-self.airportHeight))
+            MAVpointLoader.add(w)
+
+        for point in self.exitPoints:
+            numWaypoints += 1
+            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
+            MAVpointLoader.add(w)
+
+        #print "Done exit points"
+        #finally, return to airfield home
+        numWaypoints += 1
+        w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 1, 1, 0, 0, 0, 0, self.airfieldHome[0], self.airfieldHome[1], int(self.airfieldHome[2]-self.airportHeight))
+        MAVpointLoader.add(w)
+
+        #export the waypoints to a MAVLink compatible format/file
+        MAVpointLoader.save(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', "way.txt"))
         print "Waypoints Exported"
         #print strMAV
+
+    def getCameraWidth(self, alt):
+        '''Using the camera parameters, with the width of the
+        ground strip that the camera can see from a particular altitude'''
+
+        #use the camera parameters
+        c_params = CameraParams(lens=4.0)
+        # load camera params and get the width of an image on the ground
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'data', 'chameleon1_arecont0.json')
+        c_params.load(path)
+        aov = math.degrees(2.0*math.atan((c_params.sensorwidth/1000.0)/(2.0*c_params.lens/1000.0)))
+        groundWidth = 2.0*alt*math.tan(math.radians(aov/2))
+
+        return groundWidth
 
 
 if __name__ == "__main__":
@@ -455,12 +525,13 @@ if __name__ == "__main__":
     parser.add_option("--missionBoundaryMask", type='string', default='MB-', help="name mask of mission boundary waypoints")
     parser.add_option("--searchAreaOffset", type='int', default=10, help="distance waypoints will be placed outside search area")
     parser.add_option("--wobble", type='int', default=1, help="Make every second row slightly offset. Aids in viewing the overlaps")
-    parser.add_option("--width", type='int', default=150, help="Width (m) of each scan row")
+    parser.add_option("--width", type='int', default=0, help="Width (m) of each scan row. 0 to use camera params")
     parser.add_option("--overlap", type='int', default=50, help="% overlap between rows")
     parser.add_option("--entryLane", type='string', default='EL-1,EL-2', help="csv list of waypoints before search")
     parser.add_option("--exitLane", type='string', default='EL-3,EL-4', help="csv list of waypoints after search")
-    parser.add_option("--altitude", type='int', default=100, help="Altitude of waypoints")
-    parser.add_option("--terrainTrack", type='int', default=1, help="0 if --altitude is ASL, 1 if AGL")
+    parser.add_option("--altitude", type='int', default=90, help="Altitude of waypoints")
+    parser.add_option("--terrainTrack", type='int', default=1, help="0 if --altitude is ASL, 1 if AGL (terrain tracking)")
+    parser.add_option("--loiterInSearchArea", type='int', default=1, help="1 if UAV loiters in search area at end of search. 0 if it goes home")
 
     (opts, args) = parser.parse_args()
 
@@ -468,24 +539,33 @@ if __name__ == "__main__":
     gen.Process(opts.searchAreaMask, opts.missionBoundaryMask)
     gen.CreateEntryExitPoints(opts.entryLane, opts.exitLane)
 
-    gen.CreateSearchPattern(width = opts.width, overlap=opts.overlap, offset=opts.searchAreaOffset, wobble=opts.wobble, alt=opts.altitude)
+    groundWidth = opts.width
+    #are we using the camera params to get the size of each search strip?
+    if opts.width == 0:
+        groundWidth = gen.getCameraWidth(opts.altitude)
+    print "Strip width = " + str(groundWidth)
+
+    gen.CreateSearchPattern(width = groundWidth, overlap=opts.overlap, offset=opts.searchAreaOffset, wobble=opts.wobble, alt=opts.altitude)
+    
+    #are we using terrain tracking?
     if opts.terrainTrack == 1:
         gen.altitudeCompensation(heightAGL = opts.altitude)
     gen.ExportSearchPattern()
 
     #start a map
-    sm = mp_slipmap.MPSlipMap(lat=gen.getMapPolygon()[0][0], lon=gen.getMapPolygon()[0][1], elevation=True, service='GoogleSat')
+    sm = mp_slipmap.MPSlipMap(lat=gen.getMapPolygon(loiterInSearchArea=opts.loiterInSearchArea)[0][0], lon=gen.getMapPolygon(loiterInSearchArea=opts.loiterInSearchArea)[0][1], elevation=True, service='GoogleSat')
     sm.add_object(mp_slipmap.SlipPolygon('Search Pattern', gen.getMapPolygon(), layer=1, linewidth=2, colour=(0,255,0)))
 
     #get the search pattern distance
     print "Total Distance = " + str(gen.getPolygonLength()) + "m"
 
     #and export to MAVProxy
-    gen.exportToMAVProxy(None)
+    gen.exportToMAVProxy(MAVpointLoader=None, loiterInSearchArea=opts.loiterInSearchArea)
 
-    #test function
-    #posn = gen.Intersection((51.885, 0.235), 108.63, (49.008, 2.549), 32.72)
-    #print "Intersection test = " + str(posn)
+    #and to google earth
+    gen.ExportSearchPattern()
+
+
 
 
 
