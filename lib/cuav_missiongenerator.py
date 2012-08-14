@@ -562,7 +562,7 @@ class MissionGenerator():
 
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_DO_SET_SERVO, 0, 1, 1776, 0, 0, 0, 0, 0, 0)
+               MAV_CMD_DO_SET_SERVO, 0, 1, 7, 1776, 0, 0, 0, 0, 0)
         MAVpointLoader.add(w, comment='Drop bottle')
 
         # after drop, jump to exit lane
@@ -582,6 +582,12 @@ class MissionGenerator():
                    MAV_FRAME_GLOBAL_RELATIVE_ALT,
                    MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
             MAVpointLoader.add(w, comment='Entry %u' % (i+1))
+        endentry_wpnum = MAVpointLoader.count()
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_JUMP, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Jump to search mission')
+        MAVpointLoader.add(dummyw, 'jump dummy')
 
         # exit points
         exit_wpnum = MAVpointLoader.count()
@@ -599,6 +605,7 @@ class MissionGenerator():
         MAVpointLoader.add(dummyw, 'jump dummy')
 
         # search pattern
+        MAVpointLoader.wp(endentry_wpnum).param1 = MAVpointLoader.count()
         for i in range(len(self.SearchPattern)):
             point = self.SearchPattern[i]
             w = fn(TargetSys, TargetComp, 0,
