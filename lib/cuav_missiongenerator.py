@@ -9,8 +9,9 @@ import numpy, os, time, sys, xml.dom.minidom, math, numpy
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'mavlink', 'pymavlink'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-import mp_slipmap, mp_util, cuav_util, mp_elevation, mavwp, mavutil
+import mp_slipmap, mp_util, cuav_util, mp_elevation, mavwp, mavutil, mavlinkv10
 from cam_params import CameraParams
+from mavlinkv10 import *
 
 class MissionGenerator():
     '''Mission Generator Class'''
@@ -24,6 +25,8 @@ class MissionGenerator():
         self.entryPoints = []
         self.exitPoints = []
         self.SearchPattern = []
+        self.joeApproach = (-26.623860, 151.847557, 150)
+        self.joeDrop = (-26.624864, 151.848349, 150)
 
     def Process(self, searchMask="SA-", missionBoundaryMask="MB-"):
         '''Processes the imported xml file for points'''
@@ -419,15 +422,18 @@ class MissionGenerator():
                 break
         print "---Done terrain tracking optimisation---"
 
+
     def exportToMAVProxy(self, MAVpointLoader=None, loiterInSearchArea=1):
         '''Exports the airfield home, entry points, search pattern and exit points to MAVProxy'''
-        numWaypoints = 0
 
         #make a fake waypoint loader for testing purposes, if we're not
         #running within MAVProxy
         if MAVpointLoader is None:
             print "No loader - creating one"
             MAVpointLoader = mavwp.MAVWPLoader()
+
+        entryjump = []
+        exitjump = []
 
         #clear out all the old waypoints
         MAVpointLoader.clear()
@@ -441,64 +447,207 @@ class MissionGenerator():
         else:
             fn = mavutil.mavlink.MAVLink_waypoint_message
 
-        #WP0 - add "airfield home" as waypoint 0
-        w = fn(TargetSys, TargetComp, numWaypoints, 0, 16, 1, 1, 0, 0, 0, 0, self.airfieldHome[0], self.airfieldHome[1], int(self.airfieldHome[2]))
-        MAVpointLoader.add(w)
+        # a dummy loiter waypoint
+        dummyw = fn(TargetSys, TargetComp, 0,
+                    MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                    MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, 0, 0, 0)
+
+        #WP0 - add "airfield home" as waypoint 0. This gets replaced when GPS gets lock
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL, MAV_CMD_NAV_WAYPOINT, 1, 1, 0, 0, 0, 0, self.airfieldHome[0], self.airfieldHome[1], int(self.airfieldHome[2]))
+        MAVpointLoader.add(w, comment='Airfield home')
         # form is fn(target_system=0, target_component=0, seq, frame=0/3, command=16, current=1/0, autocontinue=1, param1=0, param2=0, param3=0, param4=0, x, y, z)
 
         #WP1 - add in a jmp to entry lanes
-        numWaypoints += 1
-        w = fn(TargetSys, TargetComp, numWaypoints, 177, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-        MAVpointLoader.add(w)
+        entryjump.append(MAVpointLoader.count())
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_JUMP, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Jump to entry lane')
+        MAVpointLoader.add(dummyw, 'jump dummy')
 
         #WP2 - takeoff, then jump to entry lanes
-        numWaypoints += 1
-        w = fn(TargetSys, TargetComp, numWaypoints, 22, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-        MAVpointLoader.add(w)
-        numWaypoints += 1
-        w = fn(TargetSys, TargetComp, numWaypoints, 177, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-        MAVpointLoader.add(w)
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_TAKEOFF, 0, 1, 10, 0, 0, 0, -26.585745, 151.840867, 30)
+        MAVpointLoader.add(w, comment="Takeoff")
+        entryjump.append(MAVpointLoader.count())
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_JUMP, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Jump to entry lane')
+        MAVpointLoader.add(dummyw, 'jump dummy')
 
-        #WP2 - WP11 - temp - add in ~10 ghost points
-        for i in range(10):
-            numWaypoints += 1
-            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, -24, 143, int(590-self.airportHeight))
-            MAVpointLoader.add(w)
+        # landing approach
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, -26.592155, 151.842225, 80)
+        MAVpointLoader.add(w, comment='Landing approach')
+
+        # drop our speed
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 22, 25, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Change to 22 m/s')
+
+        # landing approach
+        landing_approach_wpnum = MAVpointLoader.count()
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, -26.588218, 151.841345, 30)
+        MAVpointLoader.add(w, comment='Landing approach 2')
+
+        # drop our speed again
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 18, 15, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Change to 18 m/s')
+
+        # landing
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_LAND, 0, 1, 0, 0, 0, 0, -26.582821, 151.840247, 0)
+        MAVpointLoader.add(w, comment='Landing')
+        MAVpointLoader.add(dummyw, 'landing dummy')
+
+        # comms Failure. Loiter at EL-1 for 2 minutes then fly to airfield home and loiter
+        point = self.entryPoints[0]
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
+        MAVpointLoader.add(w, comment='Comms Failure')
+
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_LOITER_TIME, 0, 1, 120, 0, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='loiter 2 minutes')
+
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, self.airfieldHome[0], self.airfieldHome[1], 90)
+        MAVpointLoader.add(w, comment='Airfield home')
+
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_LOITER_UNLIM, 0, 1, 0, 0, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='loiter')
+
+
+        # GPS failure. Loiter in place for 30s then direct to airfield home
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_LOITER_TIME, 0, 1, 30, 0, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='GPS fail - loiter 30 secs')
+
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, self.airfieldHome[0], self.airfieldHome[1], 90)
+        MAVpointLoader.add(w, comment='Airfield home')
+
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_LOITER_UNLIM, 0, 1, 0, 0, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='loiter')
+
+
+        # joe drop approach
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, self.joeApproach[0], self.joeApproach[1], int(self.joeApproach[2]))
+        MAVpointLoader.add(w, comment='Joe approach')
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, self.joeDrop[0], self.joeDrop[1], int(self.joeDrop[2]))
+        MAVpointLoader.add(w, comment='Joe Drop location')
+
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_SET_SERVO, 0, 1, 1776, 0, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Drop bottle')
+
+        # after drop, jump to exit lane
+        exitjump.append(MAVpointLoader.count())        
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_JUMP, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Jump to exit lane')
+        MAVpointLoader.add(dummyw, 'jump dummy')
 
         #print "Done AF home"
         #WP12 - WPn - and add in the rest of the waypoints - Entry lane, search area, exit lane
-        for point in self.entryPoints:
-            numWaypoints += 1
-            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
-            MAVpointLoader.add(w)
+        entry_wpnum = MAVpointLoader.count()
+        for i in range(len(self.entryPoints)):
+            point = self.entryPoints[i]
+            w = fn(TargetSys, TargetComp, 0,
+                   MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                   MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
+            MAVpointLoader.add(w, comment='Entry %u' % (i+1))
 
-        for point in self.SearchPattern:
-            numWaypoints += 1
-            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
-            MAVpointLoader.add(w)
+        # exit points
+        exit_wpnum = MAVpointLoader.count()
+        for i in range(len(self.exitPoints)):
+            point = self.exitPoints[i]
+            w = fn(TargetSys, TargetComp, 0,
+                   MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                   MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
+            MAVpointLoader.add(w, comment='Exit point %u' % (i+1))
 
-        #print "Done SA points"
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_JUMP, 0, 1, landing_approach_wpnum, -1, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Jump to landing approach')
+        MAVpointLoader.add(dummyw, 'jump dummy')
+
+        # search pattern
+        for i in range(len(self.SearchPattern)):
+            point = self.SearchPattern[i]
+            w = fn(TargetSys, TargetComp, 0,
+                   MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                   MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
+            MAVpointLoader.add(w, comment='Search %u' % (i+1))
+
         #if desired, loiter in the search area for a bit
         if loiterInSearchArea == 1:
-            numWaypoints += 1
             meanPoint = tuple(numpy.average(self.SearchPattern, axis=0))
-            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, meanPoint[0], meanPoint[1], int(meanPoint[2]-self.airportHeight))
-            MAVpointLoader.add(w)
+            w = fn(TargetSys, TargetComp, 0,
+                   MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                   MAV_CMD_NAV_LOITER_TIME, 0, 1, 600, 0, 0, 0, meanPoint[0], meanPoint[1], int(meanPoint[2]-self.airportHeight))
+            MAVpointLoader.add(w, comment='Loiter in search area for 10 minutes')
 
-        for point in self.exitPoints:
-            numWaypoints += 1
-            w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 0, 1, 0, 0, 0, 0, point[0], point[1], int(point[2]-self.airportHeight))
-            MAVpointLoader.add(w)
+        exitjump.append(MAVpointLoader.count())        
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_JUMP, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Jump to exit lane')
+        MAVpointLoader.add(dummyw, 'jump dummy')
 
-        #print "Done exit points"
-        #finally, return to airfield home
-        numWaypoints += 1
-        w = fn(TargetSys, TargetComp, numWaypoints, 3, 16, 1, 1, 0, 0, 0, 0, self.airfieldHome[0], self.airfieldHome[1], int(self.airfieldHome[2]-self.airportHeight))
-        MAVpointLoader.add(w)
+        # fixup jump waypoint numbers
+        for wnum in entryjump:
+            MAVpointLoader.wp(wnum).param1 = entry_wpnum
+        for wnum in exitjump:
+            MAVpointLoader.wp(wnum).param1 = exit_wpnum
 
         #export the waypoints to a MAVLink compatible format/file
-        MAVpointLoader.save(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', "way.txt"))
-        print "Waypoints Exported"
+        waytxt = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'data', "way.txt")
+        MAVpointLoader.save(waytxt)
+        print "Waypoints exported to %s" % waytxt
+
+        # create fence.txt
+        fenceloader = mavwp.MAVFenceLoader()
+        fp = mavutil.mavlink.MAVLink_fence_point_message(0, 0, 0, 0, self.airfieldHome[0], self.airfieldHome[1])
+        fenceloader.add(fp)
+        for p in gen.missionBounds:
+            fp = mavutil.mavlink.MAVLink_fence_point_message(0, 0, 0, 0, float(p[0]), float(p[1]))
+            fenceloader.add(fp)
+        # close the polygon
+        p = gen.missionBounds[0]
+        fp = mavutil.mavlink.MAVLink_fence_point_message(0, 0, 0, 0, float(p[0]), float(p[1]))
+        fenceloader.add(fp)
+        fencetxt = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'data', "fence.txt")
+        fenceloader.save(fencetxt)
+        print "Fence exported to %s" % fencetxt
+
+
         #print strMAV
 
     def getCameraWidth(self, alt):
