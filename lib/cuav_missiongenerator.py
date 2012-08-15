@@ -487,7 +487,7 @@ class MissionGenerator():
         # drop our speed
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 22, 25, 0, 0, 0, 0, 0)
+               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 0, 22, 25, 0, 0, 0, 0)
         MAVpointLoader.add(w, comment='Change to 22 m/s')
 
         # landing approach
@@ -500,7 +500,7 @@ class MissionGenerator():
         # drop our speed again
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 18, 15, 0, 0, 0, 0, 0)
+               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 0, 18, 15, 0, 0, 0, 0)
         MAVpointLoader.add(w, comment='Change to 18 m/s')
 
         # landing
