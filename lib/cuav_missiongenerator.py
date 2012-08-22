@@ -90,7 +90,7 @@ class MissionGenerator():
                 self.exitPoints.append((float(self.getElement(point.getElementsByTagName('latitude')[0])), float(self.getElement(point.getElementsByTagName('longitude')[0])), alt))
                 #print "Exit - " + str(self.exitPoints[-1])
 
-    def CreateSearchPattern(self, width=50.0, overlap=10.0, offset=10, wobble=1, alt=100):
+    def CreateSearchPattern(self, width=50.0, overlap=10.0, offset=10, wobble=10, alt=100):
         '''Generate the waypoints for the search pattern, using alternating strips
         width is the width (m) of each strip, overlap is the % overlap between strips, 
         alt is the altitude (relative to ground) of the points'''
@@ -146,16 +146,16 @@ class MissionGenerator():
                 break
             (nextW, nextnextW) = (pts[0], pts[1])
             if cuav_util.gps_distance(nextWaypoint[0], nextWaypoint[1], nextW[0], nextW[1]) < cuav_util.gps_distance(nextWaypoint[0], nextWaypoint[1], nextnextW[0], nextnextW[1]):
-                self.SearchPattern.append(cuav_util.gps_newpos(nextW[0], nextW[1], self.searchBearing, -offset*(1+wobble)))
+                self.SearchPattern.append(cuav_util.gps_newpos(nextW[0], nextW[1], self.searchBearing, -(offset+wobble)))
                 self.SearchPattern[-1] =(self.SearchPattern[-1][0], self.SearchPattern[-1][1], alt)
-                self.SearchPattern.append(cuav_util.gps_newpos(nextnextW[0], nextnextW[1], self.searchBearing, offset*(1+wobble)))
+                self.SearchPattern.append(cuav_util.gps_newpos(nextnextW[0], nextnextW[1], self.searchBearing, offset+wobble))
                 self.SearchPattern[-1] =(self.SearchPattern[-1][0], self.SearchPattern[-1][1], alt)
                 #now turn 90degrees from bearing and width distance
                 nextWaypoint = cuav_util.gps_newpos(nextnextW[0], nextnextW[1], self.crossBearing, self.deltaRowDist*2)
             else:
-                self.SearchPattern.append(cuav_util.gps_newpos(nextnextW[0], nextnextW[1], self.searchBearing, offset*(1+wobble)))
+                self.SearchPattern.append(cuav_util.gps_newpos(nextnextW[0], nextnextW[1], self.searchBearing, offset+wobble))
                 self.SearchPattern[-1] =(self.SearchPattern[-1][0], self.SearchPattern[-1][1], alt)
-                self.SearchPattern.append(cuav_util.gps_newpos(nextW[0], nextW[1], self.searchBearing, -offset*(1+wobble)))
+                self.SearchPattern.append(cuav_util.gps_newpos(nextW[0], nextW[1], self.searchBearing, -(offset+wobble)))
                 self.SearchPattern[-1] =(self.SearchPattern[-1][0], self.SearchPattern[-1][1], alt)
                 #now turn 90degrees from bearing and width distance
                 nextWaypoint = cuav_util.gps_newpos(nextW[0], nextW[1], self.crossBearing, self.deltaRowDist*2)
@@ -347,9 +347,9 @@ class MissionGenerator():
         print "Mean = " + str(meanPoint)
 
         if loiterInSearchArea == 1:
-            tmp = self.entryPoints + self.SearchPattern + self.exitPoints
+            tmp = self.entryPoints[:-1] + self.SearchPattern + self.exitPoints
         else:
-            tmp = self.entryPoints + self.SearchPattern + self.exitPoints
+            tmp = self.entryPoints[:-1] + self.SearchPattern + self.exitPoints
 
         return [(row[0], row[1]) for row in tmp]
 
@@ -479,6 +479,7 @@ class MissionGenerator():
         MAVpointLoader.add(dummyw, 'jump dummy')
 
         # landing approach
+        landing_approach_wpnum = MAVpointLoader.count()
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
                MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, -26.592155, 151.842225, 80)
@@ -491,7 +492,6 @@ class MissionGenerator():
         MAVpointLoader.add(w, comment='Change to 22 m/s')
 
         # landing approach
-        landing_approach_wpnum = MAVpointLoader.count()
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
                MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, -26.588218, 151.841345, 30)
@@ -576,7 +576,7 @@ class MissionGenerator():
         #print "Done AF home"
         #WP12 - WPn - and add in the rest of the waypoints - Entry lane, search area, exit lane
         entry_wpnum = MAVpointLoader.count()
-        for i in range(len(self.entryPoints)):
+        for i in range(len(self.entryPoints)-1):
             point = self.entryPoints[i]
             w = fn(TargetSys, TargetComp, 0,
                    MAV_FRAME_GLOBAL_RELATIVE_ALT,
@@ -679,8 +679,8 @@ if __name__ == "__main__":
     parser.add_option("--file", type='string', default='..//data//OBC Waypoints.kml', help="input file")
     parser.add_option("--searchAreaMask", type='string', default='SA-', help="name mask of search area waypoints")
     parser.add_option("--missionBoundaryMask", type='string', default='MB-', help="name mask of mission boundary waypoints")
-    parser.add_option("--searchAreaOffset", type='int', default=10, help="distance waypoints will be placed outside search area")
-    parser.add_option("--wobble", type='int', default=1, help="Make every second row slightly offset. Aids in viewing the overlaps")
+    parser.add_option("--searchAreaOffset", type='int', default=100, help="distance waypoints will be placed outside search area")
+    parser.add_option("--wobble", type='int', default=10, help="Make every second row slightly offset. Aids in viewing the overlaps")
     parser.add_option("--width", type='int', default=0, help="Width (m) of each scan row. 0 to use camera params")
     parser.add_option("--overlap", type='int', default=50, help="% overlap between rows")
     parser.add_option("--entryLane", type='string', default='EL-1,EL-2', help="csv list of waypoints before search")
