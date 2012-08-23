@@ -41,7 +41,7 @@ class MosaicImage:
     def __str__(self):
         return '%s %s' % (self.filename, str(self.pos))
 
-def CompositeThumbnail(img, regions, thumb_size=100, quality=75, xsize=640):
+def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
     '''extract a composite thumbnail for the regions of an image
 
     The composite will consist of N thumbnails side by side
@@ -53,12 +53,6 @@ def CompositeThumbnail(img, regions, thumb_size=100, quality=75, xsize=640):
         (x1,y1,x2,y2) = regions[i].tuple()
         midx = (x1+x2)/2
         midy = (y1+y2)/2
-
-        if cuav_util.image_width(img) == 1280 and xsize==640:
-            # the regions are from a 640x480 image. If we are extracting
-            # from a 1280x960, then move the central pixel
-            midx *= 2
-            midy *= 2
 
         x1 = midx - thumb_size/2
         y1 = midy - thumb_size/2

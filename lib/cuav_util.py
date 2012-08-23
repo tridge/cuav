@@ -384,7 +384,7 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     '''
 
     
-    pt = pixel_position(xpos, ypos, height, pitch, roll, yaw, C)
+    pt = pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C)
     if pt is None:
 	    # its pointing into the sky
 	    return None
@@ -394,7 +394,7 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     distance = math.sqrt(xofs**2 + yofs**2)
     return gps_newpos(latitude, longitude, bearing, distance)
 
-def gps_position_from_xy(x, y, pos, width=640, height=480, C=CameraParams()):
+def gps_position_from_xy(x, y, pos, width=1280, height=960, C=CameraParams()):
     '''
     return a GPS position in an image given a MavPosition object
     and an image x,y position
@@ -409,7 +409,7 @@ def gps_position_from_xy(x, y, pos, width=640, height=480, C=CameraParams()):
     return pixel_coordinates(x, y, pos.lat, pos.lon, pos.altitude,
                              pos.pitch, pos.roll, pos.yaw, C)
 
-def gps_position_from_image_region(region, pos, width=640, height=480, C=CameraParams()):
+def gps_position_from_image_region(region, pos, width=1280, height=960, C=CameraParams()):
     '''
     return a GPS position in an image given a MavPosition object
     and an image region tuple

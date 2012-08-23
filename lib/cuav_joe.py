@@ -38,13 +38,17 @@ class JoeLog():
     self.log.write(cPickle.dumps(joe, protocol=cPickle.HIGHEST_PROTOCOL))
     self.log.flush()
         
-  def add_regions(self, frame_time, regions, pos, image_filename, width=640, height=480):
+  def add_regions(self, frame_time, regions, pos, image_filename, width=1280, height=960):
     '''add a set of regions to the log, applying geo-referencing.
     Add latlon attribute to regions
     '''
     ret = []
     for r in regions:
-      latlon = cuav_util.gps_position_from_image_region(r, pos, width, height)
+      if r.latlon is None:
+        latlon = cuav_util.gps_position_from_image_region(r, pos, width, height)
+      else:
+        # the plane already added latlon
+        latlon = r.latlon
       if latlon is not None:
         r.latlon = latlon
         self.add(latlon, frame_time, r, pos, image_filename)

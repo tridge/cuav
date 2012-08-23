@@ -17,11 +17,16 @@ class Region:
             '''return the boundary as a tuple'''
             return (self.x1, self.y1, self.x2, self.y2)
 
-def RegionsConvert(rlist):
-	'''convert a region list from tuple to Region format'''
+def RegionsConvert(rlist, width=640, height=480):
+	'''convert a region list from tuple to Region format,
+	also mapping to standard 1280x960'''
 	ret = []
 	for r in rlist:
 		(x1,y1,x2,y2) = r
+		x1 = (x1 * 1280) / width
+		x2 = (x2 * 1280) / width
+		y1 = (y1 * 960)  / height
+		y2 = (y2 * 960)  / height
 		ret.append(Region(x1,y1,x2,y2))
 	return ret
 

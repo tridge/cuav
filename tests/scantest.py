@@ -71,6 +71,9 @@ def process(args):
                                            follow=True,
                                            trail=mp_slipmap.SlipTrail()))
     C_params = cam_params.CameraParams(lens=opts.lens)
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..',
+                        'cuav', 'data', 'chameleon1_arecont0.json')
+    C_params.load(path)
     mosaic = cuav_mosaic.Mosaic(slipmap, C=C_params)
     if boundary is not None:
       mosaic.set_boundary(boundary)
@@ -149,7 +152,7 @@ def process(args):
     t1=time.time()
 
     if opts.filter:
-      regions = cuav_region.filter_regions(img_scan, regions)
+      regions = cuav_region.filter_regions(im_full, regions)
 
     region_count += len(regions)
     scan_count += 1
@@ -165,24 +168,13 @@ def process(args):
         os.symlink(f, joepath)
 
     if pos and len(regions) > 0:
-      if opts.fullres:
-        width = 1280
-        height = 960
-      else:
-        width = 640
-        height = 480
-      
-      joelog.add_regions(frame_time, regions, pos, f, width, height)
+      joelog.add_regions(frame_time, regions, pos, f, 1280, 960)
 
       if boundary:
         regions = cuav_region.filter_boundary(regions, boundary, pos)
 
     if opts.mosaic and len(regions) > 0:
-      if opts.fullres:
-        xsize = 1280
-      else:
-        xsize = 640
-      composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions, quality=opts.quality, xsize=xsize)
+      composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions, quality=opts.quality)
       chameleon.save_file('composite.jpg', composite)
       thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
       mosaic.add_regions(regions, thumbs, f, pos)
