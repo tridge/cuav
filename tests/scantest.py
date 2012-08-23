@@ -28,11 +28,6 @@ parser.add_option("--gps-lag", default=0.0, type='float', help="GPS lag in secon
 parser.add_option("--filter", default=False, action='store_true', help="filter using HSV")
 (opts, args) = parser.parse_args()
 
-class state():
-  def __init__(self):
-    pass
-
-
 slipmap = None
 mosaic = None
 
@@ -152,9 +147,8 @@ def process(args):
     t1=time.time()
 
     if opts.filter:
-      regions = cuav_region.filter_regions(im_full, regions)
+      regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time)
 
-    region_count += len(regions)
     scan_count += 1
 
     # optionally link all the images with joe into a separate directory
@@ -172,6 +166,8 @@ def process(args):
 
       if boundary:
         regions = cuav_region.filter_boundary(regions, boundary, pos)
+
+    region_count += len(regions)
 
     if opts.mosaic and len(regions) > 0:
       composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions, quality=opts.quality)
@@ -210,7 +206,6 @@ def process(args):
 
 
 # main program
-state = state()
 
 process(args)
 while True:
