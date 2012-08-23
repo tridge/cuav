@@ -37,10 +37,10 @@ def hsv_score(hsv):
 	for x in range(width):
 		for y in range(height):
 			(h,s,v) = hsv[y,x]
-			if h < 22 and s > 50:
+			if (h < 22 or (h > 171 and h < 191)) and s > 50:
 				score += 3
 				#print h,s,v,'B'
-			if h > 120 and h < 200:
+			if h > 120 and h < 200 and s > 90 and v > 50:
 				score += 1
 				#print h,s,v,'R'
 			if v > 160 and s > 100:
@@ -51,17 +51,22 @@ def hsv_score(hsv):
 				#print h,s,v,'S'
 		return score
 
-def filter_regions(img, regions, min_score=4):
+def filter_regions(img, regions, min_score=4, frame_time=None):
 	'''filter a list of regions using HSV values'''
 	ret = []
 	img = cv.GetImage(cv.fromarray(img))
 	for r in regions:
-		cv.SetImageROI(img, (r.x1, r.y1, r.x2-r.x1,r.y2-r.y1))
-		hsv = cv.CreateImage((r.x2-r.x1,r.y2-r.y1), 8, 3)
+		(x1, y1, x2, y2) = r.tuple()
+		cv.SetImageROI(img, (x1, y1, x2-x1,y2-y1))
+		hsv = cv.CreateImage((x2-x1,y2-y1), 8, 3)
 		cv.CvtColor(img, hsv, cv.CV_RGB2HSV)
 		cv.ResetImageROI(img)
 		r.score = hsv_score(hsv)
 		if r.score >= min_score:
+#			rgb = cv.CreateImage((x2-x1,y2-y1), 8, 3)
+#			cv.Resize(img, rgb)
+#			if frame_time is not None:
+#				cv.SaveImage('score/img%s-%u.jpg' % (cuav_util.frame_time(frame_time), r.score), rgb)
 			ret.append(r)
 	return ret
 
