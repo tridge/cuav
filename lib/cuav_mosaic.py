@@ -14,7 +14,7 @@ import scanner
 from cam_params import CameraParams
 
 class MosaicRegion:
-    def __init__(self, region, filename, pos, full_thumbnail, small_thumbnail, latlon=(None,None)):
+    def __init__(self, ridx, region, filename, pos, full_thumbnail, small_thumbnail, latlon=(None,None)):
         # self.region is a (minx,miny,maxy,maxy) rectange in image coordinates
         self.region = region
         self.filename = filename
@@ -22,6 +22,8 @@ class MosaicRegion:
         self.full_thumbnail = full_thumbnail
         self.small_thumbnail = small_thumbnail
         self.latlon = latlon
+        self.ridx = ridx
+        self.score = region.score
 
     def __str__(self):
         position_string = ''
@@ -82,6 +84,7 @@ class Mosaic():
         cuav_util.zero_image(self.mosaic)
         self.display_regions = grid_width*grid_height
         self.regions = []
+        self.regions_sorted = []
         self.page = 0
         self.images = []
         self.current_view = 0
@@ -171,7 +174,7 @@ class Mosaic():
 
 
     def mouse_event(self, event):
-        '''called on mouse events'''
+        '''called on mouse events on the mosaic'''
         # work out which region they want, taking into account wrap
         x = event.X
         y = event.Y
@@ -179,8 +182,8 @@ class Mosaic():
         ridx = page_idx + self.page * self.display_regions
         if ridx >= len(self.regions):
             return
-        self.show_region(ridx)
-        region = self.regions[ridx]
+        region = self.regions_sorted[ridx]
+        self.show_region(region.ridx)
         if region.latlon != (None,None):
             import mp_slipmap
             self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
@@ -198,6 +201,20 @@ class Mosaic():
     def key_event(self, event):
         '''called on key events'''
         last_page = self.page
+        if event.KeyCode == ord('S'):
+            self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
+            self.redisplay_mosaic()
+        if event.KeyCode == ord('H'):
+            self.regions_sorted[0].score = 0
+            self.regions_sorted = self.regions_sorted[1:] + self.regions_sorted[:1]
+            self.redisplay_mosaic()
+        if event.KeyCode == ord('R'):
+            for r in self.regions_sorted:
+                r.score = r.region.score
+            self.redisplay_mosaic()
+        if event.KeyCode == ord('T'):
+            self.regions_sorted.sort(key = lambda r : r.ridx)
+            self.redisplay_mosaic()
         if event.KeyCode == ord('N'):
             self.page += 1
         if event.KeyCode == ord('P'):
@@ -212,7 +229,7 @@ class Mosaic():
 
     def display_mosaic_region(self, ridx):
         '''display a thumbnail on the mosaic'''
-        region = self.regions[ridx]
+        region = self.regions_sorted[ridx]
         page_idx = ridx - self.page * self.display_regions
         if page_idx < 0 or page_idx >= self.display_regions:
             # its not on this page
@@ -257,7 +274,8 @@ class Mosaic():
                                                     self.thumb_size))
 
             ridx = len(self.regions)
-            self.regions.append(MosaicRegion(r, filename, pos, thumbs[i], thumb, latlon=(lat, lon)))
+            self.regions.append(MosaicRegion(ridx, r, filename, pos, thumbs[i], thumb, latlon=(lat, lon)))
+            self.regions_sorted.append(self.regions[-1])
 
             self.display_mosaic_region(ridx)
 
