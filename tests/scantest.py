@@ -26,6 +26,7 @@ parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
 parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
 parser.add_option("--gps-lag", default=0.0, type='float', help="GPS lag in seconds")
 parser.add_option("--filter", default=False, action='store_true', help="filter using HSV")
+parser.add_option("--minscore", default=3, type='int', help="minimum score")
 (opts, args) = parser.parse_args()
 
 slipmap = None
@@ -147,7 +148,7 @@ def process(args):
     t1=time.time()
 
     if opts.filter:
-      regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time)
+      regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time, min_score=opts.minscore)
 
     scan_count += 1
 
