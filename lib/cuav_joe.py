@@ -12,37 +12,39 @@ import os, sys, cuav_util, mav_position, cPickle, time
 class JoePosition():
   '''a Joe position'''
   def __init__(self, latlon, frame_time, r,
-               pos, image_filename):
+               pos, image_filename, thumb_filename):
       self.latlon = latlon
       self.frame_time = frame_time
       self.pos = pos
       self.r = r
       self.image_filename = image_filename
+      self.thumb_filename = thumb_filename
 
   def rawname(self):
     '''return raw filename'''
     return 'raw%s.pgm' % cuav_util.frame_time(self.frame_time)
   
   def __str__(self):
-    return 'JoePosition(lat=%f lon=%f %s %s %s %s %s)' % (self.latlon[0], self.latlon[1],
-                                                          self.pos, self.image_filename,
-                                                          str(getattr(self,'r','')),
-                                                          time.asctime(time.localtime(self.frame_time)),
-                                                          self.rawname())
+    return 'JoePosition(lat=%f lon=%f %s %s %s %s %s %s)' % (self.latlon[0], self.latlon[1],
+                                                             self.pos, self.image_filename,
+                                                             self.thumb_filename,
+                                                             str(getattr(self,'r','')),
+                                                             time.asctime(time.localtime(self.frame_time)),
+                                                             self.rawname())
       
 class JoeLog():
   '''a Joe position logger'''
   def __init__(self, filename, append=True):
     self.filename = filename
-    self.log = open(filename, "w+" if append else "w")
+    self.log = open(filename, "a" if append else "w")
         
-  def add(self, latlon, frame_time, r, pos, image_filename):
+  def add(self, latlon, frame_time, r, pos, image_filename, thumb_filename):
     '''add an entry to the log'''
-    joe = JoePosition(latlon, frame_time, r, pos, image_filename)
+    joe = JoePosition(latlon, frame_time, r, pos, image_filename, thumb_filename)
     self.log.write(cPickle.dumps(joe, protocol=cPickle.HIGHEST_PROTOCOL))
     self.log.flush()
         
-  def add_regions(self, frame_time, regions, pos, image_filename, width=1280, height=960):
+  def add_regions(self, frame_time, regions, pos, image_filename, thumb_filename=None, width=1280, height=960):
     '''add a set of regions to the log, applying geo-referencing.
     Add latlon attribute to regions
     '''
@@ -55,7 +57,7 @@ class JoeLog():
         latlon = r.latlon
       if latlon is not None:
         r.latlon = latlon
-        self.add(latlon, frame_time, r, pos, image_filename)
+        self.add(latlon, frame_time, r, pos, image_filename, thumb_filename)
     return ret
         
             
