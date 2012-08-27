@@ -163,7 +163,7 @@ def process(args):
         os.symlink(f, joepath)
 
     if pos and len(regions) > 0:
-      joelog.add_regions(frame_time, regions, pos, f, 1280, 960)
+      joelog.add_regions(frame_time, regions, pos, f, width=1280, height=960)
 
       if boundary:
         regions = cuav_region.filter_boundary(regions, boundary, pos)

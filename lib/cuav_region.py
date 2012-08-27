@@ -17,6 +17,9 @@ class Region:
             '''return the boundary as a tuple'''
             return (self.x1, self.y1, self.x2, self.y2)
 
+        def __str__(self):
+		return '%s latlon=%s score=%u' % (str(self.tuple()), str(self.latlon), self.score)
+	    
 def RegionsConvert(rlist, width=640, height=480):
 	'''convert a region list from tuple to Region format,
 	also mapping to standard 1280x960'''
