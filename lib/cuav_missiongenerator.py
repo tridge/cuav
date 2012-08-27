@@ -488,8 +488,12 @@ class MissionGenerator():
         # drop our speed
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 0, 22, 25, 0, 0, 0, 0)
-        MAVpointLoader.add(w, comment='Change to 22 m/s')
+               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 0, 25, 20, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Change to 25 m/s')
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 1, 25, 20, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Change throttle to 20%%')
 
         # landing approach
         w = fn(TargetSys, TargetComp, 0,
@@ -500,8 +504,12 @@ class MissionGenerator():
         # drop our speed again
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 0, 18, 15, 0, 0, 0, 0)
-        MAVpointLoader.add(w, comment='Change to 18 m/s')
+               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 0, 20, 12, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Change to 20 m/s')
+        w = fn(TargetSys, TargetComp, 0,
+               MAV_FRAME_GLOBAL_RELATIVE_ALT,
+               MAV_CMD_DO_CHANGE_SPEED, 0, 1, 1, 20, 12, 0, 0, 0, 0)
+        MAVpointLoader.add(w, comment='Change throttle to 12%%')
 
         # landing
         w = fn(TargetSys, TargetComp, 0,
