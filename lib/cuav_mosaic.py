@@ -170,7 +170,7 @@ class Mosaic():
         if not cuav_util.polygon_complete(boundary):
             raise RuntimeError('invalid boundary passed to mosaic')
         self.boundary = boundary[:]
-        self.slipmap.add_object(mp_slipmap.SlipPolygon('boundary', self.boundary, layer=1, linewidth=2, colour=(0,255,0)))
+        self.slipmap.add_object(mp_slipmap.SlipPolygon('boundary', self.boundary, layer=1, linewidth=2, colour=(0,0,255)))
 
 
     def mouse_event(self, event):
