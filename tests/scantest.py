@@ -27,6 +27,7 @@ parser.add_option("--roll-stabilised", default=False, action='store_true', help=
 parser.add_option("--gps-lag", default=0.0, type='float', help="GPS lag in seconds")
 parser.add_option("--filter", default=False, action='store_true', help="filter using HSV")
 parser.add_option("--minscore", default=3, type='int', help="minimum score")
+parser.add_option("--altitude", type='int', default=None, help="camera assumed altitude")
 (opts, args) = parser.parse_args()
 
 slipmap = None
@@ -163,7 +164,7 @@ def process(args):
         os.symlink(f, joepath)
 
     if pos and len(regions) > 0:
-      joelog.add_regions(frame_time, regions, pos, f, width=1280, height=960)
+      joelog.add_regions(frame_time, regions, pos, f, width=1280, height=960, altitude=opts.altitude)
 
       if boundary:
         regions = cuav_region.filter_boundary(regions, boundary, pos)
