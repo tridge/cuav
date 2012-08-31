@@ -48,6 +48,7 @@ class BlockSenderSet:
 		self.header_size = struct.calcsize(self.format)
 		self.first_missing = 0
 		self.mss = mss
+		self.last_sent = 0
 
 	def __str__(self):
 		return 'BlockSenderSet<%u/%u>' % (len(self.chunks), self.num_chunks)
@@ -59,10 +60,10 @@ class BlockSenderSet:
 				break
 			self.first_missing += 1
 
-	def add(self, chunk_id):
+	def add(self, chunk_id, ack_to):
 		'''add an extent to the list. This is called when we receive a chunk of data'''
 		self.chunks.add(chunk_id)
-		self.update_first_missing()
+		self.first_missing = ack_to
 
 	def update(self, new):
 		'''add in new chunks. This is called when we receive an ack packet'''
@@ -98,10 +99,25 @@ class BlockSenderSet:
 			else:
 				extents.append((chunks[i], 1))
 		buf = bytes(struct.pack(self.format, self.id, self.num_chunks, self.timestamp))
+		if self.mss:
+			max_extents = (self.mss - len(buf)) / 2
+			if max_extents > len(extents):
+				# not all of the extents will fit. Use last_sent to choose which ones
+				# to send
+				while len(extents) > max_extents:
+					(first,count) = extents[0]
+					if first > self.last_sent:
+						break
+					extents.pop(0)
+		sent_all = True
 		for (first,count) in extents:
 			buf += bytes(struct.pack('<HH', first, count))
+			self.last_sent = first
 			if self.mss and len(buf) + 4 > self.mss:
+				sent_all = False
 				break
+		if sent_all:
+			self.last_sent = 0
 		return buf
 
 	def unpack(self, buf):
@@ -391,7 +407,7 @@ class BlockSender:
 
 	def _add_chunk(self, blk, chunk):
 		'''add an incoming chunk to a block'''
-		blk.acks.add(chunk.chunk_id)
+		blk.acks.add(chunk.chunk_id, chunk.ack_to)
 		start = chunk.chunk_id*chunk.chunk_size
 		length = len(chunk.data)
 		blk.data[start:start+length] = chunk.data
@@ -481,20 +497,27 @@ class BlockSender:
 
 		if isinstance(obj, BlockSenderChunk):
 			# we've received a chunk of data
-			if self.enable_debug:
-				self._debug("got chunk %u of %u" % (obj.chunk_id, obj.blockid))
 			if obj.blockid in self.completed:
 				# we've already completed this blockid
+				if self.enable_debug:
+					self._debug("got completed chunk %u of %u" % (obj.chunk_id, obj.blockid))
 				self.acks_needed.add((obj.blockid, fromaddr))
 				return True
 			for i in range(len(self.incoming)):
 				blk = self.incoming[i]
 				if blk.blockid == obj.blockid:
 					# we have an existing incoming object
+					if self.enable_debug:
+						if obj.chunk_id in blk.acks.chunks:
+							self._debug("got dup chunk %u of %u" % (obj.chunk_id, obj.blockid))
+						else:
+							self._debug("got chunk %u of %u" % (obj.chunk_id, obj.blockid))
 					blk.timestamp = obj.timestamp
 					self._add_chunk(blk, obj)
 					return True
 			# its a new block
+			if self.enable_debug:
+				self._debug("new block chunk %u of %u" % (obj.chunk_id, obj.blockid))
 			self.incoming.append(BlockSenderBlock(obj.blockid, obj.size, obj.chunk_size, fromaddr, self.mss))
 			blk = self.incoming[-1]
 			blk.timestamp = obj.timestamp
@@ -524,6 +547,20 @@ class BlockSender:
 				return blk.data
 		return None
 
+	def report(self, detailed=False):
+		'''report chunk status'''
+		total_acked = 0
+		total_chunks = 0
+		for i in range(len(self.outgoing)):
+			blk = self.outgoing[i]
+			total_acked += len(blk.acks.chunks)
+			total_chunks += blk.acks.num_chunks
+			if detailed:
+				print("block %u  acked %u/%u" % (blk.blockid, len(blk.acks.chunks), blk.acks.num_chunks))
+		if total_chunks != 0:
+			print("total_acked=%u total_chunks=%u eff=%.2f bw=%.2f qsize=%u" % (
+				total_acked, total_chunks, self.get_efficiency(), self.get_bandwidth_used(),
+				self.sendq_size()))
 
 	def sendq_size(self):
 		'''return number of uncompleted blocks in the send queue'''
