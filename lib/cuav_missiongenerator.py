@@ -25,8 +25,21 @@ class MissionGenerator():
         self.entryPoints = []
         self.exitPoints = []
         self.SearchPattern = []
-        self.joeApproach = (-26.623860, 151.847557, 150)
-        self.joeDrop = (-26.624864, 151.848349, 150)
+        if opts.sutton:
+            self.joeApproach = (-35.052638, 149.256767, 150)
+            self.joeDrop = (-35.053660, 149.258577, 150)
+            self.takeoffPt = (-35.049842, 149.256026)
+            self.landingApproach = (-35.058983, 149.254449, 151.842225)
+            self.landingApproach2 = (-35.056075, 149.254901, 151.841345)
+            self.landingPt = (-35.051437, 149.255765)
+        else:
+            self.joeApproach = (-26.623860, 151.847557, 150)
+            self.joeDrop = (-26.624864, 151.848349, 150)
+            self.takeoffPt = (-26.585745, 151.840867)
+            self.landingApproach = (-26.592155, 151.842225)
+            self.landingApproach2 = (-26.588218, 151.841345)
+            self.landingPt = (-26.582821, 151.840247)
+            
 
     def Process(self, searchMask="SA-", missionBoundaryMask="MB-"):
         '''Processes the imported xml file for points'''
@@ -83,12 +96,12 @@ class MissionGenerator():
         for point in airf:
             if self.getElement(point.getElementsByTagName('name')[0]) in listentry:
                 self.entryPoints.append((float(self.getElement(point.getElementsByTagName('latitude')[0])), float(self.getElement(point.getElementsByTagName('longitude')[0])), alt))
-                #print "Entry - " + str(self.entryPoints[-1])
+                print "Entry - " + str(self.entryPoints[-1])
 
         for point in airf:
             if self.getElement(point.getElementsByTagName('name')[0]) in listexit:
                 self.exitPoints.append((float(self.getElement(point.getElementsByTagName('latitude')[0])), float(self.getElement(point.getElementsByTagName('longitude')[0])), alt))
-                #print "Exit - " + str(self.exitPoints[-1])
+                print "Exit - " + str(self.exitPoints[-1])
 
     def CreateSearchPattern(self, width=50.0, overlap=10.0, offset=10, wobble=10, alt=100):
         '''Generate the waypoints for the search pattern, using alternating strips
@@ -508,7 +521,7 @@ class MissionGenerator():
         #WP2 - takeoff, then jump to entry lanes
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_NAV_TAKEOFF, 0, 1, 10, 0, 0, 0, -26.585745, 151.840867, 30)
+               MAV_CMD_NAV_TAKEOFF, 0, 1, 10, 0, 0, 0, self.takeoffPt[0], self.takeoffPt[1], 50)
         MAVpointLoader.add(w, comment="Takeoff")
         entryjump.append(MAVpointLoader.count())
         w = fn(TargetSys, TargetComp, 0,
@@ -521,7 +534,7 @@ class MissionGenerator():
         landing_approach_wpnum = MAVpointLoader.count()
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, -26.592155, 151.842225, 80)
+               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, self.landingApproach[0], self.landingApproach[1], 80)
         MAVpointLoader.add(w, comment='Landing approach')
 
         # drop our speed
@@ -537,7 +550,7 @@ class MissionGenerator():
         # landing approach
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, -26.588218, 151.841345, 30)
+               MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, self.landingApproach2[0], self.landingApproach2[1], 30)
         MAVpointLoader.add(w, comment='Landing approach 2')
 
         # drop our speed again
@@ -553,7 +566,7 @@ class MissionGenerator():
         # landing
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_NAV_LAND, 0, 1, 0, 0, 0, 0, -26.582821, 151.840247, 0)
+               MAV_CMD_NAV_LAND, 0, 1, 0, 0, 0, 0, self.landingPt[0], self.landingPt[1], 0)
         MAVpointLoader.add(w, comment='Landing')
         MAVpointLoader.add(dummyw, 'landing dummy')
 
@@ -623,7 +636,7 @@ class MissionGenerator():
         #print "Done AF home"
         #WP12 - WPn - and add in the rest of the waypoints - Entry lane, search area, exit lane
         entry_wpnum = MAVpointLoader.count()
-        for i in range(len(self.entryPoints)-1):
+        for i in range(1):
             point = self.entryPoints[i]
             w = fn(TargetSys, TargetComp, 0,
                    MAV_FRAME_GLOBAL_RELATIVE_ALT,
@@ -682,7 +695,8 @@ class MissionGenerator():
             MAVpointLoader.wp(wnum).param1 = exit_wpnum
 
         #export the waypoints to a MAVLink compatible format/file
-        waytxt = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'data', "way.txt")
+        waytxt = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..',
+                              'data', opts.outname)
         MAVpointLoader.save(waytxt)
         print "Waypoints exported to %s" % waytxt
 
@@ -735,6 +749,8 @@ if __name__ == "__main__":
     parser.add_option("--altitude", type='int', default=90, help="Altitude of waypoints")
     parser.add_option("--terrainTrack", type='int', default=1, help="0 if --altitude is ASL, 1 if AGL (terrain tracking)")
     parser.add_option("--loiterInSearchArea", type='int', default=1, help="1 if UAV loiters in search area at end of search. 0 if it goes home")
+    parser.add_option("--sutton", action='store_true', default=False, help="use sutton WP")
+    parser.add_option("--outname", default='way.txt', help="name in data dir")
 
     (opts, args) = parser.parse_args()
 
