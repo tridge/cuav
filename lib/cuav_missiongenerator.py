@@ -30,7 +30,7 @@ class MissionGenerator():
             self.joeDrop = (-35.053660, 149.258577, 150)
             self.takeoffPt = (-35.049842, 149.256026, 50)
             self.landingApproach = (-35.058983, 149.254449, 151.842225)
-            self.landingApproach2 = (-35.056075, -35.056078, 149.254908)
+            self.landingApproach2 = (-35.056078, 149.254908)
             self.landingPt = (-35.051428, 149.255735)
         else:
             self.joeApproach = (-26.623860, 151.847557, 150)
