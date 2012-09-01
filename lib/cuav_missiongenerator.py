@@ -28,14 +28,14 @@ class MissionGenerator():
         if opts.sutton:
             self.joeApproach = (-35.052638, 149.256767, 150)
             self.joeDrop = (-35.053660, 149.258577, 150)
-            self.takeoffPt = (-35.049842, 149.256026)
+            self.takeoffPt = (-35.049842, 149.256026, 50)
             self.landingApproach = (-35.058983, 149.254449, 151.842225)
-            self.landingApproach2 = (-35.056075, 149.254901, 151.841345)
-            self.landingPt = (-35.051437, 149.255765)
+            self.landingApproach2 = (-35.056075, -35.056078, 149.254908)
+            self.landingPt = (-35.051428, 149.255735)
         else:
             self.joeApproach = (-26.623860, 151.847557, 150)
             self.joeDrop = (-26.624864, 151.848349, 150)
-            self.takeoffPt = (-26.585745, 151.840867)
+            self.takeoffPt = (-26.585745, 151.840867, 50)
             self.landingApproach = (-26.592155, 151.842225)
             self.landingApproach2 = (-26.588218, 151.841345)
             self.landingPt = (-26.582821, 151.840247)
@@ -521,7 +521,7 @@ class MissionGenerator():
         #WP2 - takeoff, then jump to entry lanes
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_NAV_TAKEOFF, 0, 1, 10, 0, 0, 0, self.takeoffPt[0], self.takeoffPt[1], 50)
+               MAV_CMD_NAV_TAKEOFF, 0, 1, 10, 0, 0, 0, self.takeoffPt[0], self.takeoffPt[1], self.takeoffPt[2])
         MAVpointLoader.add(w, comment="Takeoff")
         entryjump.append(MAVpointLoader.count())
         w = fn(TargetSys, TargetComp, 0,
