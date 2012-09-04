@@ -96,6 +96,7 @@ class Mosaic():
         import mp_image, wx
         self.image_mosaic = mp_image.MPImage(title='Mosaic', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
         self.slipmap = slipmap
+        self.selected_region = 0
 
         self.view_image = None
 
@@ -112,7 +113,8 @@ class Mosaic():
         thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
-        region_text = "Selected region %u score=%u\n%s\n%s" % (ridx, region.region.score,
+        self.selected_region = ridx
+        region_text = "Selected region %u score=%u\n%s\n%s" % (ridx, region.score,
                                                                str(region.latlon), os.path.basename(region.filename))
         self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
 
@@ -208,6 +210,8 @@ class Mosaic():
             self.regions_sorted[0].score = 0
             self.regions_sorted = self.regions_sorted[1:] + self.regions_sorted[:1]
             self.redisplay_mosaic()
+        if event.KeyCode == ord('M'):
+            self.regions[self.selected_region].score *= 2
         if event.KeyCode == ord('R'):
             for r in self.regions_sorted:
                 r.score = r.region.score
@@ -254,13 +258,17 @@ class Mosaic():
             r = regions[i]
             (x1,y1,x2,y2) = r.tuple()
 
-            (lat, lon) = r.latlon
+            latlon = r.latlon
+            if latlon is None:
+                latlon = (None,None)
 
-            if self.boundary and (lat,lon) == (None,None):
-                # its pointing into the sky
-                continue
+            (lat, lon) = latlon
+
             if self.boundary:
-                if cuav_util.polygon_outside((lat, lon), self.boundary):
+                if (lat, lon) == (None,None):
+                    # its pointing into the sky
+                    continue
+                if cuav_util.polygon_outside((lat,lon), self.boundary):
                     # this region is outside the search boundary
                     continue
 
@@ -274,7 +282,7 @@ class Mosaic():
                                                     self.thumb_size))
 
             ridx = len(self.regions)
-            self.regions.append(MosaicRegion(ridx, r, filename, pos, thumbs[i], thumb, latlon=(lat, lon)))
+            self.regions.append(MosaicRegion(ridx, r, filename, pos, thumbs[i], thumb, latlon=(lat,lon)))
             self.regions_sorted.append(self.regions[-1])
 
             self.display_mosaic_region(ridx)
