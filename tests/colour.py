@@ -41,15 +41,16 @@ def mouse_event(event, x, y, flags, imgs):
         scale = 8
         zoom_hsv = cv.CreateImage((32*scale,32*scale), 8, 3)
         zoom_rgb = cv.CreateImage((32*scale,32*scale), 8, 3)
-        cv.Resize(img, zoom_hsv)
+        cv.Resize(img, zoom_hsv, cv.CV_INTER_NN)
         cv.ResetImageROI(img)
         (width,height) = (32*scale,32*scale)
+        zoom_hsv2 = cv.CloneImage(zoom_hsv)
         for x in range(width):
             for y in range(height):
                 (h,s,v) = zoom_hsv[y,x]
                 s = 255
-                zoom_hsv[y,x] = (h,s,v)
-        cv.CvtColor(zoom_hsv, zoom_rgb, cv.CV_HSV2RGB)
+                zoom_hsv2[y,x] = (h,s,v)
+        cv.CvtColor(zoom_hsv2, zoom_rgb, cv.CV_HSV2RGB)
         cv.ShowImage('Zoom', zoom_rgb)
         cv.SetMouseCallback('Zoom', mouse_event_zoom, zoom_hsv)
 
