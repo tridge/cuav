@@ -130,7 +130,7 @@ def process(args):
     else:
       im_full = cv.LoadImage(f)
       im_640 = cv.CreateImage((640, 480), 8, 3)
-      cv.Resize(im_full, im_640)
+      cv.Resize(im_full, im_640, cv.CV_INTER_NN)
       im_640 = numpy.ascontiguousarray(cv.GetMat(im_640))
       im_full = numpy.ascontiguousarray(cv.GetMat(im_full))
 
