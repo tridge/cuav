@@ -91,9 +91,11 @@ def process(args):
   if opts.view:
     viewer = mp_image.MPImage(title='Image')
 
+  frame_time = 0
+
   for f in files:
-    frame_time = cuav_util.parse_frame_time(f)
     if mpos:
+      frame_time = cuav_util.parse_frame_time(f)
       try:
         if opts.roll_stabilised:
           roll = 0
@@ -128,7 +130,14 @@ def process(args):
       im_640 = numpy.zeros((480,640,3),dtype='uint8')
       scanner.downsample(im_full, im_640)
     else:
-      im_full = cv.LoadImage(f)
+      im_orig = cv.LoadImage(f)
+      (w,h) = cuav_util.image_shape(im_orig)
+      if (w,h) != (1280,960):
+        im_full = cv.CreateImage((1280, 960), 8, 3)
+        cv.Resize(im_orig, im_full)
+        cv.ConvertScale(im_full, im_full, scale=0.3)
+      else:
+        im_full = im_orig
       im_640 = cv.CreateImage((640, 480), 8, 3)
       cv.Resize(im_full, im_640, cv.CV_INTER_NN)
       im_640 = numpy.ascontiguousarray(cv.GetMat(im_640))
