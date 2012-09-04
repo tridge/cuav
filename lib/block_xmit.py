@@ -100,7 +100,7 @@ class BlockSenderSet:
 				extents.append((chunks[i], 1))
 		buf = bytes(struct.pack(self.format, self.id, self.num_chunks, self.timestamp))
 		if self.mss:
-			max_extents = (self.mss - len(buf)) / 2
+			max_extents = (self.mss - (len(buf) + PACKET_HEADER_SIZE)) / 2
 			if max_extents > len(extents):
 				# not all of the extents will fit. Use last_sent to choose which ones
 				# to send
@@ -113,7 +113,7 @@ class BlockSenderSet:
 		for (first,count) in extents:
 			buf += bytes(struct.pack('<HH', first, count))
 			self.last_sent = first
-			if self.mss and len(buf) + 4 > self.mss:
+			if self.mss and (len(buf)+PACKET_HEADER_SIZE) + 4 > self.mss:
 				sent_all = False
 				break
 		if sent_all:
@@ -327,7 +327,7 @@ class BlockSender:
 		if not chunk_size:
 			chunk_size = self.chunk_size
 		if self.mss and chunk_size > self.chunk_overhead + self.mss:
-			chunk_size = self.mss - self.chunk_overhead
+			chunk_size = self.mss - (self.chunk_overhead + PACKET_HEADER_SIZE)
 
 		num_chunks = (len(data) + (chunk_size-1)) // chunk_size
 		if num_chunks > 65535:
