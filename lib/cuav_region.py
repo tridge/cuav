@@ -37,29 +37,50 @@ def hsv_score(hsv):
 	'''try to score a HSV image based on how "interesting" it is for joe detection'''
 	(width,height) = cv.GetSize(hsv)
 	score = 0
+	blue_count = 0
+	red_count = 0
 	for x in range(width):
 		for y in range(height):
 			(h,s,v) = hsv[y,x]
 			if (h < 22 or (h > 171 and h < 191)) and s > 50:
 				score += 3
-				#print h,s,v,'B'
+				blue_count += 1
+				#print (x,y),h,s,v,'B'
 			if h > 120 and h < 200 and s > 90 and v > 50:
 				score += 1
-				#print h,s,v,'R'
+				red_count += 1
+				#print (x,y),h,s,v,'R'
 			if v > 160 and s > 100:
 				score += (v-160)/10
 				#print h,s,v,'V'
 			if h>70 and s > 110 and v > 50:
 				score += 2
 				#print h,s,v,'S'
-		return score
+	if blue_count < 50 and red_count < 50:
+		if blue_count > 1 and red_count > 1:
+			score *= 2
+		if blue_count > 2 and red_count > 2:
+			score *= 2
+		if blue_count > 4 and red_count > 4:
+			score *= 2
+	return score
 
 def filter_regions(img, regions, min_score=4, frame_time=None):
 	'''filter a list of regions using HSV values'''
 	ret = []
 	img = cv.GetImage(cv.fromarray(img))
+#	regions = [regions[0]]
+#	print regions[0].tuple()
 	for r in regions:
 		(x1, y1, x2, y2) = r.tuple()
+		if True:
+			(w,h) = cuav_util.image_shape(img)
+			x = (x1+x2)/2
+			y = (y1+y2)/2
+			x1 = max(x-10,0)
+			x2 = min(x+10,w)
+			y1 = max(y-10,0)
+			y2 = min(y+10,h)
 		cv.SetImageROI(img, (x1, y1, x2-x1,y2-y1))
 		hsv = cv.CreateImage((x2-x1,y2-y1), 8, 3)
 		cv.CvtColor(img, hsv, cv.CV_RGB2HSV)
