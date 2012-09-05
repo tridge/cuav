@@ -202,11 +202,11 @@ def process(args):
       mat = cv.fromarray(img_view)
       for r in regions:
         (x1,y1,x2,y2) = r.tuple()
-        if opts.fullres:
-          x1 *= 2
-          y1 *= 2
-          x2 *= 2
-          y2 *= 2
+        (w,h) = cuav_util.image_shape(img_view)
+        x1 = x1*w//1280
+        x2 = x2*w//1280
+        y1 = y1*h//960
+        y2 = y2*h//960
         cv.Rectangle(mat, (max(x1-2,0),max(y1-2,0)), (x2+2,y2+2), (255,0,0), 2)
       cv.CvtColor(mat, mat, cv.CV_BGR2RGB)
       viewer.set_image(mat)
