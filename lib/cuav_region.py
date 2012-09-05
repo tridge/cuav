@@ -39,24 +39,32 @@ def hsv_score(hsv):
 	score = 0
 	blue_count = 0
 	red_count = 0
+	sum_v = 0
 	for x in range(width):
 		for y in range(height):
 			(h,s,v) = hsv[y,x]
-			if (h < 22 or (h > 171 and h < 191)) and s > 50:
+			sum_v += v
+			if (h < 22 or (h > 171 and h < 191)) and s > 50 and v < 150:
 				score += 3
 				blue_count += 1
 				#print (x,y),h,s,v,'B'
-			if h > 120 and h < 200 and s > 90 and v > 50:
+			elif h > 108 and h < 140 and s > 140 and v > 128:
 				score += 1
 				red_count += 1
 				#print (x,y),h,s,v,'R'
-			if v > 160 and s > 100:
-				score += (v-160)/10
+			elif h > 82 and h < 94 and s > 125 and v > 100 and v < 230:
+				score += 1
+				red_count += 1
+				#print (x,y),h,s,v,'Y'
+			elif v > 160 and s > 100:
+				score += 1
 				#print h,s,v,'V'
-			if h>70 and s > 110 and v > 50:
-				score += 2
+			elif h>70 and s > 110 and v > 90:
+				score += 1
 				#print h,s,v,'S'
-	if blue_count < 50 and red_count < 50:
+	avg_v = sum_v / (width*height)
+	#print blue_count, red_count, avg_v
+	if blue_count < 100 and red_count < 50 and avg_v < 150:
 		if blue_count > 1 and red_count > 1:
 			score *= 2
 		if blue_count > 2 and red_count > 2:
@@ -65,32 +73,31 @@ def hsv_score(hsv):
 			score *= 2
 	return score
 
+def score_region(img, r, min_score=4):
+	'''filter a list of regions using HSV values'''
+	(x1, y1, x2, y2) = r.tuple()
+	if True:
+		(w,h) = cuav_util.image_shape(img)
+		x = (x1+x2)/2
+		y = (y1+y2)/2
+		x1 = max(x-10,0)
+		x2 = min(x+10,w)
+		y1 = max(y-10,0)
+		y2 = min(y+10,h)
+	cv.SetImageROI(img, (x1, y1, x2-x1,y2-y1))
+	hsv = cv.CreateImage((x2-x1,y2-y1), 8, 3)
+	cv.CvtColor(img, hsv, cv.CV_RGB2HSV)
+	cv.ResetImageROI(img)
+	r.score = hsv_score(hsv)
+
 def filter_regions(img, regions, min_score=4, frame_time=None):
 	'''filter a list of regions using HSV values'''
 	ret = []
 	img = cv.GetImage(cv.fromarray(img))
-#	regions = [regions[0]]
-#	print regions[0].tuple()
 	for r in regions:
-		(x1, y1, x2, y2) = r.tuple()
-		if True:
-			(w,h) = cuav_util.image_shape(img)
-			x = (x1+x2)/2
-			y = (y1+y2)/2
-			x1 = max(x-10,0)
-			x2 = min(x+10,w)
-			y1 = max(y-10,0)
-			y2 = min(y+10,h)
-		cv.SetImageROI(img, (x1, y1, x2-x1,y2-y1))
-		hsv = cv.CreateImage((x2-x1,y2-y1), 8, 3)
-		cv.CvtColor(img, hsv, cv.CV_RGB2HSV)
-		cv.ResetImageROI(img)
-		r.score = hsv_score(hsv)
+		if r.score is None:
+			score_region(img, r)
 		if r.score >= min_score:
-#			rgb = cv.CreateImage((x2-x1,y2-y1), 8, 3)
-#			cv.Resize(img, rgb)
-#			if frame_time is not None:
-#				cv.SaveImage('score/img%s-%u.jpg' % (cuav_util.frame_time(frame_time), r.score), rgb)
 			ret.append(r)
 	return ret
 
