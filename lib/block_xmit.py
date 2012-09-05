@@ -558,8 +558,9 @@ class BlockSender:
 			if detailed:
 				print("block %u  acked %u/%u" % (blk.blockid, len(blk.acks.chunks), blk.acks.num_chunks))
 		if total_chunks != 0:
-			print("total_acked=%u total_chunks=%u eff=%.2f bw=%.2f qsize=%u" % (
-				total_acked, total_chunks, self.get_efficiency(), self.get_bandwidth_used(),
+			print("total_acked=%u total_chunks=%u eff=%.2f rtt=%.1f bw=%.2f qsize=%u" % (
+				total_acked, total_chunks, self.get_efficiency(), self.get_rtt_estimate(),
+				self.get_bandwidth_used(),
 				self.sendq_size()))
 
 	def sendq_size(self):
@@ -595,7 +596,7 @@ class BlockSender:
 		self.last_send_time = time.time()
 
 
-	def _send_outgoing(self):
+	def _send_outgoing(self, max_queue=None):
 		'''send any outgoing data that is due to be sent'''
 		if len(self.outgoing) == 0:
 			return
@@ -612,7 +613,11 @@ class BlockSender:
 		# the chunk size
 		bytes_to_send += min(self.bonus_bytes, self.chunk_size)
 
-		for i in range(len(self.outgoing)):
+		count = len(self.outgoing)
+		if max_queue is not None:
+			count = min(max_queue, count)
+
+		for i in range(count):
 			blk = self.outgoing[i]
 
 			# in order to preserve ordering, we have to make sure the other end
@@ -621,7 +626,7 @@ class BlockSender:
 			if self.ordered and i > 0 and not self.outgoing[i-1].acks.started():
 				break
 
-			if blk.timestamp + self.rtt_multiplier*self.rtt_estimate > tnow and i < len(self.outgoing)-1:
+			if blk.timestamp + self.rtt_multiplier*self.rtt_estimate > tnow and i < count-1:
 				# some chunks from this block were sent recently, wait for some acks
 				# before sending some more if we have other blocks also waiting to be sent
 				continue
@@ -665,7 +670,7 @@ class BlockSender:
 			self.last_send_time = tnow
 
 
-	def tick(self, packet_count=None, send_acks=True, send_outgoing=True):
+	def tick(self, packet_count=None, send_acks=True, send_outgoing=True, max_queue=None):
 		'''periodic timer to trigger data sends
 
 		This should be called regularly to process incoming packets, send acks and send any
@@ -688,7 +693,7 @@ class BlockSender:
 
 		# send outgoing data
 		if send_outgoing:
-			self._send_outgoing()
+			self._send_outgoing(max_queue=max_queue)
 
 # a simple test suite
 if __name__ == "__main__":
