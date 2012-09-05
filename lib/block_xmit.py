@@ -202,6 +202,7 @@ class BlockSenderBlock:
 		self.next_chunk = 0
 		self.priority = priority
 		self.sends = 0
+		self.chunk_send_times = {}
 
 	def chunk(self, chunk_id):
 		'''return data for a chunk'''
@@ -626,11 +627,6 @@ class BlockSender:
 			if self.ordered and i > 0 and not self.outgoing[i-1].acks.started():
 				break
 
-			if blk.timestamp + self.rtt_multiplier*self.rtt_estimate > tnow and i < count-1:
-				# some chunks from this block were sent recently, wait for some acks
-				# before sending some more if we have other blocks also waiting to be sent
-				continue
-
 			# start where we left off
 			chunks = list(range(blk.next_chunk, blk.num_chunks))
 			chunks.extend(range(blk.next_chunk))
@@ -642,6 +638,10 @@ class BlockSender:
 				if bytes_sent + blk.chunk_size > bytes_to_send:
 					# this would take us over our bandwidth limit
 					break
+				if c in blk.chunk_send_times:
+					if tnow - blk.chunk_send_times[c] < self.rtt_multiplier*self.rtt_estimate:
+						# wait for a possible ack
+						continue
 
 				chunk = BlockSenderChunk(blk.blockid, blk.size, c, blk.chunk(c),
 							 blk.chunk_size, blk.acks.first_missing, tnow)
@@ -660,6 +660,7 @@ class BlockSender:
 				blk.timestamp = tnow
 				blk.sends += 1
 				chunks_sent += 1
+				blk.chunk_send_times[c] = tnow
 				if chunks_sent == self.backlog:
 					# don't send more than self.backlog per tick
 					break
