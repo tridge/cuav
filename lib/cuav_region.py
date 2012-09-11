@@ -33,6 +33,29 @@ def RegionsConvert(rlist, width=640, height=480):
 		ret.append(Region(x1,y1,x2,y2))
 	return ret
 
+def compactness(im):
+  from numpy import array,meshgrid,arange,shape,mean,zeros
+  from numpy import outer,sum,max,linalg
+  from math import sqrt
+  (h,w) = shape(im)
+  (X,Y) = meshgrid(arange(w),arange(h))
+  x = X.flatten()
+  y = Y.flatten()
+  wgts = im[y,x]
+  wgts /= sum(wgts)
+  wpts = array([wgts*x, wgts*y])
+  wmean = sum(wpts, 1)
+  N = len(x)
+  s = array([x,y])
+  P = zeros((2,2))
+  for i in range(0,N):
+    P += wgts[i]*outer(s[:,i],s[:,i])
+  P = P - outer(wmean,wmean);
+
+  det = abs(linalg.det(P))
+
+  return 1.0/(1.0 + sqrt(det))
+
 def hsv_score(hsv):
 	'''try to score a HSV image based on how "interesting" it is for joe detection'''
 	(width,height) = cv.GetSize(hsv)
@@ -40,30 +63,38 @@ def hsv_score(hsv):
 	blue_count = 0
 	red_count = 0
 	sum_v = 0
+	from numpy import zeros
+	scorix = zeros((height,width))
 	for x in range(width):
 		for y in range(height):
+			pix_score = 0
 			(h,s,v) = hsv[y,x]
 			sum_v += v
 			if (h < 22 or (h > 171 and h < 191)) and s > 50 and v < 150:
-				score += 3
+				pix_score += 3
 				blue_count += 1
 				#print (x,y),h,s,v,'B'
 			elif h > 108 and h < 140 and s > 140 and v > 128:
-				score += 1
+				pix_score += 1
 				red_count += 1
 				#print (x,y),h,s,v,'R'
 			elif h > 82 and h < 94 and s > 125 and v > 100 and v < 230:
-				score += 1
+				pix_score += 1
 				red_count += 1
 				#print (x,y),h,s,v,'Y'
 			elif v > 160 and s > 100:
-				score += 1
+				pix_score += 1
 				#print h,s,v,'V'
 			elif h>70 and s > 110 and v > 90:
-				score += 1
+				pix_score += 1
 				#print h,s,v,'S'
+			score += pix_score
+			scorix[y,x] = pix_score
 	avg_v = sum_v / (width*height)
 	#print blue_count, red_count, avg_v
+	# apply compactness
+	nessy=compactness(scorix)
+	score*=nessy
 	if blue_count < 100 and red_count < 50 and avg_v < 150:
 		if blue_count > 1 and red_count > 1:
 			score *= 2
