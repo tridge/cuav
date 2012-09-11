@@ -32,6 +32,13 @@ class MissionGenerator():
             self.landingApproach = (-35.058983, 149.254449, 151.842225)
             self.landingApproach2 = (-35.056078, 149.254908)
             self.landingPt = (-35.051428, 149.255735)
+        elif opts.cmac:
+            self.joeApproach = ( -35.364567, 149.162423, 90)
+            self.joeDrop = (-35.362748, 149.162257, 90)
+            self.takeoffPt = (-35.362942, 149.165193, 50)
+            self.landingApproach = (-35.366225, 149.165458)
+            self.landingApproach2 = (-35.364152, 149.165345)
+            self.landingPt = (-35.362879, 149.165190)
         else:
             self.joeApproach = (-26.623860, 151.847557, 150)
             self.joeDrop = (-26.624864, 151.848349, 150)
@@ -750,6 +757,7 @@ if __name__ == "__main__":
     parser.add_option("--terrainTrack", type='int', default=1, help="0 if --altitude is ASL, 1 if AGL (terrain tracking)")
     parser.add_option("--loiterInSearchArea", type='int', default=1, help="1 if UAV loiters in search area at end of search. 0 if it goes home")
     parser.add_option("--sutton", action='store_true', default=False, help="use sutton WP")
+    parser.add_option("--cmac", action='store_true', default=False, help="use CMAC WP")
     parser.add_option("--outname", default='way.txt', help="name in data dir")
 
     (opts, args) = parser.parse_args()
