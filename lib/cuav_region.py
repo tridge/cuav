@@ -93,8 +93,9 @@ def hsv_score(hsv):
 	avg_v = sum_v / (width*height)
 	#print blue_count, red_count, avg_v
 	# apply compactness
-	nessy=compactness(scorix)
-	score*=nessy
+	# NOTE: disabled until we find the memory leak on the panda
+	#nessy=compactness(scorix)
+	#score*=nessy
 	if blue_count < 100 and red_count < 50 and avg_v < 150:
 		if blue_count > 1 and red_count > 1:
 			score *= 2
