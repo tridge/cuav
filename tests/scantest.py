@@ -212,8 +212,9 @@ def process(args):
       viewer.set_image(mat)
 
     total_time += (t1-t0)
-    print('%s scan %.1f fps  %u regions [%u/%u]' % (
-      f, count/total_time, region_count, scan_count, num_files))
+    if t1 != t0:
+      print('%s scan %.1f fps  %u regions [%u/%u]' % (
+        f, count/total_time, region_count, scan_count, num_files))
 
 
 # main program
