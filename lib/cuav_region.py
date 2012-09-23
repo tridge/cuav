@@ -140,7 +140,7 @@ def filter_boundary(regions, boundary, pos=None):
         for r in regions:
 	    if pos is not None and pos.altitude < 10:
 	        continue
-	    print pos
+	    #print pos
             if r.latlon is None or cuav_util.polygon_outside(r.latlon, boundary):
                 continue
             ret.append(r)
