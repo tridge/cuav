@@ -528,7 +528,7 @@ class MissionGenerator():
         #WP2 - takeoff, then jump to entry lanes
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_NAV_TAKEOFF, 0, 1, 10, 0, 0, 0, self.takeoffPt[0], self.takeoffPt[1], self.takeoffPt[2])
+               MAV_CMD_NAV_TAKEOFF, 0, 1, 12, 0, 0, 0, self.takeoffPt[0], self.takeoffPt[1], self.takeoffPt[2])
         MAVpointLoader.add(w, comment="Takeoff")
         entryjump.append(MAVpointLoader.count())
         w = fn(TargetSys, TargetComp, 0,
