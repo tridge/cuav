@@ -116,8 +116,9 @@ class Mosaic():
         self.selected_region = ridx
         if region.score is None:
             region.score = 0
-        region_text = "Selected region %u score=%u\n%s\n%s" % (ridx, region.score,
-                                                               str(region.latlon), os.path.basename(region.filename))
+        region_text = "Selected region %u score=%u %s\n%s\n%s" % (ridx, region.score,
+                                                                  region.region.center(),
+                                                                  str(region.latlon), os.path.basename(region.filename))
         self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
 
     def show_closest(self, latlon):

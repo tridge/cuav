@@ -17,6 +17,10 @@ class Region:
             '''return the boundary as a tuple'''
             return (self.x1, self.y1, self.x2, self.y2)
 
+        def center(self):
+            '''return the boundary as a tuple'''
+            return ((self.x1+self.x2)//2, (self.y1+self.y2)//2)
+
         def __str__(self):
 		return '%s latlon=%s score=%u' % (str(self.tuple()), str(self.latlon), self.score)
 	    
