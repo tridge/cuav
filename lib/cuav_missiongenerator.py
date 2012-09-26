@@ -629,7 +629,7 @@ class MissionGenerator():
 
         w = fn(TargetSys, TargetComp, 0,
                MAV_FRAME_GLOBAL_RELATIVE_ALT,
-               MAV_CMD_DO_SET_SERVO, 0, 1, 7, 1380, 0, 0, 0, 0, 0)
+               MAV_CMD_DO_SET_SERVO, 0, 1, 7, 1430, 0, 0, 0, 0, 0)
         MAVpointLoader.add(w, comment='Drop bottle')
 
         # after drop, jump to exit lane
