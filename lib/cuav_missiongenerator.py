@@ -437,7 +437,11 @@ class MissionGenerator():
         #get the ASL height of the airfield home, entry and exit points and initial search pattern
         # and add the heightAGL to them
         self.airportHeight = EleModel.GetElevation(self.airfieldHome[0], self.airfieldHome[1])
-        self.airfieldHome = (self.airfieldHome[0], self.airfieldHome[1], heightAGL+EleModel.GetElevation(self.airfieldHome[0], self.airfieldHome[1]))
+        if abs(opts.basealt - self.airportHeight) > 30:
+            print("BAD BASE ALTITUDE %u - airfieldhome %u" % (opts.basealt, self.airportHeight))
+            sys.exit(1)
+        self.airportHeight = opts.basealt
+        self.airfieldHome = (self.airfieldHome[0], self.airfieldHome[1], heightAGL+opts.basealt)
 
         for point in self.entryPoints:
             self.entryPoints[self.entryPoints.index(point)] = (point[0], point[1], heightAGL+EleModel.GetElevation(point[0], point[1]))
@@ -513,7 +517,7 @@ class MissionGenerator():
 
         #WP0 - add "airfield home" as waypoint 0. This gets replaced when GPS gets lock
         w = fn(TargetSys, TargetComp, 0,
-               MAV_FRAME_GLOBAL, MAV_CMD_NAV_WAYPOINT, 1, 1, 0, 0, 0, 0, self.airfieldHome[0], self.airfieldHome[1], int(self.airfieldHome[2]))
+               MAV_FRAME_GLOBAL, MAV_CMD_NAV_WAYPOINT, 1, 1, 0, 0, 0, 0, self.airfieldHome[0], self.airfieldHome[1], opts.basealt)
         MAVpointLoader.add(w, comment='Airfield home')
         # form is fn(target_system=0, target_component=0, seq, frame=0/3, command=16, current=1/0, autocontinue=1, param1=0, param2=0, param3=0, param4=0, x, y, z)
 
@@ -759,6 +763,7 @@ if __name__ == "__main__":
     parser.add_option("--sutton", action='store_true', default=False, help="use sutton WP")
     parser.add_option("--cmac", action='store_true', default=False, help="use CMAC WP")
     parser.add_option("--outname", default='way.txt', help="name in data dir")
+    parser.add_option("--basealt", default=0, type='int', help="base altitude")
 
     (opts, args) = parser.parse_args()
 
