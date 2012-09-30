@@ -28,21 +28,21 @@ class MissionGenerator():
         if opts.sutton:
             self.joeApproach = (-35.052638, 149.256767, 150)
             self.joeDrop = (-35.053660, 149.258577, 150)
-            self.takeoffPt = (-35.049842, 149.256026, 50)
+            self.takeoffPt = (-35.049842, 149.256026, 60)
             self.landingApproach = (-35.058983, 149.254449, 151.842225)
             self.landingApproach2 = (-35.056078, 149.254908)
             self.landingPt = (-35.051428, 149.255735)
         elif opts.cmac:
             self.joeApproach = ( -35.364567, 149.162423, 90)
             self.joeDrop = (-35.362748, 149.162257, 90)
-            self.takeoffPt = (-35.362942, 149.165193, 50)
+            self.takeoffPt = (-35.362942, 149.165193, 60)
             self.landingApproach = (-35.366225, 149.165458)
             self.landingApproach2 = (-35.364152, 149.165345)
             self.landingPt = (-35.362879, 149.165190)
         else:
             self.joeApproach = (-26.623860, 151.847557, 150)
             self.joeDrop = (-26.624864, 151.848349, 150)
-            self.takeoffPt = (-26.585745, 151.840867, 50)
+            self.takeoffPt = (-26.585745, 151.840867, 60)
             self.landingApproach = (-26.592155, 151.842225)
             self.landingApproach2 = (-26.588218, 151.841345)
             self.landingPt = (-26.582821, 151.840247)
@@ -444,10 +444,10 @@ class MissionGenerator():
         self.airfieldHome = (self.airfieldHome[0], self.airfieldHome[1], heightAGL+opts.basealt)
 
         for point in self.entryPoints:
-            self.entryPoints[self.entryPoints.index(point)] = (point[0], point[1], heightAGL+EleModel.GetElevation(point[0], point[1]))
+            self.entryPoints[self.entryPoints.index(point)] = (point[0], point[1], heightAGL+10+EleModel.GetElevation(point[0], point[1]))
 
         for point in self.exitPoints:
-            self.exitPoints[self.exitPoints.index(point)] = (point[0], point[1], heightAGL+EleModel.GetElevation(point[0], point[1]))
+            self.exitPoints[self.exitPoints.index(point)] = (point[0], point[1], heightAGL+10+EleModel.GetElevation(point[0], point[1]))
 
         for point in self.SearchPattern:
             self.SearchPattern[self.SearchPattern.index(point)] = (point[0], point[1], heightAGL+EleModel.GetElevation(point[0], point[1]))
@@ -540,6 +540,9 @@ class MissionGenerator():
                MAV_CMD_DO_JUMP, 0, 1, 0, -1, 0, 0, 0, 0, 0)
         MAVpointLoader.add(w, comment='Jump to entry lane')
         MAVpointLoader.add(dummyw, 'jump dummy')
+        MAVpointLoader.add(dummyw, 'takeoff2')
+        MAVpointLoader.add(dummyw, 'takeoff3')
+        MAVpointLoader.add(dummyw, 'takeoff4')
 
         # landing approach
         landing_approach_wpnum = MAVpointLoader.count()
