@@ -67,8 +67,8 @@ def hsv_score(hsv):
 	blue_count = 0
 	red_count = 0
 	sum_v = 0
-	from numpy import zeros
-	scorix = zeros((height,width))
+	#from numpy import zeros
+	#scorix = zeros((height,width))
 	for x in range(width):
 		for y in range(height):
 			pix_score = 0
@@ -93,7 +93,7 @@ def hsv_score(hsv):
 				pix_score += 1
 				#print h,s,v,'S'
 			score += pix_score
-			scorix[y,x] = pix_score
+			#scorix[y,x] = pix_score
 	avg_v = sum_v / (width*height)
 	#print blue_count, red_count, avg_v
 	# apply compactness
