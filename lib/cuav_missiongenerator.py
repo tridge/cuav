@@ -540,9 +540,9 @@ class MissionGenerator():
                MAV_CMD_DO_JUMP, 0, 1, 0, -1, 0, 0, 0, 0, 0)
         MAVpointLoader.add(w, comment='Jump to entry lane')
         MAVpointLoader.add(dummyw, 'jump dummy')
-        MAVpointLoader.add(dummyw, 'takeoff2')
-        MAVpointLoader.add(dummyw, 'takeoff3')
-        MAVpointLoader.add(dummyw, 'takeoff4')
+#        MAVpointLoader.add(dummyw, 'takeoff2')
+#        MAVpointLoader.add(dummyw, 'takeoff3')
+#        MAVpointLoader.add(dummyw, 'takeoff4')
 
         # landing approach
         landing_approach_wpnum = MAVpointLoader.count()
