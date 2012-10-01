@@ -277,9 +277,9 @@ class Mosaic():
                 if (lat, lon) == (None,None):
                     # its pointing into the sky
                     continue
-                if cuav_util.polygon_outside((lat,lon), self.boundary):
-                    # this region is outside the search boundary
-                    continue
+#                if cuav_util.polygon_outside((lat,lon), self.boundary):
+#                    # this region is outside the search boundary
+#                    continue
 
             # the thumbnail we have been given will be bigger than the size we want to
             # display on the mosaic. Extract the middle of it for display

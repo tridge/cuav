@@ -142,11 +142,13 @@ def filter_boundary(regions, boundary, pos=None):
 	'''filter a list of regions using a search boundary'''
         ret = []
         for r in regions:
-	    if pos is not None and pos.altitude < 10:
+            if pos is None:
 	        continue
+	    if pos.altitude < 10:
+              r.score = 0
 	    #print pos
             if r.latlon is None or cuav_util.polygon_outside(r.latlon, boundary):
-                continue
+              r.score = 0
             ret.append(r)
         return ret
     
