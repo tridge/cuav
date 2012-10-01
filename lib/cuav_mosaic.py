@@ -99,9 +99,13 @@ class Mosaic():
         self.selected_region = 0
 
         self.view_image = None
+        self.brightness = 1
 
         self.slipmap.add_callback(functools.partial(self.map_callback))
 
+    def set_brightness(self, b):
+        '''set mosaic brightness'''
+        self.brightness = b
 
     def show_region(self, ridx):
         '''display a region on the map'''
@@ -253,6 +257,8 @@ class Mosaic():
         cuav_util.zero_image(self.mosaic)
         for ridx in range(len(self.regions)):
             self.display_mosaic_region(ridx)
+        if self.brightness != 1.0:
+            cv.ConvertScale(self.mosaic, self.mosaic, scale=self.brightness)
         self.image_mosaic.set_image(self.mosaic, bgr=True)
 
     def add_regions(self, regions, thumbs, filename, pos=None):
