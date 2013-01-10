@@ -19,7 +19,7 @@ if len(args) < 1:
     print("please supply an image file name")
     sys.exit(1)
 
-def debayer(filename):
+def debayer(filename, show=True):
     '''debayer an image'''
     pgm = cuav_util.PGM(filename)
     img = numpy.zeros((960,1280,3),dtype='uint8')
@@ -37,7 +37,8 @@ def debayer(filename):
         color_img = half_img        
 
     cv.ConvertScale(color_img, color_img, scale=opts.brightness)
-    cv.ShowImage('Bayer', color_img)
+    if show:
+        cv.ShowImage('Bayer', color_img)
     return (color_img, pgm)
 
 def mouse_event(event, x, y, flags, data):
@@ -85,7 +86,7 @@ def convert_images(args):
     for f in args:
         png = f[:-4] + '.png'
         print("Saving %s" % png)
-        (img, pgm) = debayer(f)
+        (img, pgm) = debayer(f, False)
         cv.SaveImage(png, img)
 
 if opts.batch:
