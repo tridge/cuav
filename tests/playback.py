@@ -73,6 +73,8 @@ def playback(filename, images):
         msg = mlog.recv_match(condition=opts.condition)
         if msg is None:
             return
+        if msg.get_type().startswith('DATA'):
+            continue
         if msg.get_type() == 'PARAM_VALUE':
             params.append(msg)
         mout.write(msg.get_msgbuf())

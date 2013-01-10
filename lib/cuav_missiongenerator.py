@@ -6,10 +6,14 @@ Created by Stephen Dade (stephen_dade@hotmail.com)
 '''
 
 import numpy, os, time, sys, xml.dom.minidom, math, numpy
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'mavlink', 'pymavlink'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-import mp_slipmap, mp_util, cuav_util, mp_elevation, mavwp, mavutil, mavlinkv10
+import cuav_util, mavwp, mavutil, mavlinkv10
+from modules.lib import mp_util
+from modules.lib import mp_elevation
+from modules.mavproxy_map import mp_slipmap
 from cam_params import CameraParams
 from mavlinkv10 import *
 

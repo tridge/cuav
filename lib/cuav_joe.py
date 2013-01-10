@@ -7,6 +7,7 @@ May 2012
 '''
 
 import os, sys, cuav_util, mav_position, cPickle, time
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
 
 
 class JoePosition():
@@ -77,8 +78,37 @@ class JoeIterator():
     return joe
   
 
+
 if __name__ == "__main__":
+  from mavproxy_map import mp_slipmap
+  import cuav_mosaic
+  from optparse import OptionParser
+  parser = OptionParser("cuav_joe.py [options]")
+  parser.add_option("--minscore", type='int', default=1000, help="min score")
+  (opts, args) = parser.parse_args()
+
+  sm = mp_slipmap.MPSlipMap(lat=-26.6360, lon=151.8436, elevation=True, service='GoogleSat')
+  
   joelog = JoeIterator(sys.argv[1])
+  tidx = 0
+  thumb_filename = None
   for joe in joelog:
-    print joe
+    thumb = cuav_util.LoadImage(joe.thumb_filename)
+    if thumb_filename != joe.thumb_filename:
+      tidx = 0
+    else:
+      tidx += 1
+    (w,h) = cuav_util.image_shape(thumb)
+    count = w//h
+    thumbs = cuav_mosaic.ExtractThumbs(thumb, count)
+    r = getattr(joe,'r',None)
+    if r is not None and r.score > opts.minscore:
+      print joe
+      sm.add_object(mp_slipmap.SlipThumbnail("time %u" % joe.frame_time,
+                                             joe.latlon,
+                                             img=thumbs[tidx],
+                                             layer=2, border_width=1, border_colour=(255,0,0)))
+    
+#    sm.add_object(mp_slipmap.SlipPolygon('Search Pattern', gen.getMapPolygon(), layer=1, linewidth=2, colour=(0,255,0)))
+  
     
