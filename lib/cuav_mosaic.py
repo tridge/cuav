@@ -9,7 +9,9 @@ import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules'))
+from mavproxy_map import mp_image
 import scanner
 from cam_params import CameraParams
 
@@ -93,7 +95,7 @@ class Mosaic():
         self.displayed_image = None
         self.last_click_position = None
         self.c_params = C
-        import mp_image, wx
+        import wx
         self.image_mosaic = mp_image.MPImage(title='Mosaic', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
         self.slipmap = slipmap
         self.selected_region = 0
@@ -143,9 +145,11 @@ class Mosaic():
         image = self.images[closest]
         img = cv.LoadImage(image.filename)
         if self.view_image is None or not self.view_image.is_alive():
-            import mp_image, wx
+            import wx
             self.view_image = mp_image.MPImage(title='View', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
-        self.view_image.set_image(img, bgr=True)
+        im_1280 = cv.CreateImage((1280, 960), 8, 3)
+        cv.Resize(img, im_1280, cv.CV_INTER_NN)
+        self.view_image.set_image(im_1280, bgr=True)
 
     def map_callback(self, event):
         '''called when an event happens on the slipmap'''
