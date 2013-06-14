@@ -27,6 +27,8 @@
 #include <arm_neon.h>
 #endif
 
+#define YUV_API 0
+
 /*
   this uses libjpeg-turbo from http://libjpeg-turbo.virtualgl.org/
   You need to build it with
@@ -555,7 +557,7 @@ static void histogram_threshold_neighbours(const struct rgb *in,
 	}	
 }
 
-
+#if YUV_API
 /*
   threshold an image by its histogram, Pixels that have a histogram
   count of more than threshold are set to zero value. 
@@ -599,6 +601,7 @@ static void histogram_threshold_neighbours_yuv(const struct yuv *in,
 		out[i].y = out[i].u = out[i].v = 0;
 	}	
 }
+#endif // YUV_API
 
 static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out)
 {
@@ -683,7 +686,7 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 #endif
 }
 
-
+#if YUV_API
 static void colour_histogram_yuv(const struct rgb_image8 *in, struct rgb_image8 *out)
 {
 	struct rgb min, max;
@@ -766,7 +769,7 @@ static void colour_histogram_yuv(const struct rgb_image8 *in, struct rgb_image8 
 	free(qsaved);
 #endif
 }
-
+#endif // YUV_API
 
 static void colour_histogram_full(const struct rgb_image8_full *in, struct rgb_image8_full *out)
 {
@@ -1403,7 +1406,7 @@ scanner_scan_full(PyObject *self, PyObject *args)
 	return list;
 }
 
-
+#if YUV_API
 /*
   scan a YUV image for regions of interest and return the
   markup as a set of tuples
@@ -1466,8 +1469,9 @@ scanner_scan_yuv(PyObject *self, PyObject *args)
 
 	return list;
 }
+#endif // YUV_API
 
-
+#ifdef __ARM_NEON__
 /*
   compress a 24 bit RGB image to a jpeg, returning as python bytes (a
   string in python 2.x)
@@ -1506,7 +1510,7 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 
 	return ret;
 }
-
+#endif
 
 /*
   downsample a 24 bit colour image from 1280x960 to 640x480
@@ -1869,7 +1873,9 @@ static PyMethodDef ScannerMethods[] = {
 	{"rebayer_full", scanner_rebayer_full, METH_VARARGS, "rebayer of 1280x960 image"},
 	{"scan", scanner_scan, METH_VARARGS, "histogram scan a 640x480 colour image"},
 	{"scan_full", scanner_scan_full, METH_VARARGS, "histogram scan a 1280x960 colour image"},
+#if ARM_NEON
 	{"jpeg_compress", scanner_jpeg_compress, METH_VARARGS, "compress a 640x480 colour image to a jpeg image as a python string"},
+#endif
 	{"downsample", scanner_downsample, METH_VARARGS, "downsample a 1280x960 24 bit RGB colour image to 640x480"},
 	{"reduce_depth", scanner_reduce_depth, METH_VARARGS, "reduce greyscale bit depth from 16 bit to 8 bit"},
 	{"gamma_correct", scanner_gamma_correct, METH_VARARGS, "reduce greyscale, applying gamma"},
