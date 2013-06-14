@@ -89,6 +89,9 @@ def process(filename):
   t1 = time.time()
   print('scan: %.1f fps' % (opts.repeat/(t1-t0)))
 
+  if not hasattr(scanner, 'jpeg_compress'):
+      return
+  
   for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
     t0 = time.time()
     for i in range(opts.repeat):
