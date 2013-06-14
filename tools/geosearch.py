@@ -32,7 +32,10 @@ def process(args):
     if os.path.isdir(a):
       files.extend(glob.glob(os.path.join(a, '*.jpg')))
     else:
-      files.append(a)
+      if a.find('*') != -1:
+        files.extend(glob.glob(a))
+      else:
+        files.append(a)
   files.sort()
   num_files = len(files)
   print("num_files=%u" % num_files)
