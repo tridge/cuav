@@ -125,10 +125,10 @@ def process(args):
               os.path.basename(f), count/total_time, region_count, scan_count, num_files))
 
 
-# main program
-
-process(args)
-while True:
+if __name__ == '__main__':
+  # main program
+  process(args)
+  while True:
     slipmap.check_events()
     mosaic.check_events()
     time.sleep(0.002)
