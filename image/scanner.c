@@ -9,14 +9,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <endian.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <math.h>
-#include <arpa/inet.h>
 #include <numpy/arrayobject.h>
 
 //#undef __ARM_NEON__
@@ -29,6 +27,7 @@
 
 #define YUV_API 0
 
+#ifdef __ARM_NEON__
 /*
   this uses libjpeg-turbo from http://libjpeg-turbo.virtualgl.org/
   You need to build it with
@@ -37,6 +36,7 @@
 #define JPEG_LIB_VERSION 80
 #include <jpeglib.h>
 #include <turbojpeg.h>
+#endif
 
 #ifndef Py_RETURN_NONE
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
