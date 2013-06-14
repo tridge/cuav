@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 
 
-int parse_pgm(FILE* f, size_t* w, size_t* h, size_t* bpp)
+static int parse_pgm(FILE* f, size_t* w, size_t* h, size_t* bpp)
 {
   char *line = NULL;
   char buf[1024];
