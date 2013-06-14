@@ -8,7 +8,7 @@ import numpy, os, time, cv, sys, math, sys, cPickle, pickle
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util, cuav_mosaic, mav_position, chameleon
+import scanner, cuav_util, cuav_mosaic, mav_position
 
 from optparse import OptionParser
 parser = OptionParser("benchmark.py [options] <filename>")

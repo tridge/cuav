@@ -22,7 +22,7 @@ class PGM(object):
 	def __init__(self, filename):
 		self.filename = filename
 
-		f = open(filename, mode='r')
+		f = open(filename, mode='rb')
 		fmt = f.readline()
 		if fmt.strip() != 'P5':
 			raise PGMError('Expected P5 image in %s' % filename)

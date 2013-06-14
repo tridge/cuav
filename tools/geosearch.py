@@ -102,7 +102,7 @@ def process(args):
       if len(regions) > 0:
           composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions,
                                                      quality=80)
-          j = open('composite.jpg', mode='w')
+          j = open('composite.jpg', mode='wb')
           j.write(composite)
           j.close()
           thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
