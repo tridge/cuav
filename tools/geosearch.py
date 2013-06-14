@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules'))
-import scanner, cuav_util, cuav_mosaic, mav_position, chameleon, cuav_joe, cuav_region, cam_params
+import scanner, cuav_util, cuav_mosaic, mav_position, cuav_joe, cuav_region, cam_params
 from mavproxy_map import mp_slipmap
 from mavproxy_map import mp_image
 
@@ -99,7 +99,7 @@ def process(args):
       if len(regions) > 0:
           composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions,
                                                      quality=80)
-          chameleon.save_file('composite.jpg', composite)
+          cv.SaveImage('composite.jpg', composite)
           thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
           mosaic.add_regions(regions, thumbs, f, pos)
 
