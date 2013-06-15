@@ -17,6 +17,8 @@ parser.add_option("--view", action='store_true', default=False, help="show image
 parser.add_option("--filter", default=True, action='store_true', help="filter using HSV")
 parser.add_option("--minscore", default=500, type='int', help="minimum score")
 parser.add_option("--split", default=1, type='int', help="split in X/Y direction by this factor")
+parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
+parser.add_option("--mission", default=[], action='append', help="show mission")
 (opts, args) = parser.parse_args()
 
 slipmap = None
@@ -46,6 +48,19 @@ def process(args):
   slipmap.add_object(mp_slipmap.SlipIcon('plane', (0,0), icon, layer=3, rotation=0,
                                          follow=True,
                                          trail=mp_slipmap.SlipTrail()))
+
+  if opts.grid:
+    slipmap.add_object(mp_slipmap.SlipGrid('grid', layer=1, linewidth=1, colour=(255,255,0)))
+
+  if opts.mission:
+    import mavwp
+    for file in opts.mission:
+      wp = mavwp.MAVWPLoader()
+      wp.load(file)
+      boundary = wp.polygon()
+      slipmap.add_object(mp_slipmap.SlipPolygon('mission-%s' % file, boundary, layer=1, linewidth=1, colour=(255,255,255)))
+
+
   mosaic = cuav_mosaic.Mosaic(slipmap)
 
   joelog = cuav_joe.JoeLog('joe.log')      
