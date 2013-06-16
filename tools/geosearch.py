@@ -2,14 +2,12 @@
 
 import numpy, os, time, cv, sys, math, sys, glob
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules'))
 from cuav.lib import cuav_util
 from cuav.image import scanner
 from cuav.lib import cuav_mosaic, mav_position, cuav_joe, cuav_region
 from cuav.camera import cam_params
-from mavproxy_map import mp_slipmap
-from mavproxy_map import mp_image
+from MAVProxy.modules.mavproxy_map import mp_slipmap
+from MAVProxy.modules.mavproxy_map import mp_image
 
 from optparse import OptionParser
 parser = OptionParser("geosearch.py [options] <directory>")
@@ -53,7 +51,7 @@ def process(args):
     slipmap.add_object(mp_slipmap.SlipGrid('grid', layer=1, linewidth=1, colour=(255,255,0)))
 
   if opts.mission:
-    import mavwp
+    from pymavlink import mavwp
     for file in opts.mission:
       wp = mavwp.MAVWPLoader()
       wp.load(file)

@@ -4,7 +4,7 @@ import sys, os, time, math
 import fractions
 
 from pymavlink import mavutil
-import cuav_util
+from cuav.lib import cuav_util
 
 class MavInterpolatorException(Exception):
 	'''interpolator error class'''

@@ -7,13 +7,9 @@ May 2012
 
 import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules'))
-from mavproxy_map import mp_image
-import scanner
-from cam_params import CameraParams
+from MAVProxy.modules.mavproxy_map import mp_image
+from cuav.image import scanner
+from cuav.camera.cam_params import CameraParams
 
 class MosaicRegion:
     def __init__(self, ridx, region, filename, pos, full_thumbnail, small_thumbnail, latlon=(None,None)):

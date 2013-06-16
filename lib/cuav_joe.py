@@ -80,8 +80,8 @@ class JoeIterator():
 
 
 if __name__ == "__main__":
-  from mavproxy_map import mp_slipmap
-  import cuav_mosaic
+  from MAVProxy.modules.mavproxy_map import mp_slipmap
+  from cuav.lib import cuav_mosaic
   from optparse import OptionParser
   parser = OptionParser("cuav_joe.py [options]")
   parser.add_option("--minscore", type='int', default=1000, help="min score")

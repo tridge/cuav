@@ -3,14 +3,9 @@
 import numpy, os, time, cv, sys, math, sys, glob
 import pyexiv2, datetime
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules'))
-import scanner, cuav_util, cuav_mosaic, mav_position, chameleon, cuav_joe, cuav_region, cam_params
-from mavproxy_map import mp_slipmap
-from mavproxy_map import mp_image
+from cuav.lib import cuav_util, cuav_mosaic, mav_position, cuav_joe, cuav_region
+from MAVProxy.modules.mavproxy_map import mp_slipmap
+from MAVProxy.modules.mavproxy_map import mp_image
 
 from optparse import OptionParser
 parser = OptionParser("geotag.py [options] <directory|files>")

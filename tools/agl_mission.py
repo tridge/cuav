@@ -6,15 +6,8 @@ extract mavlink mission from log
 
 import sys, time, os, copy
 
-# allow import from the parent directory, where mavlink.py is
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'mavlink', 'pymavlink'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules'))
-
-from mavproxy_map import mp_elevation
-import cuav_util
+from MAVProxy.modules.mavproxy_map import mp_elevation
+from cuav.lib import cuav_util
 
 
 from optparse import OptionParser
@@ -31,7 +24,7 @@ parser.add_option("--home", default=None, help="new home")
 
 (opts, args) = parser.parse_args()
 
-import mavutil, mavwp
+from pymavlink import mavutil, mavwp
 
 
 if len(args) < 1:
