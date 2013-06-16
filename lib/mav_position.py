@@ -3,8 +3,8 @@
 import sys, os, time, math
 import fractions
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'mavlink', 'pymavlink'))
-import mavutil, cuav_util
+from pymavlink import mavutil
+import cuav_util
 
 class MavInterpolatorException(Exception):
 	'''interpolator error class'''
