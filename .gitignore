@@ -7,3 +7,5 @@
 *.yuv
 *.pyc
 *.lst
+build/
+dist/
