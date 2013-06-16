@@ -12,7 +12,7 @@ else:
     if platform.machine().find('arm') != -1:
         extra_compile_args=["-std=gnu99", "-O3", "-mfpu=neon"]
     else:
-        extra_compile_args=["-std=gnu99", "-O3", "-mfpu=neon"]
+        extra_compile_args=["-std=gnu99", "-O3"]
     
 
  
