@@ -2,6 +2,8 @@ from distutils.core import setup, Extension
 import numpy as np
 import platform
 
+version = '1.0.0'
+
 if platform.system() == 'Windows':
     jpegturbo_libpath = "c:\libjpeg-turbo-gcc\lib"
     jpegturbo_incpath = "c:\libjpeg-turbo-gcc\include"
@@ -23,7 +25,7 @@ scanner = Extension('cuav.image.scanner',
                     extra_compile_args=extra_compile_args)
  
 setup (name = 'cuav',
-       version = '1.0.0',
+       version = version,
        description = 'CanberraUAV UAV code',
        url = 'https://github.com/CanberraUAV/cuav',
        author = 'CanberraUAV',
