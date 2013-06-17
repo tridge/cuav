@@ -7,7 +7,7 @@ May 2012
 
 import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
 
-from MAVProxy.modules.mavproxy_map import mp_image
+from MAVProxy.modules.mavproxy_map import mp_image, mp_slipmap
 from cuav.image import scanner
 from cuav.camera.cam_params import CameraParams
 
@@ -110,7 +110,6 @@ class Mosaic():
         region = self.regions[ridx]
         thumbnail = cv.CloneImage(region.full_thumbnail)
         # slipmap wants it as RGB
-        from mavproxy_map import mp_slipmap
         cv.CvtColor(thumbnail, thumbnail, cv.CV_BGR2RGB)
         thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
@@ -149,7 +148,6 @@ class Mosaic():
 
     def map_callback(self, event):
         '''called when an event happens on the slipmap'''
-        from mavproxy_map import mp_slipmap
         if not isinstance(event, mp_slipmap.SlipMouseEvent):
             return
         if event.event.m_middleDown:
@@ -175,7 +173,6 @@ class Mosaic():
 
     def set_boundary(self, boundary):
         '''set a polygon search boundary'''
-        from mavproxy_map import mp_slipmap
         if not cuav_util.polygon_complete(boundary):
             raise RuntimeError('invalid boundary passed to mosaic')
         self.boundary = boundary[:]
@@ -194,7 +191,6 @@ class Mosaic():
         region = self.regions_sorted[ridx]
         self.show_region(region.ridx)
         if region.latlon != (None,None):
-            from mavproxy_map import mp_slipmap
             self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
 
     def mouse_event_view(self, event):
@@ -297,7 +293,6 @@ class Mosaic():
             self.display_mosaic_region(ridx)
 
             if (lat,lon) != (None,None):
-                from mavproxy_map import mp_slipmap
                 self.slipmap.add_object(mp_slipmap.SlipThumbnail("region %u" % ridx, (lat,lon),
                                                                  img=thumb,
                                                                  layer=2, border_width=1, border_colour=(255,0,0)))
