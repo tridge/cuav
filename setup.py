@@ -2,7 +2,7 @@ from distutils.core import setup, Extension
 import numpy as np
 import platform
 
-version = '1.0.2'
+version = '1.0.3'
 
 if platform.system() == 'Windows':
     jpegturbo_libpath = "c:\libjpeg-turbo-gcc\lib"
@@ -27,10 +27,20 @@ scanner = Extension('cuav.image.scanner',
 setup (name = 'cuav',
        version = version,
        description = 'CanberraUAV UAV code',
+       long_description = '''A set of python libraries and tools developed by CanberraUAV for the Outback Challenge. This includes an image search algorithm with optimisation for ARM processors and a number of mission planning and analysis tools.''',
        url = 'https://github.com/CanberraUAV/cuav',
        author = 'CanberraUAV',
        requires = [ 'pymavlink (>=1.1.2)' ],
        author_email = 'andrew-cuav@tridgell.net',
+       classifiers=['Development Status :: 4 - Beta',
+                    'Environment :: Console',
+                    'Intended Audience :: Science/Research',
+                    'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+                    'Operating System :: OS Independent',
+                    'Programming Language :: Python :: 2.7',
+                    'Topic :: Scientific/Engineering'
+                    ],
+       license='GPLv3',
        include_dirs = [np.get_include(),
                        jpegturbo_incpath],
        package_dir = { 'cuav' : '.' },
