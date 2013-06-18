@@ -308,12 +308,15 @@ def decimal_to_dms(decimal):
     remainder, minutes = math.modf(remainder * 60)
     return [Fraction(n) for n in (degrees, minutes, remainder * 60)]
 
+_last_position = None
+
 def exif_position(filename):
         '''get a MavPosition from exif tags
 
         See: http://stackoverflow.com/questions/10799366/geotagging-jpegs-with-pyexiv2
         '''
         import pyexiv2
+        global _last_position
         
         m = pyexiv2.ImageMetadata(filename)
         m.read()
@@ -342,6 +345,12 @@ def exif_position(filename):
                 t = time.mktime(m['Exif.Image.DateTime'].value.timetuple())
         except Exception:
                 t = os.path.getmtime()
-        pos = MavPosition(latitude, longitude, altitude, 0, 0, 0, t)
+        if _last_position is None:
+                yaw = 0
+        else:
+                yaw = cuav_util.gps_bearing(_last_position.lat, _last_position.lon,
+                                            latitude, longitude)
+        pos = MavPosition(latitude, longitude, altitude, 0, 0, yaw, t)
+        _last_position = pos
         return pos
 
