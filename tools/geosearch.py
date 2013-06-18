@@ -73,6 +73,8 @@ def process(args):
 
   mosaic = cuav_mosaic.Mosaic(slipmap)
 
+  joelog = cuav_joe.JoeLog(None)
+
   if opts.view:
     viewer = mp_image.MPImage(title='Image')
 
@@ -110,11 +112,15 @@ def process(args):
 
       frame_time = pos.time
 
-      regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time, min_score=opts.minscore)
+      regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time,
+                                           min_score=opts.minscore)
 
       scan_count += 1
 
       mosaic.add_image(pos.time, f, pos)
+
+      if pos and len(regions) > 0:
+        joelog.add_regions(frame_time, regions, pos, f, width=1280, height=960, altitude=0)
 
       region_count += len(regions)
 

@@ -37,13 +37,17 @@ class JoeLog():
   '''a Joe position logger'''
   def __init__(self, filename, append=True):
     self.filename = filename
-    self.log = open(filename, "a" if append else "w")
+    if filename is not None:
+      self.log = open(filename, "a" if append else "w")
+    else:
+      self.log = None
         
   def add(self, latlon, frame_time, r, pos, image_filename, thumb_filename):
     '''add an entry to the log'''
     joe = JoePosition(latlon, frame_time, r, pos, image_filename, thumb_filename)
-    self.log.write(cPickle.dumps(joe, protocol=cPickle.HIGHEST_PROTOCOL))
-    self.log.flush()
+    if self.log is not None:
+      self.log.write(cPickle.dumps(joe, protocol=cPickle.HIGHEST_PROTOCOL))
+      self.log.flush()
         
   def add_regions(self, frame_time, regions, pos, image_filename, thumb_filename=None, width=1280, height=960, altitude=None):
     '''add a set of regions to the log, applying geo-referencing.
