@@ -182,9 +182,8 @@ def process(args):
     region_count += len(regions)
 
     if opts.mosaic and len(regions) > 0:
-      composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions, quality=opts.quality)
-      chameleon.save_file('composite.jpg', composite)
-      thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
+      composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions)
+      thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
       mosaic.add_regions(regions, thumbs, f, pos)
 
     if opts.compress:

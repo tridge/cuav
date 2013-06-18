@@ -61,8 +61,6 @@ def process(args):
 
   mosaic = cuav_mosaic.Mosaic(slipmap)
 
-  joelog = cuav_joe.JoeLog('joe.log')      
-
   if opts.view:
     viewer = mp_image.MPImage(title='Image')
 
@@ -107,18 +105,11 @@ def process(args):
 
       mosaic.add_image(pos.time, f, pos)
 
-      if pos and len(regions) > 0:
-          joelog.add_regions(frame_time, regions, pos, f, width=1280, height=960, altitude=0)
-
       region_count += len(regions)
 
       if len(regions) > 0:
-          composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions,
-                                                     quality=80)
-          j = open('composite.jpg', mode='wb')
-          j.write(composite)
-          j.close()
-          thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
+          composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions)
+          thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
           mosaic.add_regions(regions, thumbs, f, pos)
 
       if opts.view:

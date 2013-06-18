@@ -41,12 +41,10 @@ class MosaicImage:
     def __str__(self):
         return '%s %s' % (self.filename, str(self.pos))
 
-def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
+def CompositeThumbnail(img, regions, thumb_size=100):
     '''extract a composite thumbnail for the regions of an image
 
     The composite will consist of N thumbnails side by side
-
-    return it as a compressed jpeg string
     '''
     composite = cv.CreateImage((thumb_size*len(regions), thumb_size),8,3)
     for i in range(len(regions)):
@@ -60,7 +58,7 @@ def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
         cv.SetImageROI(composite, (thumb_size*i, 0, thumb_size, thumb_size))
         cv.Copy(thumb, composite)
         cv.ResetImageROI(composite)
-    return scanner.jpeg_compress(numpy.ascontiguousarray(cv.GetMat(composite)), quality)
+    return composite
 
 def ExtractThumbs(img, count):
     '''extract thumbnails from a composite thumbnail image'''
