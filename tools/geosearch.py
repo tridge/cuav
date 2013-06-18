@@ -9,15 +9,27 @@ from cuav.camera import cam_params
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 from MAVProxy.modules.mavproxy_map import mp_image
 
-from optparse import OptionParser
-parser = OptionParser("geosearch.py [options] <directory>")
-parser.add_option("--view", action='store_true', default=False, help="show images")
-parser.add_option("--filter", default=True, action='store_true', help="filter using HSV")
-parser.add_option("--minscore", default=500, type='int', help="minimum score")
-parser.add_option("--split", default=1, type='int', help="split in X/Y direction by this factor")
-parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
-parser.add_option("--mission", default=[], action='append', help="show mission")
-(opts, args) = parser.parse_args()
+def parse_args():
+  '''parse command line arguments'''
+  if 1 == len(sys.argv):
+    from MAVProxy.modules.lib.optparse_gui import OptionParser
+    file_type='file'
+    directory_type='directory'
+  else:
+    from optparse import OptionParser
+    file_type='str'
+    directory_type='str'
+
+  parser = OptionParser("geosearch.py [options] <directory>")
+  parser.add_option("--directory", default=None, type=directory_type,
+                    help="directory containing image files")
+  parser.add_option("--mission", default=None, type=file_type, help="mission file to display")
+  parser.add_option("--minscore", default=500, type='int', help="minimum score")
+  parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
+  parser.add_option("--view", action='store_true', default=False, help="show images")
+  return parser.parse_args()
+
+(opts, args) = parse_args()
 
 slipmap = None
 mosaic = None
@@ -52,11 +64,11 @@ def process(args):
 
   if opts.mission:
     from pymavlink import mavwp
-    for file in opts.mission:
-      wp = mavwp.MAVWPLoader()
-      wp.load(file)
-      boundary = wp.polygon()
-      slipmap.add_object(mp_slipmap.SlipPolygon('mission-%s' % file, boundary, layer=1, linewidth=1, colour=(255,255,255)))
+    wp = mavwp.MAVWPLoader()
+    wp.load(opts.mission)
+    boundary = wp.polygon()
+    slipmap.add_object(mp_slipmap.SlipPolygon('mission', boundary, layer=1,
+                                              linewidth=1, colour=(255,255,255)))
 
 
   mosaic = cuav_mosaic.Mosaic(slipmap)
@@ -98,8 +110,7 @@ def process(args):
 
       frame_time = pos.time
 
-      if opts.filter:
-          regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time, min_score=opts.minscore)
+      regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time, min_score=opts.minscore)
 
       scan_count += 1
 
@@ -134,7 +145,10 @@ def process(args):
 
 if __name__ == '__main__':
   # main program
-  process(args)
+  if opts.directory is not None:
+    process([opts.directory])
+  else:
+    process(args)
   while True:
     slipmap.check_events()
     mosaic.check_events()
