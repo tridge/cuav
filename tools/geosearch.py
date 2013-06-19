@@ -24,12 +24,16 @@ def parse_args():
   parser.add_option("--directory", default=None, type=directory_type,
                     help="directory containing image files")
   parser.add_option("--mission", default=None, type=file_type, help="mission file to display")
+  parser.add_option("--mavlog", default=None, type=file_type, help="MAVLink telemetry log file")
   parser.add_option("--minscore", default=500, type='int', help="minimum score")
   parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
   parser.add_option("--view", action='store_true', default=False, help="show images")
+  parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
+  parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
   return parser.parse_args()
 
-(opts, args) = parse_args()
+if __name__ == '__main__':
+  (opts, args) = parse_args()
 
 slipmap = None
 mosaic = None
@@ -43,6 +47,8 @@ def process(args):
   for a in args:
     if os.path.isdir(a):
       files.extend(glob.glob(os.path.join(a, '*.jpg')))
+      files.extend(glob.glob(os.path.join(a, '*.pgm')))
+      files.extend(glob.glob(os.path.join(a, '*.png')))
     else:
       if a.find('*') != -1:
         files.extend(glob.glob(a))
@@ -71,7 +77,16 @@ def process(args):
                                               linewidth=1, colour=(255,255,255)))
 
 
-  mosaic = cuav_mosaic.Mosaic(slipmap)
+  if opts.mavlog:
+    mpos = mav_position.MavInterpolator()
+    mpos.set_logfile(opts.mavlog)
+  else:
+    mpos = None
+
+  # create a simple lens model using the focal length
+  C_params = cam_params.CameraParams(lens=opts.lens)
+
+  mosaic = cuav_mosaic.Mosaic(slipmap, C=C_params)
 
   joelog = cuav_joe.JoeLog(None)
 
@@ -79,14 +94,32 @@ def process(args):
     viewer = mp_image.MPImage(title='Image')
 
   for f in files:
-      pos = mav_position.exif_position(f)
+      if mpos:
+        # get the position by interpolating telemetry data from the MAVLink log file
+        # this assumes that the filename contains the timestamp 
+        frame_time = cuav_util.parse_frame_time(f)
+        if opts.roll_stabilised:
+          roll = 0
+        else:
+          roll = None
+        try:
+          pos = mpos.position(frame_time, roll=roll)
+        except Exception:
+          print("No position available for %s" % frame_time)
+          # skip this frame
+          continue
+      else:
+        # get the position using EXIF data
+        pos = mav_position.exif_position(f)
+
+      # update the plane icon on the map
       slipmap.set_position('plane', (pos.lat, pos.lon), rotation=pos.yaw)
 
       # check for any events from the map
       slipmap.check_events()
       mosaic.check_events()
 
-      im_orig = cv.LoadImage(f)
+      im_orig = cuav_util.LoadImage(f)
       (w,h) = cuav_util.image_shape(im_orig)
       if (w,h) != (1280,960):
           im_full = cv.CreateImage((1280, 960), 8, 3)
@@ -140,7 +173,7 @@ def process(args):
           y1 = y1*h//960
           y2 = y2*h//960
           cv.Rectangle(mat, (max(x1-2,0),max(y1-2,0)), (x2+2,y2+2), (255,0,0), 2)
-          cv.CvtColor(mat, mat, cv.CV_BGR2RGB)
+        cv.CvtColor(mat, mat, cv.CV_BGR2RGB)
         viewer.set_image(mat)
 
       total_time += (t1-t0)

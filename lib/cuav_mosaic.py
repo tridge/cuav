@@ -136,7 +136,7 @@ class Mosaic():
             return
         self.current_view = closest
         image = self.images[closest]
-        img = cv.LoadImage(image.filename)
+        img = cuav_util.LoadImage(image.filename)
         if self.view_image is None or not self.view_image.is_alive():
             import wx
             self.view_image = mp_image.MPImage(title='View', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
