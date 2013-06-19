@@ -26,6 +26,8 @@ def parse_args():
   parser.add_option("--mission", default=None, type=file_type, help="mission file to display")
   parser.add_option("--mavlog", default=None, type=file_type, help="MAVLink telemetry log file")
   parser.add_option("--minscore", default=500, type='int', help="minimum score")
+  parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
+  parser.add_option("--altitude", type='int', default=90, help="camera altitude above ground (meters)")
   parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
   parser.add_option("--view", action='store_true', default=False, help="show images")
   parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
@@ -97,7 +99,7 @@ def process(args):
       if mpos:
         # get the position by interpolating telemetry data from the MAVLink log file
         # this assumes that the filename contains the timestamp 
-        frame_time = cuav_util.parse_frame_time(f)
+        frame_time = cuav_util.parse_frame_time(f) + opts.time_offset
         if opts.roll_stabilised:
           roll = 0
         else:
@@ -111,6 +113,7 @@ def process(args):
       else:
         # get the position using EXIF data
         pos = mav_position.exif_position(f)
+        pos.time += opts.time_offset
 
       # update the plane icon on the map
       slipmap.set_position('plane', (pos.lat, pos.lon), rotation=pos.yaw)
@@ -153,7 +156,7 @@ def process(args):
       mosaic.add_image(pos.time, f, pos)
 
       if pos and len(regions) > 0:
-        joelog.add_regions(frame_time, regions, pos, f, width=1280, height=960, altitude=0)
+        joelog.add_regions(frame_time, regions, pos, f, width=1280, height=960, altitude=opts.altitude)
 
       region_count += len(regions)
 
