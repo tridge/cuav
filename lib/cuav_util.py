@@ -445,14 +445,14 @@ def frame_time(t):
 def parse_frame_time(filename):
 	'''parse a image frame time from a image filename
 	from the chameleon capture code'''
-	filename = os.path.basename(filename)
-	i = filename.find('201')
+	basename = os.path.basename(filename)
+	i = basename.find('201')
 	if i == -1:
-                if filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
+                if basename.lower().endswith('.jpg') or basename.lower().endswith('.jpeg'):
                         from . import mav_position
                         return mav_position.exif_timestamp(filename)
-		raise RuntimeError('unable to parse filename %s into time' % filename)
-	tstring = filename[i:]
+		raise RuntimeError('unable to parse filename %s into time' % basename)
+	tstring = basename[i:]
 	t = time.mktime(time.strptime(tstring[:14], "%Y%m%d%H%M%S"))
 	# hundredths can be after a dash
 	if tstring[14] == '-':
