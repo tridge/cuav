@@ -354,3 +354,11 @@ def exif_position(filename):
         _last_position = pos
         return pos
 
+
+def exif_timestamp(filename):
+        '''get a timestamp from exif tags
+        '''
+        import pyexiv2        
+        m = pyexiv2.ImageMetadata(filename)
+        m.read()
+        return time.mktime(m['Exif.Image.DateTime'].value.timetuple())
