@@ -2,7 +2,6 @@
 '''common CanberraUAV utility functions'''
 
 import numpy, cv, math, sys, os, time, rotmat, cStringIO, cPickle, struct
-import mav_position
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'uav'))
@@ -450,6 +449,7 @@ def parse_frame_time(filename):
 	i = filename.find('201')
 	if i == -1:
                 if filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
+                        from . import mav_position
                         return mav_position.exif_timestamp(filename)
 		raise RuntimeError('unable to parse filename %s into time' % filename)
 	tstring = filename[i:]
