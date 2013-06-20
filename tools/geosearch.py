@@ -31,6 +31,7 @@ def parse_args():
   parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
   parser.add_option("--view", action='store_true', default=False, help="show images")
   parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
+  parser.add_option("--camera-params", default=None, help="camera calibration json file from OpenCV")
   parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
   return parser.parse_args()
 
@@ -87,6 +88,9 @@ def process(args):
 
   # create a simple lens model using the focal length
   C_params = cam_params.CameraParams(lens=opts.lens)
+
+  if opts.camera_params:
+    C_params.load(opts.camera_params)
 
   mosaic = cuav_mosaic.Mosaic(slipmap, C=C_params)
 
