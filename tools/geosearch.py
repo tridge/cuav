@@ -31,7 +31,7 @@ def parse_args():
   parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
   parser.add_option("--view", action='store_true', default=False, help="show images")
   parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
-  parser.add_option("--camera-params", default=None, help="camera calibration json file from OpenCV")
+  parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
   parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
   return parser.parse_args()
 
