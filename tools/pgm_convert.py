@@ -3,7 +3,7 @@
 convert images from PGM to other formats
 '''
 
-import os, sys, glob
+import os, sys, glob, cv
 
 from cuav.lib import cuav_util
 
