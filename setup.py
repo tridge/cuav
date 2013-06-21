@@ -2,7 +2,7 @@ from distutils.core import setup, Extension
 import numpy as np
 import platform
 
-version = '1.0.5'
+version = '1.0.6'
 
 if platform.system() == 'Windows':
     jpegturbo_libpath = "c:\libjpeg-turbo-gcc\lib"
@@ -47,6 +47,7 @@ setup (name = 'cuav',
        packages = ['cuav', 'cuav.lib', 'cuav.image', 'cuav.camera', 'cuav.uav'],
        scripts = [ 'tools/geosearch.py', 'tools/geotag.py',
                    'tools/cuav_lens.py', 'tools/agl_mission.py',
+                   'tools/pgm_convert.py',
                    'tests/cuav_benchmark.py' ],
        package_data = { 'cuav' : [ 'tests/test-8bit.pgm' ]},
        ext_modules = [scanner])
