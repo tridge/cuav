@@ -26,6 +26,7 @@ def parse_args():
   parser.add_option("--mission", default=None, type=file_type, help="mission file to display")
   parser.add_option("--mavlog", default=None, type=file_type, help="MAVLink telemetry log file")
   parser.add_option("--minscore", default=500, type='int', help="minimum score")
+  parser.add_option("--filter-type", type='choice', default='simple', choices=['simple', 'compactness'], help="object filter type")
   parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
   parser.add_option("--altitude", type='int', default=90, help="camera altitude above ground (meters)")
   parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
@@ -153,7 +154,7 @@ def process(args):
       frame_time = pos.time
 
       regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time,
-                                           min_score=opts.minscore)
+                                           min_score=opts.minscore, filter_type=opts.filter_type)
 
       scan_count += 1
 

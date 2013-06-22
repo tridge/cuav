@@ -46,7 +46,10 @@ def compactness(im):
   x = X.flatten()
   y = Y.flatten()
   wgts = im[y,x]
-  wgts /= sum(wgts)
+  sw = sum(wgts)
+  if sw == 0:
+          return 1
+  wgts /= sw
   wpts = array([wgts*x, wgts*y])
   wmean = sum(wpts, 1)
   N = len(x)
@@ -60,15 +63,15 @@ def compactness(im):
 
   return 1.0/(1.0 + sqrt(det))
 
-def hsv_score(hsv):
+def hsv_score(hsv, use_compactness=False):
 	'''try to score a HSV image based on how "interesting" it is for joe detection'''
 	(width,height) = cv.GetSize(hsv)
 	score = 0
 	blue_count = 0
 	red_count = 0
 	sum_v = 0
-	#from numpy import zeros
-	#scorix = zeros((height,width))
+	from numpy import zeros
+	scorix = zeros((height,width))
 	for x in range(width):
 		for y in range(height):
 			pix_score = 0
@@ -93,13 +96,13 @@ def hsv_score(hsv):
 				pix_score += 1
 				#print h,s,v,'S'
 			score += pix_score
-			#scorix[y,x] = pix_score
+			scorix[y,x] = pix_score
 	avg_v = sum_v / (width*height)
-	#print blue_count, red_count, avg_v
 	# apply compactness
-	# NOTE: disabled until we find the memory leak on the panda
-	#nessy=compactness(scorix)
-	#score*=nessy
+        if use_compactness:
+                nessy=compactness(scorix)
+                score *= nessy
+                
 	if blue_count < 100 and red_count < 50 and avg_v < 150:
 		if blue_count > 1 and red_count > 1:
 			score *= 2
@@ -109,7 +112,7 @@ def hsv_score(hsv):
 			score *= 2
 	return score
 
-def score_region(img, r, min_score=4):
+def score_region(img, r, filter_type='simple'):
 	'''filter a list of regions using HSV values'''
 	(x1, y1, x2, y2) = r.tuple()
 	if True:
@@ -124,15 +127,19 @@ def score_region(img, r, min_score=4):
 	hsv = cv.CreateImage((x2-x1,y2-y1), 8, 3)
 	cv.CvtColor(img, hsv, cv.CV_RGB2HSV)
 	cv.ResetImageROI(img)
-	r.score = hsv_score(hsv)
+        if filter_type == 'compactness':
+                use_compactness = True
+        else:
+                use_compactness = False
+	r.score = hsv_score(hsv, use_compactness)
 
-def filter_regions(img, regions, min_score=4, frame_time=None):
+def filter_regions(img, regions, min_score=4, frame_time=None, filter_type='simple'):
 	'''filter a list of regions using HSV values'''
 	ret = []
 	img = cv.GetImage(cv.fromarray(img))
 	for r in regions:
 		if r.score is None:
-			score_region(img, r)
+			score_region(img, r, filter_type=filter_type)
 		if r.score >= min_score:
 			ret.append(r)
 	return ret
