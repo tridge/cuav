@@ -2,7 +2,7 @@ from distutils.core import setup, Extension
 import numpy as np
 import platform
 
-version = '1.0.6'
+version = '1.0.7'
 
 if platform.system() == 'Windows':
     jpegturbo_libpath = "c:\libjpeg-turbo-gcc\lib"
