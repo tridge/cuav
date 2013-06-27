@@ -5,11 +5,12 @@ $(warning Arch returned $(ARCH))
 ifeq ($(ARCH),armv7l)
 $(warning building for ARM neon)
 CFLAGS=-I/usr/local/include -Wall -std=gnu99 -fPIC -O3 -mfpu=neon -ftree-vectorize -Wa,$(LISTOPTS) $(INCLUDES)
+CFLAGS=-I/usr/local/include -Wall -std=gnu99 -fPIC -O0 -mfpu=neon -Wa,$(LISTOPTS) $(INCLUDES)
 else
 $(warning building for non-ARM)
 CFLAGS=-I/usr/local/include -Wall -std=gnu99 -fPIC -O3 -Wa,$(LISTOPTS) $(INCLUDES)
-#CFLAGS=-I/usr/local/include -Wall -std=gnu99 -fPIC -g -Wa,$(LISTOPTS) $(INCLUDES)
 endif
+#CFLAGS=-I/usr/local/include -Wall -std=gnu99 -fPIC -g -Wa,$(LISTOPTS) $(INCLUDES)
 LIBS=-L/usr/local/lib -ldc1394 -lm -lusb-1.0
 TARGETS=capture_test capture_images capture_v4l chameleon_twin chameleon_twin16 chameleon_twin8 chameleon.so
 

@@ -5,11 +5,9 @@ emulate a chameleon camera, getting images from a playback tool
 The API is the same as the chameleon module, but takes images from fake_chameleon.pgm
 '''
 
-import chameleon
+from . import chameleon
 import time, os, sys, cv, numpy
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
 from cuav.lib import cuav_util
 from cuav.image import scanner
 

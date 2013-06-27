@@ -1090,7 +1090,7 @@ callback(struct libusb_transfer * transfer)
 	    return;	    
     }
 
-#if 1
+#if 0
     uint32_t *frame_info = (uint32_t *)f->transfer->buffer;
     printf("usb: Bulk transfer %d complete, %d of %d bytes recv=%u (cam=%p) info1=0x%x info2=0x%x\n",
 	   f->frame.id, transfer->actual_length, transfer->length, 

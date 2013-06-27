@@ -3,9 +3,8 @@
 import sys, cv, numpy, time
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util
+from ..image import scanner
+from ..lib import cuav_util
 
 from optparse import OptionParser
 parser = OptionParser("debayer.py [options] <filename>")

@@ -6,8 +6,8 @@ Andrew Tridgell
 May 2012
 '''
 
-import os, sys, cuav_util, mav_position, cPickle, time
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
+import os, sys, cPickle, time
+from cuav.lib import cuav_util, mav_position
 
 
 class JoePosition():
