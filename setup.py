@@ -4,6 +4,8 @@ import platform
 
 version = '1.0.8'
 
+ext_modules = []
+
 if platform.system() == 'Windows':
     jpegturbo_libpath = "c:\libjpeg-turbo-gcc\lib"
     jpegturbo_incpath = "c:\libjpeg-turbo-gcc\include"
@@ -15,7 +17,12 @@ else:
         extra_compile_args=["-std=gnu99", "-O3", "-mfpu=neon"]
     else:
         extra_compile_args=["-std=gnu99", "-O3"]
-    
+
+    chameleon = Extension('cuav.camera.chameleon',
+                          sources = ['camera/chameleon_py.c', 'camera/chameleon.c', 'camera/chameleon_util.c'],
+                          libraries = ['dc1394', 'm', 'usb-1.0'],
+                          extra_compile_args=extra_compile_args + ['-O0'])
+    ext_modules.append(chameleon)
 
  
 scanner = Extension('cuav.image.scanner',
@@ -23,6 +30,7 @@ scanner = Extension('cuav.image.scanner',
                     libraries = ['turbojpeg'],
                     library_dirs = [jpegturbo_libpath],
                     extra_compile_args=extra_compile_args)
+ext_modules.append(scanner)
  
 setup (name = 'cuav',
        version = version,
@@ -49,5 +57,5 @@ setup (name = 'cuav',
                    'tools/cuav_lens.py', 'tools/agl_mission.py',
                    'tools/pgm_convert.py',
                    'tests/cuav_benchmark.py' ],
-       package_data = { 'cuav' : [ 'tests/test-8bit.pgm' ]},
-       ext_modules = [scanner])
+       package_data = { 'cuav' : [ 'tests/test-8bit.pgm', 'data/chameleon1_arecont0.json' ]},
+       ext_modules = ext_modules)
