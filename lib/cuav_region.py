@@ -40,7 +40,8 @@ def RegionsConvert(rlist, width=640, height=480):
 def compactness(im):
   from numpy import array,meshgrid,arange,shape,mean,zeros
   from numpy import outer,sum,max,linalg
-  from math import sqrt
+  from numpy import sqrt
+  from math import exp
   (h,w) = shape(im)
   (X,Y) = meshgrid(arange(w),arange(h))
   x = X.flatten()
@@ -60,10 +61,27 @@ def compactness(im):
   P = P - outer(wmean,wmean);
 
   det = abs(linalg.det(P))
+  if (det > 0):
+    v = linalg.eigvalsh(P)
+    v = abs(v)
+    r = min(v)/max(v)
+    return 100.0*sqrt(r/det)
+  else:
+    return 0.0
 
-  return 1.0/(1.0 + sqrt(det))
+def whiteness(hsv):
+  ''' a measure of the whiteness of an HSV image 0 to 1'''
+  (width,height) = cv.GetSize(hsv)
+  score = 0
+  count = 0
+  for x in range(width):
+    for y in range(height):
+      (h,s,v) = hsv[y,x]
+      if (s < 25 and v > 50):
+        count += 1
+  return float(count)/float(width*height)
 
-def hsv_score(hsv, use_compactness=False):
+def raw_hsv_score(hsv):
 	'''try to score a HSV image based on how "interesting" it is for joe detection'''
 	(width,height) = cv.GetSize(hsv)
 	score = 0
@@ -98,11 +116,12 @@ def hsv_score(hsv, use_compactness=False):
 			score += pix_score
 			scorix[y,x] = pix_score
 	avg_v = sum_v / (width*height)
-	# apply compactness
-        if use_compactness:
-                nessy=compactness(scorix)
-                score *= nessy
-                
+
+	return (score, scorix, blue_count, red_count, avg_v)
+
+def hsv_score(hsv, use_compactness=False, use_whiteness=False):
+  (score, scorix, blue_count, red_count, avg_v) = raw_hsv_score(hsv)
+
 	if blue_count < 100 and red_count < 50 and avg_v < 150:
 		if blue_count > 1 and red_count > 1:
 			score *= 2
@@ -110,7 +129,14 @@ def hsv_score(hsv, use_compactness=False):
 			score *= 2
 		if blue_count > 4 and red_count > 4:
 			score *= 2
-	return score
+	if (use_compactness):
+    	scorix = (scorix>0).astype(float)
+    	nessy = compactness(scorix)
+        score = score*nessy
+	if (use_whiteness):
+		not_white = 1.0-whiteness(hsv)
+		score = score*not_white
+	return int(score)
 
 def score_region(img, r, filter_type='simple'):
 	'''filter a list of regions using HSV values'''
