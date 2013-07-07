@@ -82,7 +82,7 @@ def whiteness(hsv):
   return float(count)/float(width*height)
 
 def raw_hsv_score(hsv):
-	'''try to score a HSV image based on how "interesting" it is for joe detection'''
+	'''try to score a HSV image based on hsv'''
 	(width,height) = cv.GetSize(hsv)
 	score = 0
 	blue_count = 0
@@ -120,7 +120,8 @@ def raw_hsv_score(hsv):
 	return (score, scorix, blue_count, red_count, avg_v)
 
 def hsv_score(hsv, use_compactness=False, use_whiteness=False):
-  (score, scorix, blue_count, red_count, avg_v) = raw_hsv_score(hsv)
+	'''try to score a HSV image based on how "interesting" it is for joe detection'''
+  	(score, scorix, blue_count, red_count, avg_v) = raw_hsv_score(hsv)
 
 	if blue_count < 100 and red_count < 50 and avg_v < 150:
 		if blue_count > 1 and red_count > 1:
@@ -130,9 +131,9 @@ def hsv_score(hsv, use_compactness=False, use_whiteness=False):
 		if blue_count > 4 and red_count > 4:
 			score *= 2
 	if (use_compactness):
-    	scorix = (scorix>0).astype(float)
-    	nessy = compactness(scorix)
-        score = score*nessy
+    		scorix = (scorix>0).astype(float)
+    		nessy = compactness(scorix)
+        	score = score*nessy
 	if (use_whiteness):
 		not_white = 1.0-whiteness(hsv)
 		score = score*not_white
