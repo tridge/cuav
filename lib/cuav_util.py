@@ -522,7 +522,7 @@ def LoadImage(filename):
 	'''wrapper around cv.LoadImage that also handles PGM.
 	It always returns a colour image of the same size'''
 	if filename.endswith('.pgm'):
-		import scanner
+		from ..image import scanner
 		pgm = PGM(filename)
 		im_full = numpy.zeros((960,1280,3),dtype='uint8')
 		scanner.debayer_full(pgm.array, im_full)
