@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 '''
-extract mavlink mission from log
+modify a mission to do terrain following at a specified altitude above ground level
 '''
 
 import sys, time, os, copy
