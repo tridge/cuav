@@ -61,10 +61,6 @@ struct PACKED rgb {
 	uint8_t b, g, r;
 };
 
-struct PACKED yuv {
-	uint8_t y, u, v;
-};
-
 /*
   full size greyscale 8 bit image
  */
@@ -85,13 +81,6 @@ struct grey_image16 {
  */
 struct rgb_image8 {
 	struct rgb data[HEIGHT/2][WIDTH/2];
-};
-
-/*
-  half size colour 8 bit per channel YUV image
- */
-struct yuv_image8 {
-	struct yuv data[HEIGHT/2][WIDTH/2];
 };
 
 /*
@@ -455,15 +444,6 @@ static inline uint16_t rgb_bin(const struct rgb *in)
 	return (in->r << (2*HISTOGRAM_BITS_PER_COLOR)) |
 		(in->g << (HISTOGRAM_BITS_PER_COLOR)) |
 		in->b;
-}
-
-/*
-  calculate a histogram bin for a yuv value
- */
-static inline uint16_t yuv_bin(const struct yuv *in)
-{
-	return (in->u << (HISTOGRAM_BITS_PER_COLOR)) |
-		in->v;
 }
 
 /*
@@ -1468,66 +1448,6 @@ scanner_gamma_correct(PyObject *self, PyObject *args)
 
 
 /*
-  convert to 0-255 YUV
- */
-static PyObject *
-scanner_rgb_to_yuv(PyObject *self, PyObject *args)
-{
-	PyArrayObject *img_in, *img_out;
-	uint16_t w, h;
-
-	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
-		return NULL;
-
-	CHECK_CONTIGUOUS(img_in);
-	CHECK_CONTIGUOUS(img_out);
-
-	w = PyArray_DIM(img_in, 1);
-	h = PyArray_DIM(img_in, 0);
-
-	if (PyArray_STRIDE(img_in, 0) != w*3) {
-		PyErr_SetString(ScannerError, "input must be 24 bit");
-		return NULL;
-	}
-	if (PyArray_STRIDE(img_out, 0) != w*3) {
-		PyErr_SetString(ScannerError, "output must be 24 bit");
-		return NULL;
-	}
-	if (PyArray_DIM(img_out, 1) != w ||
-	    PyArray_DIM(img_out, 0) != h) {
-		PyErr_SetString(ScannerError, "input and output sizes must match");
-		return NULL;
-	}
-
-	const uint8_t *in = PyArray_DATA(img_in);
-	uint8_t *out = PyArray_DATA(img_out);
-
-	Py_BEGIN_ALLOW_THREADS;
-	for (uint32_t i=0; i<w*h; i++) {
-		const struct rgb *rgb = (const struct rgb *)in;
-		struct yuv *yuv = (struct yuv *)out;
-		float y, u, v;
-		y = 0.299*rgb->r + 0.587*rgb->g + 0.114*rgb->b;
-		u = (rgb->b - yuv->y)*0.565 + 128;
-		v = (rgb->r - yuv->y)*0.713 + 128;
-		if (y > 255) y = 255;
-		if (u > 255) u = 255;
-		if (v > 255) v = 255;
-		if (u < 0) u = 0;
-		if (v < 0) v = 0;
-		yuv->y = y;
-		yuv->u = u;
-		yuv->v = v;
-		in += 3;
-		out += 3;
-	}
-	Py_END_ALLOW_THREADS;
-
-	Py_RETURN_NONE;
-}
-
-
-/*
   extract a rectange from a 24 bit RGB image
   img_in is a 24 bit large image
   img_out is a 24 bit small target image
@@ -1677,7 +1597,6 @@ static PyMethodDef ScannerMethods[] = {
 	{"downsample", scanner_downsample, METH_VARARGS, "downsample a 1280x960 24 bit RGB colour image to 640x480"},
 	{"reduce_depth", scanner_reduce_depth, METH_VARARGS, "reduce greyscale bit depth from 16 bit to 8 bit"},
 	{"gamma_correct", scanner_gamma_correct, METH_VARARGS, "reduce greyscale, applying gamma"},
-	{"rgb_to_yuv", scanner_rgb_to_yuv, METH_VARARGS, "convert to 0-255 YUV"},
 	{"rect_extract", scanner_rect_extract, METH_VARARGS, "extract a rectange from a 24 bit RGB image"},
 	{"rect_overlay", scanner_rect_overlay, METH_VARARGS, "overlay a image with another smaller image at x,y"},
 	{NULL, NULL, 0, NULL}
