@@ -25,8 +25,6 @@
 #include <arm_neon.h>
 #endif
 
-#define YUV_API 0
-
 /*
   this uses libjpeg-turbo from http://libjpeg-turbo.virtualgl.org/
   You need to build it with
@@ -555,51 +553,6 @@ static void histogram_threshold_neighbours(const struct rgb *in,
 	}	
 }
 
-#if YUV_API
-/*
-  threshold an image by its histogram, Pixels that have a histogram
-  count of more than threshold are set to zero value. 
-
-  This also zeros pixels which have a directly neighboring colour
-  value which is above the threshold. That makes it much more
-  expensive to calculate, but also makes it much less susceptible to
-  edge effects in the histogram
- */
-static void histogram_threshold_neighbours_yuv(const struct yuv *in,
-					       uint32_t size,
-					       struct yuv *out,
-					       const struct histogram *histogram,
-					       unsigned threshold)
-{
-	uint32_t i;
-
-	for (i=0; i<size; i++) {
-		struct yuv v = in[i];
-		int8_t uofs, vofs;
-
-		if (histogram->count[yuv_bin(&v)] > threshold) {
-			goto zero;
-		}
-
-		for (uofs=-1; uofs<= 1; vofs++) {
-			for (vofs=-1; vofs<= 1; vofs++) {
-				struct yuv v2 = { .y=0, .u=v.u+uofs, .v=v.v+vofs };
-				if (v2.u >= (1<<HISTOGRAM_BITS_PER_COLOR) ||
-				    v2.v >= (1<<HISTOGRAM_BITS_PER_COLOR)) {
-					continue;
-				}
-				if (histogram->count[yuv_bin(&v2)] > threshold) {
-					goto zero;
-				}
-			}
-		}
-		out[i] = in[i];
-		continue;
-	zero:
-		out[i].y = out[i].u = out[i].v = 0;
-	}	
-}
-#endif // YUV_API
 
 static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out)
 {
@@ -684,90 +637,6 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 #endif
 }
 
-#if YUV_API
-static void colour_histogram_yuv(const struct rgb_image8 *in, struct rgb_image8 *out)
-{
-	struct rgb min, max;
-	struct rgb bin_spacing;
-	struct rgb_image8 *quantised, *neighbours;
-	struct histogram *histogram;
-	unsigned num_bins = (1<<HISTOGRAM_BITS_PER_COLOR);
-#if SAVE_INTERMEDIATE
-	struct rgb_image8 *qsaved;
-	struct rgb_image8 *unquantised;
-#endif
-
-	ALLOCATE(quantised);
-	ALLOCATE(neighbours);
-	ALLOCATE(histogram);
-#if SAVE_INTERMEDIATE
-	ALLOCATE(unquantised);
-	ALLOCATE(qsaved);
-#endif
-
-#ifdef __ARM_NEON__
-	get_min_max_neon(&in->data[0][0], (WIDTH/2)*(HEIGHT/2), &min, &max);
-#else
-	get_min_max(&in->data[0][0], (WIDTH/2)*(HEIGHT/2), &min, &max);
-#endif
-
-#if 0
-	struct rgb min2, max2;
-	if (!rgb_equal(&min, &min2) ||
-	    !rgb_equal(&max, &max2)) {
-		printf("get_min_max_neon failure\n");
-	}
-#endif
-
-
-	bin_spacing.r = 1 + (max.r - min.r) / num_bins;
-	bin_spacing.g = 1 + (max.g - min.g) / num_bins;
-	bin_spacing.b = 1 + (max.b - min.b) / num_bins;
-
-#if 0
-	// try using same spacing on all axes
-	if (bin_spacing.r < bin_spacing.g) bin_spacing.r = bin_spacing.g;
-	if (bin_spacing.r < bin_spacing.b) bin_spacing.r = bin_spacing.b;
-	bin_spacing.g = bin_spacing.r;
-	bin_spacing.b = bin_spacing.b;
-#endif
-
-	quantise_image(&in->data[0][0], (WIDTH/2)*(HEIGHT/2), &quantised->data[0][0], &min, &bin_spacing);
-
-#if SAVE_INTERMEDIATE
-	unquantise_image(quantised, unquantised, &min, &bin_spacing);
-	colour_save_pnm("unquantised.pnm", unquantised);
-#endif
-
-	build_histogram(&quantised->data[0][0], (WIDTH/2)*(HEIGHT/2), histogram);
-
-#if SAVE_INTERMEDIATE
-	*qsaved = *quantised;
-	histogram_threshold(quantised, histogram, HISTOGRAM_COUNT_THRESHOLD);
-	unquantise_image(quantised, unquantised, &min, &bin_spacing);
-	colour_save_pnm("thresholded.pnm", unquantised);
-	*quantised = *qsaved;
-#endif
-
-
-	histogram_threshold_neighbours_yuv(&quantised->data[0][0], (WIDTH/2)*(HEIGHT/2), 
-					   &neighbours->data[0][0], histogram, HISTOGRAM_COUNT_THRESHOLD);
-#if SAVE_INTERMEDIATE
-	unquantise_image(neighbours, unquantised, &min, &bin_spacing);
-	colour_save_pnm("neighbours.pnm", unquantised);
-#endif
-
-	*out = *neighbours;
-
-	free(quantised);
-	free(neighbours);
-	free(histogram);
-#if SAVE_INTERMEDIATE
-	free(unquantised);
-	free(qsaved);
-#endif
-}
-#endif // YUV_API
 
 static void colour_histogram_full(const struct rgb_image8_full *in, struct rgb_image8_full *out)
 {
@@ -1403,71 +1272,6 @@ scanner_scan_full(PyObject *self, PyObject *args)
 
 	return list;
 }
-
-#if YUV_API
-/*
-  scan a YUV image for regions of interest and return the
-  markup as a set of tuples
- */
-static PyObject *
-scanner_scan_yuv(PyObject *self, PyObject *args)
-{
-	PyArrayObject *img_in;
-
-	if (!PyArg_ParseTuple(args, "O", &img_in))
-		return NULL;
-
-	CHECK_CONTIGUOUS(img_in);
-
-	if (PyArray_DIM(img_in, 1) != WIDTH/2 ||
-	    PyArray_DIM(img_in, 0) != HEIGHT/2 ||
-	    PyArray_STRIDE(img_in, 0) != 3*(WIDTH/2)) {
-		PyErr_SetString(ScannerError, "input must 640x480 24 bit");		
-		return NULL;
-	}
-	
-	const struct yuv_image8 *in = PyArray_DATA(img_in);
-
-	struct yuv_image8 *himage, *jimage;
-	struct regions *regions;
-	
-	ALLOCATE(regions);
-
-	Py_BEGIN_ALLOW_THREADS;
-	ALLOCATE(himage);
-	ALLOCATE(jimage);
-	colour_histogram_yuv(in, himage);
-	assign_regions(himage, regions);
-	prune_regions(regions);
-
-#if SAVE_INTERMEDIATE
-	struct rgb_image8 *marked;
-	ALLOCATE(marked);
-	*marked = *in;
-	mark_regions(marked, regions);
-	colour_save_pnm("marked.pnm", marked);
-	free(marked);
-#endif
-
-	free(himage);
-	free(jimage);
-	Py_END_ALLOW_THREADS;
-
-	PyObject *list = PyList_New(regions->num_regions);
-	for (unsigned i=0; i<regions->num_regions; i++) {
-		PyObject *t = Py_BuildValue("(iiii)", 
-					    regions->bounds[i].minx,
-					    regions->bounds[i].miny,
-					    regions->bounds[i].maxx,
-					    regions->bounds[i].maxy);
-		PyList_SET_ITEM(list, i, t);
-	}
-
-	free(regions);
-
-	return list;
-}
-#endif // YUV_API
 
 /*
   compress a 24 bit RGB image to a jpeg, returning as python bytes (a
