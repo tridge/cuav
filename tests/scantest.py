@@ -128,7 +128,7 @@ def process(args):
         else:
           scanner.reduce_depth(im, im_8bit)
       im_full = numpy.zeros((960,1280,3),dtype='uint8')
-      scanner.debayer_full(im_8bit, im_full)
+      scanner.debayer(im_8bit, im_full)
       im_640 = numpy.zeros((480,640,3),dtype='uint8')
       scanner.downsample(im_full, im_640)
     else:
@@ -152,7 +152,7 @@ def process(args):
     t0=time.time()
     for i in range(opts.repeat):
       if opts.fullres:
-        regions = scanner.scan_full(im_full)
+        regions = scanner.scan(im_full)
         regions = cuav_region.RegionsConvert(regions, 1280, 960)
       else:
         regions = scanner.scan(img_scan)
