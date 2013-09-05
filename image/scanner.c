@@ -11,11 +11,15 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <stdarg.h>
+#include <stddef.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <math.h>
 #include <numpy/arrayobject.h>
+
+#include "imageutil.h"
 
 //#undef __ARM_NEON__
 
@@ -57,10 +61,6 @@ static PyObject *ScannerError;
 
 #define SAVE_INTERMEDIATE 0
 
-struct PACKED rgb {
-	uint8_t b, g, r;
-};
-
 /*
   full size greyscale 8 bit image
  */
@@ -81,13 +81,6 @@ struct grey_image16 {
  */
 struct rgb_image8 {
 	struct rgb data[HEIGHT/2][WIDTH/2];
-};
-
-/*
-  full size colour 8 bit per channel RGB image
- */
-struct rgb_image8_full {
-	struct rgb data[HEIGHT][WIDTH];
 };
 
 #if SAVE_INTERMEDIATE
@@ -164,14 +157,14 @@ static void colour_convert_16_8bit(const struct grey_image16 *in, struct rgb_ima
 #endif
 }
 
-
+#if 0
 /*
   convert a 16 bit colour chameleon image to 8 bit colour at full
   resolution. No smoothing is done
 
   This algorithm emphasises speed over colour accuracy
  */
-static void colour_convert_16_8bit_full(const struct grey_image16 *in, struct rgb_image8_full *out)
+static void colour_convert_16_8bit_full(const struct grey_image16 *in, struct rgb_image *out)
 {
 	unsigned x, y;
 	/*
@@ -182,8 +175,8 @@ static void colour_convert_16_8bit_full(const struct grey_image16 *in, struct rg
 	     G B G B
 	     R G R G
 	 */
-	for (y=1; y<HEIGHT-2; y += 2) {
-		for (x=1; x<WIDTH-2; x += 2) {
+	for (y=1; y<out->height-2; y += 2) {
+		for (x=1; x<out->width-2; x += 2) {
 			out->data[y+0][x+0].g = in->data[y][x] >> 8;
 			out->data[y+0][x+0].b = ((uint32_t)in->data[y-1][x+0] + (uint32_t)in->data[y+1][x+0]) >> 9;
 			out->data[y+0][x+0].r = ((uint32_t)in->data[y+0][x-1] + (uint32_t)in->data[y+0][x+1]) >> 9;
@@ -206,13 +199,13 @@ static void colour_convert_16_8bit_full(const struct grey_image16 *in, struct rg
 		}
 		out->data[y+0][0] = out->data[y+0][1];
 		out->data[y+1][0] = out->data[y+1][1];
-		out->data[y+0][WIDTH-1] = out->data[y+0][WIDTH-2];
-		out->data[y+1][WIDTH-1] = out->data[y+1][WIDTH-2];
+		out->data[y+0][out->width-1] = out->data[y+0][out->width-2];
+		out->data[y+1][out->width-1] = out->data[y+1][out->width-2];
 	}
-	memcpy(out->data[0], out->data[1], WIDTH*3);
-	memcpy(out->data[HEIGHT-1], out->data[HEIGHT-2], WIDTH*3);
+	memcpy(out->data[0], out->data[1], out->width*3);
+	memcpy(out->data[out->height-1], out->data[out->height-2], out->width*3);
 }
-
+#endif
 
 
 
@@ -222,7 +215,7 @@ static void colour_convert_16_8bit_full(const struct grey_image16 *in, struct rg
 
   This algorithm emphasises speed over colour accuracy
  */
-static void colour_convert_8bit_full(const struct grey_image8 *in, struct rgb_image8_full *out)
+static void colour_convert(const struct grey_image8 *in, struct rgb_image *out)
 {
 	unsigned x, y;
 	/*
@@ -233,8 +226,8 @@ static void colour_convert_8bit_full(const struct grey_image8 *in, struct rgb_im
 	     G B G B
 	     R G R G
 	 */
-	for (y=1; y<HEIGHT-2; y += 2) {
-		for (x=1; x<WIDTH-2; x += 2) {
+	for (y=1; y<out->height-2; y += 2) {
+		for (x=1; x<out->width-2; x += 2) {
 			out->data[y+0][x+0].g = in->data[y][x];
 			out->data[y+0][x+0].b = ((uint16_t)in->data[y-1][x+0] + (uint16_t)in->data[y+1][x+0]) >> 1;
 			out->data[y+0][x+0].r = ((uint16_t)in->data[y+0][x-1] + (uint16_t)in->data[y+0][x+1]) >> 1;
@@ -257,11 +250,11 @@ static void colour_convert_8bit_full(const struct grey_image8 *in, struct rgb_im
 		}
 		out->data[y+0][0] = out->data[y+0][1];
 		out->data[y+1][0] = out->data[y+1][1];
-		out->data[y+0][WIDTH-1] = out->data[y+0][WIDTH-2];
-		out->data[y+1][WIDTH-1] = out->data[y+1][WIDTH-2];
+		out->data[y+0][out->width-1] = out->data[y+0][out->width-2];
+		out->data[y+1][out->width-1] = out->data[y+1][out->width-2];
 	}
-	memcpy(out->data[0], out->data[1], WIDTH*3);
-	memcpy(out->data[HEIGHT-1], out->data[HEIGHT-2], WIDTH*3);
+	memcpy(out->data[0], out->data[1], out->width*3);
+	memcpy(out->data[out->height-1], out->data[out->height-2], out->width*3);
 }
 
 
@@ -270,7 +263,7 @@ static void colour_convert_8bit_full(const struct grey_image8 *in, struct rgb_im
 
   this is used by the fake chameleon code
  */
-static void rebayer_1280_960_8(const struct rgb_image8_full *in, struct grey_image8 *out)
+static void rebayer_1280_960_8(const struct rgb_image *in, struct grey_image8 *out)
 {
 	unsigned x, y;
 	/*
@@ -279,8 +272,8 @@ static void rebayer_1280_960_8(const struct rgb_image8_full *in, struct grey_ima
              G B
 	     R G
 	 */
-	for (y=1; y<HEIGHT-1; y += 2) {
-		for (x=1; x<WIDTH-1; x += 2) {
+	for (y=1; y<in->height-1; y += 2) {
+		for (x=1; x<in->width-1; x += 2) {
 			// note that this is used with images from
 			// opencv which are RGB, whereas we normally
 			// use BGR, so we reverse R and B in the
@@ -618,30 +611,31 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 }
 
 
-static void colour_histogram_full(const struct rgb_image8_full *in, struct rgb_image8_full *out)
+static void colour_histogram_full(const struct rgb_image *in, struct rgb_image *out)
 {
 	struct rgb min, max;
 	struct rgb bin_spacing;
-	struct rgb_image8_full *quantised, *neighbours;
+	struct rgb_image *quantised, *neighbours;
 	struct histogram *histogram;
 	unsigned num_bins = (1<<HISTOGRAM_BITS_PER_COLOR);
 #if SAVE_INTERMEDIATE
-	struct rgb_image8_full *qsaved;
-	struct rgb_image8_full *unquantised;
+	struct rgb_image *qsaved;
+	struct rgb_image *unquantised;
 #endif
 
-	ALLOCATE(quantised);
-	ALLOCATE(neighbours);
+        quantised = allocate_rgb_image8(in->height, in->width, NULL);
+        neighbours = allocate_rgb_image8(in->height, in->width, NULL);
+
 	ALLOCATE(histogram);
 #if SAVE_INTERMEDIATE
-	ALLOCATE(unquantised);
-	ALLOCATE(qsaved);
+        unquantised = allocate_rgb_image8(in->height, in->width, NULL);
+        qsaved = allocate_rgb_image8(in->height, in->width, NULL);
 #endif
 
 #ifdef __ARM_NEON__
-	get_min_max_neon(&in->data[0][0], WIDTH*HEIGHT, &min, &max);
+	get_min_max_neon(&in->data[0][0], in->width*in->height, &min, &max);
 #else
-	get_min_max(&in->data[0][0], WIDTH*HEIGHT, &min, &max);
+	get_min_max(&in->data[0][0], in->width*in->height, &min, &max);
 #endif
 
 #if 0
@@ -666,32 +660,32 @@ static void colour_histogram_full(const struct rgb_image8_full *in, struct rgb_i
 #endif
 
 
-	quantise_image(&in->data[0][0], WIDTH*HEIGHT, &quantised->data[0][0], &min, &bin_spacing);
+	quantise_image(&in->data[0][0], in->width*in->height, &quantised->data[0][0], &min, &bin_spacing);
 
 #if SAVE_INTERMEDIATE
 	unquantise_image_full(quantised, unquantised, &min, &bin_spacing);
 	colour_save_pnm("unquantised.pnm", unquantised);
 #endif
 
-	build_histogram(&quantised->data[0][0], WIDTH*HEIGHT, histogram);
+	build_histogram(&quantised->data[0][0], in->width*in->height, histogram);
 
 #if SAVE_INTERMEDIATE
-	*qsaved = *quantised;
+	copy_rgb_image8(quantised, qsaved);
 	histogram_threshold(quantised, histogram, HISTOGRAM_COUNT_THRESHOLD);
 	unquantise_image(quantised, unquantised, &min, &bin_spacing);
 	colour_save_pnm("thresholded.pnm", unquantised);
-	*quantised = *qsaved;
+        copy_rgb_image8(qsaved, quantised);
 #endif
 
 
-	histogram_threshold_neighbours(&quantised->data[0][0], WIDTH*HEIGHT, 
+	histogram_threshold_neighbours(&quantised->data[0][0], in->width*in->height, 
 				       &neighbours->data[0][0], histogram, HISTOGRAM_COUNT_THRESHOLD);
 #if SAVE_INTERMEDIATE
 	unquantise_image(neighbours, unquantised, &min, &bin_spacing);
 	colour_save_pnm("neighbours.pnm", unquantised);
 #endif
 
-	*out = *neighbours;
+	copy_rgb_image8(neighbours, out);
 
 	free(quantised);
 	free(neighbours);
@@ -702,7 +696,6 @@ static void colour_histogram_full(const struct rgb_image8_full *in, struct rgb_i
 #endif
 }
 
-#define MAX_REGIONS 200
 #define MIN_REGION_SIZE 8
 #define MAX_REGION_SIZE 400
 #define MIN_REGION_SIZE_XY 2
@@ -714,16 +707,6 @@ static void colour_histogram_full(const struct rgb_image8_full *in, struct rgb_i
 struct regions {
 	unsigned num_regions;
 	int16_t data[HEIGHT/2][WIDTH/2];
-	uint16_t region_size[MAX_REGIONS];
-	struct {
-		uint16_t minx, miny;
-		uint16_t maxx, maxy;
-	} bounds[MAX_REGIONS];
-};
-
-struct regions_full {
-	unsigned num_regions;
-	int16_t data[HEIGHT][WIDTH];
 	uint16_t region_size[MAX_REGIONS];
 	struct {
 		uint16_t minx, miny;
@@ -823,13 +806,13 @@ static void assign_regions(const struct rgb_image8 *in, struct regions *out)
 /*
   expand a region by looking for neighboring non-zero pixels
  */
-static void expand_region_full(const struct rgb_image8_full *in, struct regions_full *out,
+static void expand_region_full(const struct rgb_image *in, struct regions_full *out,
 			       unsigned y, unsigned x)
 {
 	int yofs, xofs;
 
-	for (yofs= y>0?-1:0; yofs <= (y<HEIGHT-1?1:0); yofs++) {
-		for (xofs= x>0?-1:0; xofs <= (x<WIDTH-1?1:0); xofs++) {
+	for (yofs= y>0?-1:0; yofs <= (y<in->height-1?1:0); yofs++) {
+		for (xofs= x>0?-1:0; xofs <= (x<in->width-1?1:0); xofs++) {
 			uint16_t r;
 
 			if (out->data[y+yofs][x+xofs] != REGION_UNKNOWN) {
@@ -860,19 +843,22 @@ static void expand_region_full(const struct rgb_image8_full *in, struct regions_
   assign region numbers to contigouus regions of non-zero data in an
   image
  */
-static void assign_regions_full(const struct rgb_image8_full *in, struct regions_full *out)
+static void assign_regions_full(const struct rgb_image *in, struct regions_full *out)
 {
 	unsigned x, y;
 
-	memset(out, 0, sizeof(*out));
-	for (y=0; y<HEIGHT; y++) {
-		for (x=0; x<WIDTH; x++) {
+        out->num_regions = 0;
+	memset(out->region_size, 0, sizeof(out->region_size));
+	memset(out->bounds, 0, sizeof(out->bounds));
+
+	for (y=0; y<out->height; y++) {
+		for (x=0; x<out->width; x++) {
 			out->data[y][x] = REGION_UNKNOWN;
 		}
 	}
 
-	for (y=0; y<HEIGHT; y++) {
-		for (x=0; x<WIDTH; x++) {
+	for (y=0; y<out->height; y++) {
+		for (x=0; x<out->width; x++) {
 			if (out->data[y][x] != REGION_UNKNOWN) {
 				/* already assigned a region */
 				continue;
@@ -1060,30 +1046,28 @@ scanner_debayer_full(PyObject *self, PyObject *args)
 	CHECK_CONTIGUOUS(img_in);
 	CHECK_CONTIGUOUS(img_out);
 
-	if (PyArray_DIM(img_in, 1) != WIDTH ||
-	    PyArray_DIM(img_in, 0) != HEIGHT) {
-		PyErr_SetString(ScannerError, "input must be 1280x960");
+        uint16_t height = PyArray_DIM(img_in, 0);
+        uint16_t width  = PyArray_DIM(img_in, 1);
+	if (PyArray_DIM(img_out, 1) != width ||
+	    PyArray_DIM(img_out, 0) != height ||
+	    PyArray_STRIDE(img_out, 0) != 3*width) {
+		PyErr_SetString(ScannerError, "output must be same shape as input and 24 bit");
 		return NULL;
 	}
-	if (PyArray_DIM(img_out, 1) != WIDTH ||
-	    PyArray_DIM(img_out, 0) != HEIGHT ||
-	    PyArray_STRIDE(img_out, 0) != 3*WIDTH) {
-		PyErr_SetString(ScannerError, "output must be 1280x960 24 bit");
-		return NULL;
-	}
-
-	const struct grey_image16 *in = PyArray_DATA(img_in);
-	const struct grey_image8 *in8 = PyArray_DATA(img_in);
-	struct rgb_image8_full *out = PyArray_DATA(img_out);
 	bool eightbit = PyArray_STRIDE(img_in, 0) == PyArray_DIM(img_in, 1);
+        if (!eightbit) {
+		PyErr_SetString(ScannerError, "input must be 8 bit");
+		return NULL;
+        }
+	const struct grey_image8 *in8 = PyArray_DATA(img_in);
+        struct rgb_image *out = allocate_rgb_image8(HEIGHT, WIDTH, PyArray_DATA(img_out));
 
 	Py_BEGIN_ALLOW_THREADS;
-	if (eightbit) {
-		colour_convert_8bit_full(in8, out);
-	} else {
-		colour_convert_16_8bit_full(in, out);
-	}
+        colour_convert(in8, out);
 	Py_END_ALLOW_THREADS;
+
+        memcpy(PyArray_DATA(img_out), &out->data[0][0], height*width);
+        free(out);
 
 	Py_RETURN_NONE;
 }
@@ -1103,25 +1087,27 @@ scanner_rebayer_full(PyObject *self, PyObject *args)
 	CHECK_CONTIGUOUS(img_in);
 	CHECK_CONTIGUOUS(img_out);
 
-	if (PyArray_DIM(img_in, 1) != WIDTH ||
-	    PyArray_DIM(img_in, 0) != HEIGHT ||
-	    PyArray_STRIDE(img_in, 0) != 3*WIDTH) {
-		PyErr_SetString(ScannerError, "input must be 1280x960 24 bit");
+        uint16_t height = PyArray_DIM(img_in, 0);
+        uint16_t width  = PyArray_DIM(img_in, 1);
+	if (PyArray_STRIDE(img_in, 0) != 3*width) {
+		PyErr_SetString(ScannerError, "input must be 24 bit");
 		return NULL;
 	}
-	if (PyArray_DIM(img_out, 1) != WIDTH ||
-	    PyArray_DIM(img_out, 0) != HEIGHT ||
-	    PyArray_STRIDE(img_out, 0) != WIDTH) {
-		PyErr_SetString(ScannerError, "output must be 1280x960 8 bit");
+	if (PyArray_DIM(img_out, 1) != width ||
+	    PyArray_DIM(img_out, 0) != height ||
+	    PyArray_STRIDE(img_out, 0) != width) {
+		PyErr_SetString(ScannerError, "output must same size and 8 bit");
 		return NULL;
 	}
 
-	const struct rgb_image8_full *in = PyArray_DATA(img_in);
+	const struct rgb_image *in = allocate_rgb_image8(height, width, PyArray_DATA(img_in));
 	struct grey_image8 *out = PyArray_DATA(img_out);
 
 	Py_BEGIN_ALLOW_THREADS;
 	rebayer_1280_960_8(in, out);
 	Py_END_ALLOW_THREADS;
+
+        free((void*)in);
 
 	Py_RETURN_NONE;
 }
@@ -1184,7 +1170,7 @@ scanner_scan(PyObject *self, PyObject *args)
 		PyList_SET_ITEM(list, i, t);
 	}
 
-	free(regions);
+	free((void*)regions);
 
 	return list;
 }
@@ -1203,32 +1189,37 @@ scanner_scan_full(PyObject *self, PyObject *args)
 		return NULL;
 
 	CHECK_CONTIGUOUS(img_in);
-
-	if (PyArray_DIM(img_in, 1) != WIDTH ||
-	    PyArray_DIM(img_in, 0) != HEIGHT ||
-	    PyArray_STRIDE(img_in, 0) != 3*WIDTH) {
-		PyErr_SetString(ScannerError, "input must 1280x960 24 bit");		
+        
+        uint16_t height = PyArray_DIM(img_in, 0);
+        uint16_t width  = PyArray_DIM(img_in, 1);
+	if (PyArray_STRIDE(img_in, 0) != 3*WIDTH) {
+		PyErr_SetString(ScannerError, "input must RGB 24 bit");		
 		return NULL;
 	}
-	
-	const struct rgb_image8_full *in = PyArray_DATA(img_in);
 
-	struct rgb_image8_full *himage, *jimage;
-	struct regions_full *regions;
-	
-	ALLOCATE(regions);
+        const struct rgb_image *in = allocate_rgb_image8(height, width, PyArray_DATA(img_in));
+
+	struct regions_full *regions = any_matrix(2, 
+                                                  sizeof(int16_t), 
+                                                  offsetof(struct regions_full, data), 
+                                                  height, 
+                                                  width);
 
 	Py_BEGIN_ALLOW_THREADS;
-	ALLOCATE(himage);
-	ALLOCATE(jimage);
+
+        struct rgb_image *himage = allocate_rgb_image8(height, width, NULL);
+        struct rgb_image *jimage = allocate_rgb_image8(height, width, NULL);
+        regions->height = height;
+        regions->width = width;
+
 	colour_histogram_full(in, himage);
 	assign_regions_full(himage, regions);
 	prune_regions_full(regions);
 
 #if SAVE_INTERMEDIATE
-	struct rgb_image8 *marked;
-	ALLOCATE(marked);
-	*marked = *in;
+	struct rgb_image *marked;
+        marked = allocate_rgb_image8(height, width, NULL);
+	copy_rgb_image8(in, marked);
 	mark_regions(marked, regions);
 	colour_save_pnm("marked.pnm", marked);
 	free(marked);
@@ -1236,6 +1227,8 @@ scanner_scan_full(PyObject *self, PyObject *args)
 
 	free(himage);
 	free(jimage);
+        free((void*)in);
+
 	Py_END_ALLOW_THREADS;
 
 	PyObject *list = PyList_New(regions->num_regions);
@@ -1293,7 +1286,7 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 }
 
 /*
-  downsample a 24 bit colour image from 1280x960 to 640x480
+  downsample a 24 bit colour image by 2x
  */
 static PyObject *
 scanner_downsample(PyObject *self, PyObject *args)
@@ -1306,28 +1299,26 @@ scanner_downsample(PyObject *self, PyObject *args)
 	CHECK_CONTIGUOUS(img_in);
 	CHECK_CONTIGUOUS(img_out);
 
-	if (PyArray_DIM(img_in, 1) != WIDTH ||
-	    PyArray_DIM(img_in, 0) != HEIGHT ||
-	    PyArray_STRIDE(img_in, 0) != WIDTH*3) {
-		PyErr_SetString(ScannerError, "input must be 1280x960 24 bit");
+        uint16_t height = PyArray_DIM(img_in, 0);
+        uint16_t width  = PyArray_DIM(img_in, 1);
+
+	if (PyArray_STRIDE(img_in, 0) != width*3) {
+		PyErr_SetString(ScannerError, "input must be 24 bit");
 		return NULL;
 	}
-	if (PyArray_DIM(img_out, 1) != WIDTH/2 ||
-	    PyArray_DIM(img_out, 0) != HEIGHT/2 ||
-	    PyArray_STRIDE(img_out, 0) != 3*(WIDTH/2)) {
-		PyErr_SetString(ScannerError, "output must be 640x480 24 bit");
+	if (PyArray_DIM(img_out, 1) != width/2 ||
+	    PyArray_DIM(img_out, 0) != height/2 ||
+	    PyArray_STRIDE(img_out, 0) != 3*(width/2)) {
+		PyErr_SetString(ScannerError, "output must be half-size 24 bit");
 		return NULL;
 	}
 
-	const struct rgb_image8_full *in = PyArray_DATA(img_in);
+        const struct rgb_image *in = allocate_rgb_image8(height, width, PyArray_DATA(img_in));
 	struct rgb_image8 *out = PyArray_DATA(img_out);
 
 	Py_BEGIN_ALLOW_THREADS;
-	for (uint16_t y=0; y<HEIGHT/2; y++) {
-		for (uint16_t x=0; x<WIDTH/2; x++) {
-#if 0
-			out->data[y][x] = in->data[y*2][x*2];
-#else
+	for (uint16_t y=0; y<height/2; y++) {
+		for (uint16_t x=0; x<width/2; x++) {
 			const struct rgb *p0 = &in->data[y*2+0][x*2+0];
 			const struct rgb *p1 = &in->data[y*2+0][x*2+1];
 			const struct rgb *p2 = &in->data[y*2+1][x*2+0];
@@ -1336,10 +1327,11 @@ scanner_downsample(PyObject *self, PyObject *args)
 			d->b = ((uint16_t)p0->b + (uint16_t)p1->b + (uint16_t)p2->b + (uint16_t)p3->b)/4;
 			d->g = ((uint16_t)p0->g + (uint16_t)p1->g + (uint16_t)p2->g + (uint16_t)p3->g)/4;
 			d->r = ((uint16_t)p0->r + (uint16_t)p1->r + (uint16_t)p2->r + (uint16_t)p3->r)/4;
-#endif
 		}
 	}
 	Py_END_ALLOW_THREADS;
+
+        free((void*)in);
 
 	Py_RETURN_NONE;
 }
