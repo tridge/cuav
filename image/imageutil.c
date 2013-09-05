@@ -97,15 +97,15 @@ struct rgb_image *allocate_rgb_image8(uint16_t height,
                                       uint16_t width, 
                                       const struct rgb *data)
 {
-    struct rgb_image *ret = any_matrix(2, sizeof(struct rgb), 
-                                       offsetof(struct rgb_image, data),
-                                       height, width);
-    ret->height = height;
-    ret->width  = width;
-    if (data != NULL) {
-        memcpy(&ret->data[0][0], data, width*height*sizeof(struct rgb));
-    }
-    return ret;
+        struct rgb_image *ret = any_matrix(2, sizeof(struct rgb), 
+                                           offsetof(struct rgb_image, data),
+                                           height, width);
+        ret->height = height;
+        ret->width  = width;
+        if (data != NULL) {
+                memcpy(&ret->data[0][0], data, width*height*sizeof(struct rgb));
+        }
+        return ret;
 }
 
 void copy_rgb_image8(const struct rgb_image *in, 
@@ -114,6 +114,24 @@ void copy_rgb_image8(const struct rgb_image *in,
         assert(in->height == out->height);
         assert(in->width == out->width);
         memcpy(&out->data[0][0], &in->data[0][0], sizeof(struct rgb)*in->width*in->height);
+}
+
+/*
+  create a dynamic 8 bit grey image. Can be freed with free()
+ */
+struct grey_image8 *allocate_grey_image8(uint16_t height, 
+                                         uint16_t width, 
+                                         const uint8_t *data)
+{
+        struct grey_image8 *ret = any_matrix(2, sizeof(uint8_t), 
+                                             offsetof(struct grey_image8, data),
+                                             height, width);
+        ret->height = height;
+        ret->width  = width;
+        if (data != NULL) {
+                memcpy(&ret->data[0][0], data, width*height*sizeof(uint8_t));
+        }
+        return ret;
 }
 
 #ifdef MAIN_PROGRAM
@@ -128,20 +146,6 @@ int main(void)
                 }
         }
         free(im);
-
-	struct regions_full *regions = any_matrix(2, 
-                                                  sizeof(int16_t), 
-                                                  offsetof(struct regions_full, data), 
-                                                  960, 
-                                                  1280);
-        regions->height = 960;
-        regions->width = 1280;
-        for (uint16_t i = 0; i<regions->height; i++) {
-                for (uint16_t j = 0; j<regions->width; j++) {
-                        regions->data[i][j] = 0;
-                }
-        }
-        free(regions);
 
         return 0;
 }

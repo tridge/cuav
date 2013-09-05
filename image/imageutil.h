@@ -11,10 +11,17 @@
 
 #define PACKED __attribute__((__packed__))
 
-#define MAX_REGIONS 200
-
 struct PACKED rgb {
 	uint8_t b, g, r;
+};
+
+/*
+  greyscale 8 bit image
+ */
+struct grey_image8 {
+    uint16_t width;
+    uint16_t height;
+    uint8_t **data;
 };
 
 /*
@@ -25,20 +32,6 @@ struct rgb_image {
     uint16_t height;
     struct rgb **data;
 };
-
-struct regions_full {
-        uint16_t height;
-        uint16_t width;
-	unsigned num_regions;
-	uint16_t region_size[MAX_REGIONS];
-	struct {
-		uint16_t minx, miny;
-		uint16_t maxx, maxy;
-	} bounds[MAX_REGIONS];
-        int16_t **data;
-};
-
-
 
 /*
   allocate a N dimensional array with a given element size and header
@@ -54,6 +47,13 @@ void *any_matrix(uint8_t dimension,
 struct rgb_image *allocate_rgb_image8(uint16_t height, 
                                       uint16_t width, 
                                       const struct rgb *data);
+
+/*
+  allocate a greyscale 8 bit image
+ */
+struct grey_image8 *allocate_grey_image8(uint16_t height, 
+                                         uint16_t width, 
+                                         const uint8_t *data);
 
 /*
   copy image data from one image to another of same size
