@@ -134,12 +134,7 @@ def process(args):
     else:
       im_orig = cv.LoadImage(f)
       (w,h) = cuav_util.image_shape(im_orig)
-      if (w,h) != (1280,960):
-        im_full = cv.CreateImage((1280, 960), 8, 3)
-        cv.Resize(im_orig, im_full)
-        cv.ConvertScale(im_full, im_full, scale=0.3)
-      else:
-        im_full = im_orig
+      im_full = im_orig
       im_640 = cv.CreateImage((640, 480), 8, 3)
       cv.Resize(im_full, im_640, cv.CV_INTER_NN)
       im_640 = numpy.ascontiguousarray(cv.GetMat(im_640))
