@@ -525,7 +525,7 @@ def LoadImage(filename):
 		from ..image import scanner
 		pgm = PGM(filename)
 		im_full = numpy.zeros((960,1280,3),dtype='uint8')
-		scanner.debayer_full(pgm.array, im_full)
+		scanner.debayer(pgm.array, im_full)
 		return cv.GetImage(cv.fromarray(im_full))
 	return cv.LoadImage(filename)
 
