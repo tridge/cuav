@@ -87,6 +87,12 @@ def process(filename):
   t1 = time.time()
   print('scan: %.1f fps' % (opts.repeat/(t1-t0)))
 
+  t0 = time.time()
+  for i in range(opts.repeat):
+    scanner.scan_full(im_full)
+  t1 = time.time()
+  print('scan_full: %.1f fps' % (opts.repeat/(t1-t0)))
+
   if not hasattr(scanner, 'jpeg_compress'):
       return
   
