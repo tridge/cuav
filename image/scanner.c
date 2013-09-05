@@ -56,7 +56,7 @@ static PyObject *ScannerError;
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-#define SAVE_INTERMEDIATE 1
+#define SAVE_INTERMEDIATE 0
 
 #define MAX_REGIONS 200
 
