@@ -526,10 +526,17 @@ static void colour_histogram(const struct rgb_image *in, struct rgb_image *out)
 #endif
 }
 
-#define MIN_REGION_SIZE 8
-#define MAX_REGION_SIZE 400
-#define MIN_REGION_SIZE_XY 2
-#define MAX_REGION_SIZE_XY 30
+static struct {
+    uint16_t min_region_size;
+    uint16_t max_region_size;
+    uint16_t min_region_size_xy;
+    uint16_t max_region_size_xy;
+} scan_params = {
+	min_region_size : 8,
+        max_region_size : 400,
+        min_region_size_xy : 2,
+        max_region_size_xy : 30
+};
 
 #define REGION_UNKNOWN -2
 #define REGION_NONE -1
@@ -561,7 +568,7 @@ static void expand_region(const struct rgb_image *in, struct regions *out,
 			r = out->data[y][x];
 			out->data[y+yofs][x+xofs] = r;
 			out->region_size[r]++;
-			if (out->region_size[r] > MAX_REGION_SIZE) {
+			if (out->region_size[r] > scan_params.max_region_size) {
 				return;
 			}
 
@@ -632,12 +639,12 @@ static void prune_regions(struct regions *in)
 {
 	unsigned i;
 	for (i=0; i<in->num_regions; i++) {
-		if (in->region_size[i] < MIN_REGION_SIZE ||
-		    in->region_size[i] > MAX_REGION_SIZE ||
-		    (in->bounds[i].maxx - in->bounds[i].minx) > MAX_REGION_SIZE_XY ||
-		    (in->bounds[i].maxx - in->bounds[i].minx) < MIN_REGION_SIZE_XY ||
-		    (in->bounds[i].maxy - in->bounds[i].miny) > MAX_REGION_SIZE_XY ||
-		    (in->bounds[i].maxy - in->bounds[i].miny) < MIN_REGION_SIZE_XY) {
+		if (in->region_size[i] < scan_params.min_region_size ||
+		    in->region_size[i] > scan_params.max_region_size ||
+		    (in->bounds[i].maxx - in->bounds[i].minx) > scan_params.max_region_size_xy ||
+		    (in->bounds[i].maxx - in->bounds[i].minx) < scan_params.min_region_size_xy ||
+		    (in->bounds[i].maxy - in->bounds[i].miny) > scan_params.max_region_size_xy ||
+		    (in->bounds[i].maxy - in->bounds[i].miny) < scan_params.min_region_size_xy) {
 			memmove(&in->region_size[i], &in->region_size[i+1], 
 				sizeof(in->region_size[i])*(in->num_regions-(i+1)));
 			memmove(&in->bounds[i], &in->bounds[i+1], 
