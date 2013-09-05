@@ -86,7 +86,7 @@ def bayer_thread():
   while True:
     frame_time, im = state.bayer_queue.get()
     im_colour = numpy.zeros((960,1280,3),dtype='uint8')
-    scanner.debayer_full(im, im_colour)
+    scanner.debayer(im, im_colour)
     if opts.compress:
       state.compress_queue.put((frame_time, im_colour))
     if opts.scan:

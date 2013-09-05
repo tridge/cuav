@@ -93,7 +93,7 @@ while True:
   save_queue.put((frame_time+base_time, im))
   last_frame_time = frame_time
   img_colour = numpy.zeros((960,1280,3),dtype='uint8')
-  scanner.debayer_full(im, img_colour)
+  scanner.debayer(im, img_colour)
   img_colour = cv.GetImage(cv.fromarray(img_colour))
   if opts.half:
     img_640 = cv.CreateImage((640,480), 8, 3)

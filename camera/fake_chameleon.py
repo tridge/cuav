@@ -36,7 +36,7 @@ def load_image(filename):
     img = cv.LoadImage(filename)
     array = numpy.asarray(cv.GetMat(img))
     grey = numpy.zeros((960,1280), dtype='uint8')
-    scanner.rebayer_full(array, grey)
+    scanner.rebayer(array, grey)
     return grey
     
 
