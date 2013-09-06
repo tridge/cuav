@@ -1,2 +1,2 @@
-mavproxy
-MAVlink
+pymavlink
+MAVProxy
