@@ -2,10 +2,11 @@
 
 import numpy, os, time, cv, sys, math, sys, glob
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util, cuav_mosaic, mav_position, chameleon, cuav_joe, mp_slipmap, mp_image, cuav_region, cam_params
+from cuav.image import scanner
+from cuav.lib import cuav_util, cuav_mosaic, mav_position, cuav_joe, cuav_region
+from cuav.camera import chameleon, cam_params
+from MAVProxy.modules.mavproxy_map import mp_slipmap
+from MAVProxy.modules.mavproxy_map import mp_image
 
 from optparse import OptionParser
 parser = OptionParser("scantest.py [options] <directory>")
@@ -28,6 +29,7 @@ parser.add_option("--gps-lag", default=0.0, type='float', help="GPS lag in secon
 parser.add_option("--filter", default=False, action='store_true', help="filter using HSV")
 parser.add_option("--minscore", default=3, type='int', help="minimum score")
 parser.add_option("--altitude", type='int', default=None, help="camera assumed altitude")
+parser.add_option("--filter-type", type='choice', default='simple', choices=['simple', 'compactness'], help="object filter type")
 (opts, args) = parser.parse_args()
 
 slipmap = None
@@ -151,14 +153,16 @@ def process(args):
     for i in range(opts.repeat):
       if opts.fullres:
         regions = scanner.scan_full(im_full)
+        regions = cuav_region.RegionsConvert(regions, 1280, 960)
       else:
         regions = scanner.scan(img_scan)
+        regions = cuav_region.RegionsConvert(regions)
       count += 1
-    regions = cuav_region.RegionsConvert(regions)
     t1=time.time()
 
     if opts.filter:
-      regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time, min_score=opts.minscore)
+      regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time, min_score=opts.minscore,
+                                           filter_type=opts.filter_type)
 
     scan_count += 1
 
@@ -181,9 +185,8 @@ def process(args):
     region_count += len(regions)
 
     if opts.mosaic and len(regions) > 0:
-      composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions, quality=opts.quality)
-      chameleon.save_file('composite.jpg', composite)
-      thumbs = cuav_mosaic.ExtractThumbs(cv.LoadImage('composite.jpg'), len(regions))
+      composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions)
+      thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
       mosaic.add_regions(regions, thumbs, f, pos)
 
     if opts.compress:

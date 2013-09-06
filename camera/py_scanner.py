@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-import chameleon, cv, time, sys, numpy, os
+import cv, time, sys, numpy, os
+from . import chameleon
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-import scanner
+from ..image import scanner
 
 colour = 0
 depth = 8

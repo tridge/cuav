@@ -6,12 +6,14 @@ Created by Stephen Dade (stephen_dade@hotmail.com)
 '''
 
 import numpy, os, time, sys, xml.dom.minidom, math, numpy
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'mavlink', 'pymavlink'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-import mp_slipmap, mp_util, cuav_util, mp_elevation, mavwp, mavutil, mavlinkv10
-from cam_params import CameraParams
-from mavlinkv10 import *
+
+from cuav.lib import cuav_util
+from pymavlink import mavwp, mavutil, mavlinkv10
+from MAVProxy.modules.lib import mp_util
+from MAVProxy.modules.lib import mp_elevation
+from MAVProxy.modules.mavproxy_map import mp_slipmap
+from cuav.camera.cam_params import CameraParams
+from pymavlink.mavlinkv10 import *
 
 class MissionGenerator():
     '''Mission Generator Class'''

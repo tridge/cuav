@@ -3,11 +3,7 @@
 
 import numpy, cv, math, sys, os, time, rotmat, cStringIO, cPickle, struct
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'uav'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-
-from cam_params import CameraParams
+from cuav.camera.cam_params import CameraParams
 
 radius_of_earth = 6378100.0 # in meters
 
@@ -22,7 +18,7 @@ class PGM(object):
 	def __init__(self, filename):
 		self.filename = filename
 
-		f = open(filename, mode='r')
+		f = open(filename, mode='rb')
 		fmt = f.readline()
 		if fmt.strip() != 'P5':
 			raise PGMError('Expected P5 image in %s' % filename)
@@ -273,7 +269,7 @@ def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C):
 
     '''
     from numpy import array,eye
-    from uav import uavxfer
+    from cuav.uav.uav import uavxfer
     from math import pi
   
     xfer = uavxfer()
@@ -445,11 +441,14 @@ def frame_time(t):
 def parse_frame_time(filename):
 	'''parse a image frame time from a image filename
 	from the chameleon capture code'''
-	filename = os.path.basename(filename)
-	i = filename.find('201')
+	basename = os.path.basename(filename)
+	i = basename.find('201')
 	if i == -1:
-		raise RuntimeError('unable to parse filename %s into time' % filename)
-	tstring = filename[i:]
+                if basename.lower().endswith('.jpg') or basename.lower().endswith('.jpeg'):
+                        from . import mav_position
+                        return mav_position.exif_timestamp(filename)
+		raise RuntimeError('unable to parse filename %s into time' % basename)
+	tstring = basename[i:]
 	t = time.mktime(time.strptime(tstring[:14], "%Y%m%d%H%M%S"))
 	# hundredths can be after a dash
 	if tstring[14] == '-':
@@ -523,7 +522,7 @@ def LoadImage(filename):
 	'''wrapper around cv.LoadImage that also handles PGM.
 	It always returns a colour image of the same size'''
 	if filename.endswith('.pgm'):
-		import scanner
+		from ..image import scanner
 		pgm = PGM(filename)
 		im_full = numpy.zeros((960,1280,3),dtype='uint8')
 		scanner.debayer_full(pgm.array, im_full)

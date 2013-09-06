@@ -9,12 +9,7 @@ Useful for testing the ground station using previously logged data and images
 
 import sys, time, os, struct, glob
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'mavlink', 'pymavlink'))
-
-import cuav_util
+from cuav.lib import cuav_util
 
 from optparse import OptionParser
 parser = OptionParser("playback.py [options] <flight-log>")
@@ -28,7 +23,7 @@ parser.add_option("--loop", action='store_true', default=False, help='playback i
 parser.add_option("--jpeg", action='store_true', default=False, help='use jpegs instead of PGMs')
 (opts, args) = parser.parse_args()
 
-import mavutil
+from pymavlink import mavutil
 
 if len(args) < 1:
     parser.print_help()
@@ -73,6 +68,8 @@ def playback(filename, images):
         msg = mlog.recv_match(condition=opts.condition)
         if msg is None:
             return
+        if msg.get_type().startswith('DATA'):
+            continue
         if msg.get_type() == 'PARAM_VALUE':
             params.append(msg)
         mout.write(msg.get_msgbuf())

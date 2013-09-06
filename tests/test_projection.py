@@ -5,10 +5,8 @@
 import numpy, sys, time, os
 from matplotlib import pyplot
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-import cuav_util
-import cam_params
+from cuav.lib import cuav_util
+from cuav.camera import cam_params
 
 from optparse import OptionParser
 parser = OptionParser("test_projection.py [options]")

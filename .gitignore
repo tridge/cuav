@@ -7,3 +7,8 @@
 *.yuv
 *.pyc
 *.lst
+build/
+dist/
+MANIFEST
+deb_dist/
+ctest/

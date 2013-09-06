@@ -1,9 +1,8 @@
 #!/usr/bin/python
 
 import chameleon, cv, time, sys, os, numpy, threading, Queue
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util
+from cuav.image import scanner
+from cuav.lib import cuav_util
 
 from optparse import OptionParser
 parser = OptionParser("py_viewer.py [options]")

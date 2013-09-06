@@ -2,13 +2,12 @@
 
 import chameleon, numpy, os, time, threading, Queue, cv, sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util
+from cuav.image import scanner
+from cuav.lib import cuav_util
 
 from optparse import OptionParser
 parser = OptionParser("py_capture.py [options]")
-parser.add_option("--depth", type='int', default=16, help="image depth")
+parser.add_option("--depth", type='int', default=8, help="image depth")
 parser.add_option("--mono", action='store_true', default=False, help="use mono camera")
 parser.add_option("--save", action='store_true', default=False, help="save images in tmp/")
 parser.add_option("--compress", action='store_true', default=False, help="compress images for saving")
@@ -47,6 +46,7 @@ def get_base_time():
 
   print('Opening camera')
   h = chameleon.open(not opts.mono, opts.depth, opts.brightness)
+  print('camera is open')
 
   while frame_time is None:
     try:

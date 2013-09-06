@@ -5,10 +5,8 @@ benchmark the base operations
 
 import numpy, os, time, cv, sys, math, sys, cPickle, pickle
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import scanner, cuav_util, cuav_mosaic, mav_position, chameleon
+from cuav.image import scanner
+from cuav.lib import cuav_util, mav_position
 
 from optparse import OptionParser
 parser = OptionParser("benchmark.py [options] <filename>")
@@ -89,6 +87,9 @@ def process(filename):
   t1 = time.time()
   print('scan: %.1f fps' % (opts.repeat/(t1-t0)))
 
+  if not hasattr(scanner, 'jpeg_compress'):
+      return
+  
   for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
     t0 = time.time()
     for i in range(opts.repeat):
@@ -96,6 +97,16 @@ def process(filename):
                            protocol=cPickle.HIGHEST_PROTOCOL)
     t1 = time.time()
     print('jpeg full quality %u: %.1f fps  %u bytes' % (quality, opts.repeat/(t1-t0), len(bytes(jpeg))))
+
+  for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
+    t0 = time.time()
+    for i in range(opts.repeat):
+      img2 = cv.fromarray(im_full)
+      jpeg = cPickle.dumps(ImagePacket(time.time(), 
+                                       cv.EncodeImage('.jpeg', img2, [cv.CV_IMWRITE_JPEG_QUALITY,quality]).tostring()),
+                           protocol=cPickle.HIGHEST_PROTOCOL)
+    t1 = time.time()
+    print('EncodeImage full quality %u: %.1f fps  %u bytes' % (quality, opts.repeat/(t1-t0), len(bytes(jpeg))))
 
   for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
     t0 = time.time()

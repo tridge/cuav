@@ -9,14 +9,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <endian.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <math.h>
-#include <arpa/inet.h>
 #include <numpy/arrayobject.h>
 
 //#undef __ARM_NEON__
@@ -26,6 +24,8 @@
 #ifdef __ARM_NEON__
 #include <arm_neon.h>
 #endif
+
+#define YUV_API 0
 
 /*
   this uses libjpeg-turbo from http://libjpeg-turbo.virtualgl.org/
@@ -555,7 +555,7 @@ static void histogram_threshold_neighbours(const struct rgb *in,
 	}	
 }
 
-
+#if YUV_API
 /*
   threshold an image by its histogram, Pixels that have a histogram
   count of more than threshold are set to zero value. 
@@ -599,6 +599,7 @@ static void histogram_threshold_neighbours_yuv(const struct yuv *in,
 		out[i].y = out[i].u = out[i].v = 0;
 	}	
 }
+#endif // YUV_API
 
 static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out)
 {
@@ -683,7 +684,7 @@ static void colour_histogram(const struct rgb_image8 *in, struct rgb_image8 *out
 #endif
 }
 
-
+#if YUV_API
 static void colour_histogram_yuv(const struct rgb_image8 *in, struct rgb_image8 *out)
 {
 	struct rgb min, max;
@@ -766,7 +767,7 @@ static void colour_histogram_yuv(const struct rgb_image8 *in, struct rgb_image8 
 	free(qsaved);
 #endif
 }
-
+#endif // YUV_API
 
 static void colour_histogram_full(const struct rgb_image8_full *in, struct rgb_image8_full *out)
 {
@@ -1403,7 +1404,7 @@ scanner_scan_full(PyObject *self, PyObject *args)
 	return list;
 }
 
-
+#if YUV_API
 /*
   scan a YUV image for regions of interest and return the
   markup as a set of tuples
@@ -1466,7 +1467,7 @@ scanner_scan_yuv(PyObject *self, PyObject *args)
 
 	return list;
 }
-
+#endif // YUV_API
 
 /*
   compress a 24 bit RGB image to a jpeg, returning as python bytes (a
@@ -1506,7 +1507,6 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 
 	return ret;
 }
-
 
 /*
   downsample a 24 bit colour image from 1280x960 to 640x480

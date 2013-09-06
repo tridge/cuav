@@ -21,7 +21,7 @@
 
 #define _GNU_SOURCE
 
-#define USE_LIBDC1394 1
+#define USE_LIBDC1394 0
 #define USE_AUTO_EXPOSURE 1
 
 #include <stdio.h>

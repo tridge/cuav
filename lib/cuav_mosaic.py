@@ -7,11 +7,9 @@ May 2012
 
 import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'image'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'camera'))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'MAVProxy', 'modules', 'lib'))
-import scanner
-from cam_params import CameraParams
+from MAVProxy.modules.mavproxy_map import mp_image, mp_slipmap
+from cuav.image import scanner
+from cuav.camera.cam_params import CameraParams
 
 class MosaicRegion:
     def __init__(self, ridx, region, filename, pos, full_thumbnail, small_thumbnail, latlon=(None,None)):
@@ -43,12 +41,10 @@ class MosaicImage:
     def __str__(self):
         return '%s %s' % (self.filename, str(self.pos))
 
-def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
+def CompositeThumbnail(img, regions, thumb_size=100):
     '''extract a composite thumbnail for the regions of an image
 
     The composite will consist of N thumbnails side by side
-
-    return it as a compressed jpeg string
     '''
     composite = cv.CreateImage((thumb_size*len(regions), thumb_size),8,3)
     for i in range(len(regions)):
@@ -62,7 +58,7 @@ def CompositeThumbnail(img, regions, thumb_size=100, quality=75):
         cv.SetImageROI(composite, (thumb_size*i, 0, thumb_size, thumb_size))
         cv.Copy(thumb, composite)
         cv.ResetImageROI(composite)
-    return scanner.jpeg_compress(numpy.ascontiguousarray(cv.GetMat(composite)), quality)
+    return composite
 
 def ExtractThumbs(img, count):
     '''extract thumbnails from a composite thumbnail image'''
@@ -93,7 +89,7 @@ class Mosaic():
         self.displayed_image = None
         self.last_click_position = None
         self.c_params = C
-        import mp_image, wx
+        import wx
         self.image_mosaic = mp_image.MPImage(title='Mosaic', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
         self.slipmap = slipmap
         self.selected_region = 0
@@ -112,7 +108,6 @@ class Mosaic():
         region = self.regions[ridx]
         thumbnail = cv.CloneImage(region.full_thumbnail)
         # slipmap wants it as RGB
-        import mp_slipmap
         cv.CvtColor(thumbnail, thumbnail, cv.CV_BGR2RGB)
         thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
@@ -141,15 +136,16 @@ class Mosaic():
             return
         self.current_view = closest
         image = self.images[closest]
-        img = cv.LoadImage(image.filename)
+        img = cuav_util.LoadImage(image.filename)
         if self.view_image is None or not self.view_image.is_alive():
-            import mp_image, wx
+            import wx
             self.view_image = mp_image.MPImage(title='View', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
-        self.view_image.set_image(img, bgr=True)
+        im_1280 = cv.CreateImage((1280, 960), 8, 3)
+        cv.Resize(img, im_1280, cv.CV_INTER_NN)
+        self.view_image.set_image(im_1280, bgr=True)
 
     def map_callback(self, event):
         '''called when an event happens on the slipmap'''
-        import mp_slipmap
         if not isinstance(event, mp_slipmap.SlipMouseEvent):
             return
         if event.event.m_middleDown:
@@ -175,7 +171,6 @@ class Mosaic():
 
     def set_boundary(self, boundary):
         '''set a polygon search boundary'''
-        import mp_slipmap
         if not cuav_util.polygon_complete(boundary):
             raise RuntimeError('invalid boundary passed to mosaic')
         self.boundary = boundary[:]
@@ -194,7 +189,6 @@ class Mosaic():
         region = self.regions_sorted[ridx]
         self.show_region(region.ridx)
         if region.latlon != (None,None):
-            import mp_slipmap
             self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
 
     def mouse_event_view(self, event):
@@ -297,7 +291,6 @@ class Mosaic():
             self.display_mosaic_region(ridx)
 
             if (lat,lon) != (None,None):
-                import mp_slipmap
                 self.slipmap.add_object(mp_slipmap.SlipThumbnail("region %u" % ridx, (lat,lon),
                                                                  img=thumb,
                                                                  layer=2, border_width=1, border_colour=(255,0,0)))

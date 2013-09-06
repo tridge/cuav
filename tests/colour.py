@@ -2,8 +2,7 @@
 
 import numpy, os, time, cv, sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import cuav_util
+from cuav.lib import cuav_util
 
 from optparse import OptionParser
 parser = OptionParser("colour.py [options]")

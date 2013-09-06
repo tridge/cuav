@@ -1,0 +1,39 @@
+debayer: 62.6 fps
+debayer_full: 18.0 fps
+debayer_cv_full: 18.4 fps
+RGB2HSV_full: 5.1 fps
+RGB2HSV_640: 22.6 fps
+rect_extract: 630.1 fps
+SubImage: 1476.7 fps
+downsample: 26.4 fps
+scan: 7.8 fps
+jpeg full quality 30: 0.8 fps  99488 bytes
+jpeg full quality 40: 0.6 fps  131725 bytes
+jpeg full quality 50: 0.8 fps  164189 bytes
+jpeg full quality 60: 0.6 fps  200547 bytes
+jpeg full quality 70: 0.7 fps  257939 bytes
+jpeg full quality 80: 0.5 fps  365157 bytes
+jpeg full quality 90: 0.5 fps  641580 bytes
+jpeg full quality 95: 0.4 fps  982652 bytes
+EncodeImage full quality 30: 1.4 fps  89505 bytes
+EncodeImage full quality 40: 1.2 fps  117468 bytes
+EncodeImage full quality 50: 1.6 fps  145895 bytes
+EncodeImage full quality 60: 1.6 fps  177579 bytes
+EncodeImage full quality 70: 1.4 fps  226079 bytes
+EncodeImage full quality 80: 0.9 fps  308966 bytes
+EncodeImage full quality 90: 1.3 fps  516219 bytes
+EncodeImage full quality 95: 1.2 fps  772236 bytes
+jpeg 640 quality 30: 2.9 fps  16354 bytes
+jpeg 640 quality 40: 1.7 fps  21613 bytes
+jpeg 640 quality 50: 3.0 fps  27261 bytes
+jpeg 640 quality 60: 3.4 fps  33943 bytes
+jpeg 640 quality 70: 3.3 fps  44550 bytes
+jpeg 640 quality 80: 2.8 fps  62991 bytes
+jpeg 640 quality 90: 2.6 fps  116587 bytes
+jpeg 640 quality 95: 2.3 fps  195916 bytes
+thumb 10 quality 85: 444.7 fps  761 bytes
+thumb 20 quality 85: 515.6 fps  847 bytes
+thumb 40 quality 85: 292.6 fps  1149 bytes
+thumb 60 quality 85: 144.1 fps  1911 bytes
+thumb 80 quality 85: 102.5 fps  2762 bytes
+thumb 100 quality 85: 50.1 fps  4114 bytes

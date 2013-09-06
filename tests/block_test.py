@@ -4,8 +4,7 @@ test program for block_xmit
 '''
 
 import sys, os, time, random, functools
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))
-import block_xmit
+from cuav.lib import block_xmit
             
 
 from optparse import OptionParser

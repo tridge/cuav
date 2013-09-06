@@ -5,9 +5,8 @@ work out plane position for files in joe.txt
 '''
 
 import sys, struct, time, os, math
-sys.path.insert(0, 'pymavlink')
 
-import mavlink
+from pymavlink import mavutil
 
 from optparse import OptionParser
 parser = OptionParser("planepos.py [options]")

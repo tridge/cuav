@@ -36,8 +36,8 @@ hgram_scanner: hgram_scanner.o
 hgram_scanner8: hgram_scanner8.o
 	$(CC) -o hgram_scanner8 hgram_scanner8.o
 
-scanner.so: scanner.o debayer.o pgm_io.o
-	$(CC) -shared -o scanner.so scanner.o debayer.o pgm_io.o $(LIBS) $(shell python-config --libs) $(LIBJPEG)
+scanner.so: scanner.o 
+	$(CC) -shared -o scanner.so scanner.o $(LIBS) $(shell python-config --libs) $(LIBJPEG)
 
 clean:
 	rm -f *.o *.so *~ *.bak hgram_scanner hgram_scanner8 blobtest histtest image.lib

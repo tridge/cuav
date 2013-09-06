@@ -1,9 +1,10 @@
 '''class to interpolate position information given a time'''
 
 import sys, os, time, math
+import fractions
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'mavlink', 'pymavlink'))
-import mavutil, cuav_util
+from pymavlink import mavutil
+from cuav.lib import cuav_util
 
 class MavInterpolatorException(Exception):
 	'''interpolator error class'''
@@ -32,7 +33,7 @@ class MavPosition():
 		return 'MavPosition(pos %f %f alt=%.1f roll=%.1f pitch=%.1f yaw=%.1f)' % (
 			self.lat, self.lon, self.altitude,
 			self.roll, self.pitch, self.yaw)
-		
+
 class MavInterpolator():
 	'''a class to interpolate position and attitude from a
 	series of mavlink messages'''
@@ -266,3 +267,98 @@ class MavInterpolator():
 		'''provide a mavlink logfile for data'''
 		self.mlog = mavutil.mavlogfile(filename)
 		
+
+class Fraction(fractions.Fraction):
+    """Only create Fractions from floats.
+
+    >>> Fraction(0.3)
+    Fraction(3, 10)
+    >>> Fraction(1.1)
+    Fraction(11, 10)
+    """
+    
+    def __new__(cls, value, ignore=None):
+        """Should be compatible with Python 2.6, though untested."""
+        return fractions.Fraction.from_float(value).limit_denominator(99999)
+
+def dms_to_decimal(degrees, minutes, seconds, sign=' '):
+    """Convert degrees, minutes, seconds into decimal degrees.
+
+    >>> dms_to_decimal(10, 10, 10)
+    10.169444444444444
+    >>> dms_to_decimal(8, 9, 10, 'S')
+    -8.152777777777779
+    """
+    return (-1 if sign[0] in 'SWsw' else 1) * (
+        float(degrees)        +
+        float(minutes) / 60   +
+        float(seconds) / 3600
+    )
+
+
+def decimal_to_dms(decimal):
+    """Convert decimal degrees into degrees, minutes, seconds.
+
+    >>> decimal_to_dms(50.445891)
+    [Fraction(50, 1), Fraction(26, 1), Fraction(113019, 2500)]
+    >>> decimal_to_dms(-125.976893)
+    [Fraction(125, 1), Fraction(58, 1), Fraction(92037, 2500)]
+    """
+    remainder, degrees = math.modf(abs(decimal))
+    remainder, minutes = math.modf(remainder * 60)
+    return [Fraction(n) for n in (degrees, minutes, remainder * 60)]
+
+_last_position = None
+
+def exif_position(filename):
+        '''get a MavPosition from exif tags
+
+        See: http://stackoverflow.com/questions/10799366/geotagging-jpegs-with-pyexiv2
+        '''
+        import pyexiv2
+        global _last_position
+        
+        m = pyexiv2.ImageMetadata(filename)
+        m.read()
+        try:
+                GPS = 'Exif.GPSInfo.GPS'
+                lat_ns = str(m[GPS + 'LatitudeRef'].value)
+                lng_ns = str(m[GPS + 'LongitudeRef'].value)
+                latitude = dms_to_decimal(m[GPS + 'Latitude'].value[0],
+                                          m[GPS + 'Latitude'].value[1],
+                                          m[GPS + 'Latitude'].value[2],
+                                          lat_ns)
+                longitude = dms_to_decimal(m[GPS + 'Longitude'].value[0],
+                                           m[GPS + 'Longitude'].value[1],
+                                           m[GPS + 'Longitude'].value[2],
+                                           lng_ns)
+        except Exception:
+                latitude = 0
+                longitude = 0
+                
+        try:
+                altitude = float(m[GPS + 'Altitude'].value)
+        except Exception:
+                altitude = -1
+
+        try:
+                t = time.mktime(m['Exif.Image.DateTime'].value.timetuple())
+        except Exception:
+                t = os.path.getmtime()
+        if _last_position is None:
+                yaw = 0
+        else:
+                yaw = cuav_util.gps_bearing(_last_position.lat, _last_position.lon,
+                                            latitude, longitude)
+        pos = MavPosition(latitude, longitude, altitude, 0, 0, yaw, t)
+        _last_position = pos
+        return pos
+
+
+def exif_timestamp(filename):
+        '''get a timestamp from exif tags
+        '''
+        import pyexiv2        
+        m = pyexiv2.ImageMetadata(filename)
+        m.read()
+        return time.mktime(m['Exif.Image.DateTime'].value.timetuple())
