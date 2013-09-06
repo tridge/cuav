@@ -1,0 +1,16 @@
+Slightly more detailed installation instructions are available here:
+
+http://diydrones.com/profiles/blog/show?id=705844%3ABlogPost%3A1296458
+
+For the lazy Ubuntu/pip user: 
+
+1) Use apt to install the operating system pre-requsites:
+
+  sudo apt-get install python-wxgtk2.8 python-matplotlib python-numpy python-pyexiv2 python-opencv python-httplib2 libjpeg-turbo-progs
+
+2) Use pip to install the python package dependancies:
+
+  pip install -r requirements.txt
+
+Or, check out pymavlink, MAVproxy and cuav from GitHub and install them on your path yourself.
+
