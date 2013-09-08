@@ -11,7 +11,7 @@ if platform.system() == 'Windows':
     jpegturbo_incpath = "c:\libjpeg-turbo-gcc\include"
     extra_compile_args=["-std=gnu99", "-O3"]
 else:
-    if platform.architecture()[0] == '64':
+    if platform.architecture()[0] == '64bit':
         jpegturbo_libpath = "/opt/libjpeg-turbo/lib64"
     else:
         jpegturbo_libpath = "/opt/libjpeg-turbo/lib"
