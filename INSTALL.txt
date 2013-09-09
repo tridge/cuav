@@ -32,7 +32,11 @@ Rather than following the build instructions here:
 
   http://libjpeg-turbo.virtualgl.org/
 
-build it with the following:
+First remoge libjpeg-turbo-progs
+
+ > sudo apt-get remove libjpeg-turbo-progs
+
+then build it with the following:
 
  > svn co svn://svn.code.sf.net/p/libjpeg-turbo/code/trunk libjpeg-turbo
  > cd libjpeg-turbo
@@ -45,4 +49,12 @@ The virtualgl.org build system passes --with-java to ./configure
 (causing it to fail unless you have the appropriate java stack) and also
 fails to pass --with-jpeg8, which we require,
 
+After installing, you may need to update your ldconfig. For example add
+the following line to /etc/ld.so.conf.d/x86_64-linux-gnu.conf
+
+ /opt/libjpeg-turbo/lib64
+
+then run 
+
+ sudo ldconfig
 
