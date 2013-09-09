@@ -21,7 +21,7 @@ To build:
 
 Which requires also:
 
-  sudo apt-get install libusb1.0.0-dev libdc1394-22-dev
+  sudo apt-get install libusb1.0.0-dev libdc1394-22-dev nasm
 
 It also requires the libjpeg-turbo headers. There is an issue with the
 libjpeg-turbo8-dev package on 64 bit Ubuntu only including the .a
