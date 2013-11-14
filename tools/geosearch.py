@@ -34,6 +34,7 @@ def parse_args():
   parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
   parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
   parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
+  parser.add_option("--fullres", action='store_true', default=False, help="scan at full resolution")
   return parser.parse_args()
 
 if __name__ == '__main__':
@@ -64,7 +65,7 @@ def process(args):
   region_count = 0
 
   slipmap = mp_slipmap.MPSlipMap(service='GoogleSat', elevation=True, title='Map')
-  icon = slipmap.icon('planetracker.png')
+  icon = slipmap.icon('redplane.png')
   slipmap.add_object(mp_slipmap.SlipIcon('plane', (0,0), icon, layer=3, rotation=0,
                                          follow=True,
                                          trail=mp_slipmap.SlipTrail()))
@@ -129,12 +130,7 @@ def process(args):
 
       im_orig = cuav_util.LoadImage(f)
       (w,h) = cuav_util.image_shape(im_orig)
-      if (w,h) != (1280,960):
-          im_full = cv.CreateImage((1280, 960), 8, 3)
-          cv.Resize(im_orig, im_full)
-          cv.ConvertScale(im_full, im_full, scale=0.3)
-      else:
-          im_full = im_orig
+      im_full = im_orig
         
       im_640 = cv.CreateImage((640, 480), 8, 3)
       cv.Resize(im_full, im_640, cv.CV_INTER_NN)
@@ -143,12 +139,18 @@ def process(args):
 
       count = 0
       total_time = 0
-      img_scan = im_640
 
       t0=time.time()
+      if opts.fullres:
+        img_scan = im_full
+      else:
+        img_scan = im_640
+        
       regions = scanner.scan(img_scan)
+      regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full))
+      for r in regions:
+        print(r)
       count += 1
-      regions = cuav_region.RegionsConvert(regions)
       t1=time.time()
 
       frame_time = pos.time
@@ -161,7 +163,7 @@ def process(args):
       mosaic.add_image(pos.time, f, pos)
 
       if pos and len(regions) > 0:
-        joelog.add_regions(frame_time, regions, pos, f, width=1280, height=960, altitude=opts.altitude)
+        joelog.add_regions(frame_time, regions, pos, f, width=w, height=h, altitude=opts.altitude)
 
       region_count += len(regions)
 
@@ -172,14 +174,17 @@ def process(args):
 
       if opts.view:
         img_view = img_scan
+        (wview,hview) = cuav_util.image_shape(img_view)
         mat = cv.fromarray(img_view)
         for r in regions:
+          print(r)
           (x1,y1,x2,y2) = r.tuple()
-          (w,h) = cuav_util.image_shape(img_view)
-          x1 = x1*w//1280
-          x2 = x2*w//1280
-          y1 = y1*h//960
-          y2 = y2*h//960
+          (wview,hview) = cuav_util.image_shape(img_view)
+          (w,h) = cuav_util.image_shape(im_full)
+          x1 = x1*wview//w
+          x2 = x2*wview//w
+          y1 = y1*hview//h
+          y2 = y2*hview//h
           cv.Rectangle(mat, (max(x1-2,0),max(y1-2,0)), (x2+2,y2+2), (255,0,0), 2)
         cv.CvtColor(mat, mat, cv.CV_BGR2RGB)
         viewer.set_image(mat)
@@ -188,6 +193,7 @@ def process(args):
       if t1 != t0:
           print('%s scan %.1f fps  %u regions [%u/%u]' % (
               os.path.basename(f), count/total_time, region_count, scan_count, num_files))
+      #raw_input("hit ENTER when ready")
 
 
 if __name__ == '__main__':
