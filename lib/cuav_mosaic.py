@@ -207,6 +207,15 @@ class Mosaic():
         if event.KeyCode == ord('S'):
             self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
             self.redisplay_mosaic()
+        if event.KeyCode == ord('C'):
+            self.regions_sorted.sort(key = lambda r : r.region.compactness, reverse=True)
+            self.redisplay_mosaic()
+        if event.KeyCode == ord('D'):
+            self.regions_sorted.sort(key = lambda r : r.region.scan_score, reverse=True)
+            self.redisplay_mosaic()
+        if event.KeyCode == ord('W'):
+            self.regions_sorted.sort(key = lambda r : r.region.whiteness, reverse=True)
+            self.redisplay_mosaic()
         if event.KeyCode == ord('H'):
             self.regions_sorted[0].score = 0
             self.regions_sorted = self.regions_sorted[1:] + self.regions_sorted[:1]

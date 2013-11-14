@@ -3,8 +3,8 @@
 import sys, cv, numpy, time
 import os
 
-from ..image import scanner
-from ..lib import cuav_util
+from cuav.image import scanner
+from cuav.lib import cuav_util
 
 from optparse import OptionParser
 parser = OptionParser("debayer.py [options] <filename>")
@@ -27,7 +27,7 @@ def debayer(filename, show=True):
         scanner.gamma_correct(pgm.array, img8, opts.gamma)
     else:
         img8 = pgm.array
-    scanner.debayer_full(img8, img)
+    scanner.debayer(img8, img)
     color_img = cv.CreateImageHeader((1280, 960), 8, 3)
     cv.SetData(color_img, img)
     if opts.half:

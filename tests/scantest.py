@@ -128,18 +128,13 @@ def process(args):
         else:
           scanner.reduce_depth(im, im_8bit)
       im_full = numpy.zeros((960,1280,3),dtype='uint8')
-      scanner.debayer_full(im_8bit, im_full)
+      scanner.debayer(im_8bit, im_full)
       im_640 = numpy.zeros((480,640,3),dtype='uint8')
       scanner.downsample(im_full, im_640)
     else:
       im_orig = cv.LoadImage(f)
       (w,h) = cuav_util.image_shape(im_orig)
-      if (w,h) != (1280,960):
-        im_full = cv.CreateImage((1280, 960), 8, 3)
-        cv.Resize(im_orig, im_full)
-        cv.ConvertScale(im_full, im_full, scale=0.3)
-      else:
-        im_full = im_orig
+      im_full = im_orig
       im_640 = cv.CreateImage((640, 480), 8, 3)
       cv.Resize(im_full, im_640, cv.CV_INTER_NN)
       im_640 = numpy.ascontiguousarray(cv.GetMat(im_640))
@@ -152,7 +147,7 @@ def process(args):
     t0=time.time()
     for i in range(opts.repeat):
       if opts.fullres:
-        regions = scanner.scan_full(im_full)
+        regions = scanner.scan(im_full)
         regions = cuav_region.RegionsConvert(regions, 1280, 960)
       else:
         regions = scanner.scan(img_scan)

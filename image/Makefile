@@ -17,38 +17,10 @@ else
 CFLAGS=-Wall -std=gnu99 -fPIC -O3 -Wa,$(LISTOPTS) $(INCLUDES)
 endif
 
-objects = pgm_io.o debayer.o histogram.o image_utils.o BlobExtractor.o
-
-all: image.lib blobtest histtest hgram_scanner hgram_scanner8 scanner.so
-
-image.lib: $(objects)
-	$(AR) -r image.lib $(objects)
-
-blobtest: image.lib blobtest.o
-	$(CXX) -o blobtest blobtest.o image.lib
-
-histtest: image.lib histtest.o
-	$(CXX) -o histtest histtest.o image.lib
-
-hgram_scanner: hgram_scanner.o
-	$(CC) -o hgram_scanner hgram_scanner.o
-
-hgram_scanner8: hgram_scanner8.o
-	$(CC) -o hgram_scanner8 hgram_scanner8.o
+all: scanner.so
 
 scanner.so: scanner.o 
 	$(CC) -shared -o scanner.so scanner.o $(LIBS) $(shell python-config --libs) $(LIBJPEG)
 
 clean:
-	rm -f *.o *.so *~ *.bak hgram_scanner hgram_scanner8 blobtest histtest image.lib
-
-depend:
-	makedepend -Y. *.cc *.c 2> /dev/null
-# DO NOT DELETE
-
-BlobExtractor.o: BlobExtractor.h image_utils.h image_inlines.h
-blobtest.o: pgm_io.h BlobExtractor.h image_utils.h
-histtest.o: pgm_io.h debayer.h histogram.h BlobExtractor.h image_utils.h
-debayer.o: debayer.h
-histogram.o: histogram.h
-image_utils.o: image_utils.h
+	rm -f *.o *.so *~ *.bak

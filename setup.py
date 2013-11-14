@@ -29,10 +29,11 @@ else:
 
  
 scanner = Extension('cuav.image.scanner',
-                    sources = ['image/scanner.c'],
+                    sources = ['image/scanner.c', 'image/imageutil.c'],
                     libraries = ['turbojpeg'],
                     library_dirs = [jpegturbo_libpath],
                     extra_compile_args=extra_compile_args)
+#                    extra_compile_args=extra_compile_args + ['-O0'])
 ext_modules.append(scanner)
  
 setup (name = 'cuav',

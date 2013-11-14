@@ -5,36 +5,44 @@ import numpy, sys, os, time, cuav_util, cv
 
 class Region:
 	'''a object representing a recognised region in an image'''
-	def __init__(self, x1, y1, x2, y2):
+	def __init__(self, x1, y1, x2, y2, scan_score=0):
 		self.x1 = x1
 		self.y1 = y1
 		self.x2 = x2
 		self.y2 = y2
 		self.latlon = None
 		self.score = None
+                self.scan_score = scan_score
+                self.compactness = None
+                self.whiteness = None
+                self.blue_score = None
 
         def tuple(self):
             '''return the boundary as a tuple'''
             return (self.x1, self.y1, self.x2, self.y2)
 
         def center(self):
-            '''return the boundary as a tuple'''
+            '''return the center of the region'''
             return ((self.x1+self.x2)//2, (self.y1+self.y2)//2)
 
         def __str__(self):
-		return '%s latlon=%s score=%u' % (str(self.tuple()), str(self.latlon), self.score)
+		return '%s latlon=%s score=%s' % (str(self.tuple()), str(self.latlon), self.score)
 	    
-def RegionsConvert(rlist, width=640, height=480):
+def RegionsConvert(rlist, scan_shape, full_shape):
 	'''convert a region list from tuple to Region format,
-	also mapping to standard 1280x960'''
+	also mapping to the shape of the full image'''
 	ret = []
+        scan_w = scan_shape[0]
+        scan_h = scan_shape[1]
+        full_w = full_shape[0]
+        full_h = full_shape[1]
 	for r in rlist:
-		(x1,y1,x2,y2) = r
-		x1 = (x1 * 1280) / width
-		x2 = (x2 * 1280) / width
-		y1 = (y1 * 960)  / height
-		y2 = (y2 * 960)  / height
-		ret.append(Region(x1,y1,x2,y2))
+		(x1,y1,x2,y2,score) = r
+		x1 = (x1 * full_w) // scan_w
+		x2 = (x2 * full_w) // scan_w
+		y1 = (y1 * full_h) // scan_h
+		y2 = (y2 * full_h) // scan_h
+		ret.append(Region(x1,y1,x2,y2,score))
 	return ret
 
 def compactness(im):
@@ -116,10 +124,11 @@ def raw_hsv_score(hsv):
 			score += pix_score
 			scorix[y,x] = pix_score
 	avg_v = sum_v / (width*height)
+        score /= (width*height)
 
 	return (score, scorix, blue_count, red_count, avg_v)
 
-def hsv_score(hsv, use_compactness=False, use_whiteness=False):
+def hsv_score(r, hsv, use_compactness=False, use_whiteness=False):
 	'''try to score a HSV image based on how "interesting" it is for joe detection'''
   	(score, scorix, blue_count, red_count, avg_v) = raw_hsv_score(hsv)
 
@@ -130,14 +139,21 @@ def hsv_score(hsv, use_compactness=False, use_whiteness=False):
 			score *= 2
 		if blue_count > 4 and red_count > 4:
 			score *= 2
-	if (use_compactness):
-    		scorix = (scorix>0).astype(float)
-    		nessy = compactness(scorix)
-        	score = score*nessy
-	if (use_whiteness):
-		not_white = 1.0-whiteness(hsv)
+
+        scorix = (scorix>0).astype(float)
+        r.compactness = compactness(scorix)
+
+	if use_compactness:
+        	score = score*r.compactness
+
+        r.whiteness = whiteness(hsv)
+	if use_whiteness:
+		not_white = 1.0-r.whiteness
 		score = score*not_white
-	return int(score)
+
+        score *= (1+r.scan_score)
+
+        r.score = int(score)
 
 def score_region(img, r, filter_type='simple'):
 	'''filter a list of regions using HSV values'''
@@ -158,7 +174,7 @@ def score_region(img, r, filter_type='simple'):
                 use_compactness = True
         else:
                 use_compactness = False
-	r.score = hsv_score(hsv, use_compactness)
+        hsv_score(r, hsv, use_compactness)
 
 def filter_regions(img, regions, min_score=4, frame_time=None, filter_type='simple'):
 	'''filter a list of regions using HSV values'''
