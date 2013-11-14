@@ -25,6 +25,7 @@ def parse_args():
                     help="directory containing image files")
   parser.add_option("--mission", default=None, type=file_type, help="mission file to display")
   parser.add_option("--mavlog", default=None, type=file_type, help="MAVLink telemetry log file")
+  parser.add_option("--kmzlog", default=None, type=file_type, help="kmz file for image positions")
   parser.add_option("--minscore", default=500, type='int', help="minimum score")
   parser.add_option("--filter-type", type='choice', default='simple', choices=['simple', 'compactness'], help="object filter type")
   parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
@@ -32,6 +33,7 @@ def parse_args():
   parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
   parser.add_option("--view", action='store_true', default=False, help="show images")
   parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
+  parser.add_option("--service", default='YahooSat', help="map service")
   parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
   parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
   parser.add_option("--fullres", action='store_true', default=False, help="scan at full resolution")
@@ -43,6 +45,16 @@ if __name__ == '__main__':
 slipmap = None
 mosaic = None
 
+def file_list(directory, extensions):
+  '''return file list for a directory'''
+  flist = []
+  for (root, dirs, files) in os.walk(directory):
+    for f in files:
+      extension = f.split('.')[-1]
+      if extension.lower() in extensions:
+        flist.append(os.path.join(root, f))
+  return flist
+
 def process(args):
   '''process a set of files'''
 
@@ -51,9 +63,7 @@ def process(args):
   files = []
   for a in args:
     if os.path.isdir(a):
-      files.extend(glob.glob(os.path.join(a, '*.jpg')))
-      files.extend(glob.glob(os.path.join(a, '*.pgm')))
-      files.extend(glob.glob(os.path.join(a, '*.png')))
+      files.extend(file_list(a, ['jpg', 'pgm', 'png']))
     else:
       if a.find('*') != -1:
         files.extend(glob.glob(a))
@@ -64,7 +74,7 @@ def process(args):
   print("num_files=%u" % num_files)
   region_count = 0
 
-  slipmap = mp_slipmap.MPSlipMap(service='GoogleSat', elevation=True, title='Map')
+  slipmap = mp_slipmap.MPSlipMap(service=opts.service, elevation=True, title='Map')
   icon = slipmap.icon('redplane.png')
   slipmap.add_object(mp_slipmap.SlipIcon('plane', (0,0), icon, layer=3, rotation=0,
                                          follow=True,
@@ -87,6 +97,11 @@ def process(args):
     mpos.set_logfile(opts.mavlog)
   else:
     mpos = None
+
+  if opts.kmzlog:
+    kmzpos = mav_position.KmlPosition(opts.kmzlog)
+  else:
+    kmzpos = None
 
   # create a simple lens model using the focal length
   C_params = cam_params.CameraParams(lens=opts.lens)
@@ -116,13 +131,16 @@ def process(args):
           print("No position available for %s" % frame_time)
           # skip this frame
           continue
+      elif kmzpos is not None:
+        pos = kmzpos.position(f)
       else:
         # get the position using EXIF data
         pos = mav_position.exif_position(f)
         pos.time += opts.time_offset
 
       # update the plane icon on the map
-      slipmap.set_position('plane', (pos.lat, pos.lon), rotation=pos.yaw)
+      if pos is not None:
+        slipmap.set_position('plane', (pos.lat, pos.lon), rotation=pos.yaw)
 
       # check for any events from the map
       slipmap.check_events()
