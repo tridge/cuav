@@ -56,47 +56,84 @@ static PyObject *ScannerError;
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-#define SAVE_INTERMEDIATE 0
-
 #define MAX_REGIONS 200
+
+struct scan_params {
+    uint16_t min_region_size;
+    uint16_t max_region_size;
+    uint16_t min_region_size_xy;
+    uint16_t max_region_size_xy;
+    uint16_t histogram_count_threshold;
+    uint16_t region_merge;
+    bool save_intermediate;
+};
+
+static const struct scan_params scan_params_640_480 = {
+	min_region_size : 8,
+        max_region_size : 400,
+        min_region_size_xy : 2,
+        max_region_size_xy : 30,
+        histogram_count_threshold : 50,
+        region_merge : 1,
+        save_intermediate : false
+};
+static struct scan_params scan_params;
 
 struct regions {
         uint16_t height;
         uint16_t width;
 	unsigned num_regions;
-	uint16_t region_size[MAX_REGIONS];
-	struct {
+	uint32_t region_size[MAX_REGIONS];
+	struct region_bounds {
 		uint16_t minx, miny;
 		uint16_t maxx, maxy;
 	} bounds[MAX_REGIONS];
+	float region_score[MAX_REGIONS];
+        // data is a 2D array of image dimensions. Each value is the 
+        // assigned region number or REGION_NONE
         int16_t **data;
 };
 
-#if SAVE_INTERMEDIATE
 /*
-  save a rgb image as a P6 pnm file
+  save a bgr image as a P6 pnm file
  */
-static bool colour_save_pnm(const char *filename, const struct rgb_image *image)
+static bool colour_save_pnm(const char *filename, const struct bgr_image *image)
 {
 	int fd;
 	fd = open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666);
 	if (fd == -1) return false;
+
+        /*
+          PNM P6 is in RGB format not BGR format
+         */
+        struct bgr_image *rgb = allocate_bgr_image8(image->height, image->width, NULL);
+        uint16_t x, y;
+	for (y=0; y<rgb->height; y++) {
+		for (x=0; x<rgb->width; x++) {
+                    rgb->data[y][x].r = image->data[y][x].b;
+                    rgb->data[y][x].g = image->data[y][x].g;
+                    rgb->data[y][x].b = image->data[y][x].r;
+                }
+        }
+        
+        
 	dprintf(fd, "P6\n%u %u\n255\n", image->width, image->height);
-        size_t size = image->width*image->height*sizeof(struct rgb);
-	if (write(fd, &image->data[0][0], size) != size) {
+        size_t size = image->width*image->height*sizeof(struct bgr);
+	if (write(fd, &rgb->data[0][0], size) != size) {
+                free(rgb);
 		close(fd);
 		return false;
 	}
+        free(rgb);
 	close(fd);
 	return true;
 }
-#endif
 
 /*
   roughly convert a 8 bit colour chameleon image to colour at half
   the resolution. No smoothing is done
  */
-static void colour_convert_half(const struct grey_image8 *in, struct rgb_image *out)
+static void colour_convert_half(const struct grey_image8 *in, struct bgr_image *out)
 {
 	unsigned x, y;
 	/*
@@ -117,9 +154,9 @@ static void colour_convert_half(const struct grey_image8 *in, struct rgb_image *
 		}
 	}
 
-#if SAVE_INTERMEDIATE
-	colour_save_pnm("test.pnm", out);
-#endif
+        if (scan_params.save_intermediate) {
+                colour_save_pnm("test.pnm", out);
+        }
 }
 
 
@@ -129,7 +166,7 @@ static void colour_convert_half(const struct grey_image8 *in, struct rgb_image *
 
   This algorithm emphasises speed over colour accuracy
  */
-static void colour_convert(const struct grey_image8 *in, struct rgb_image *out)
+static void colour_convert(const struct grey_image8 *in, struct bgr_image *out)
 {
 	unsigned x, y;
 	/*
@@ -177,7 +214,7 @@ static void colour_convert(const struct grey_image8 *in, struct rgb_image *out)
 
   this is used by the fake chameleon code
  */
-static void rebayer_1280_960_8(const struct rgb_image *in, struct grey_image8 *out)
+static void rebayer_1280_960_8(const struct bgr_image *in, struct grey_image8 *out)
 {
 	unsigned x, y;
 	/*
@@ -189,7 +226,7 @@ static void rebayer_1280_960_8(const struct rgb_image *in, struct grey_image8 *o
 	for (y=1; y<in->height-1; y += 2) {
 		for (x=1; x<in->width-1; x += 2) {
 			// note that this is used with images from
-			// opencv which are RGB, whereas we normally
+			// opencv which are BGR, whereas we normally
 			// use BGR, so we reverse R and B in the
 			// conversion
 			out->data[y+0][x+0] = in->data[y][x].g;
@@ -204,7 +241,6 @@ static void rebayer_1280_960_8(const struct rgb_image *in, struct grey_image8 *o
 #define HISTOGRAM_BITS_PER_COLOR 4
 #define HISTOGRAM_BITS (3*HISTOGRAM_BITS_PER_COLOR)
 #define HISTOGRAM_BINS (1<<HISTOGRAM_BITS)
-#define HISTOGRAM_COUNT_THRESHOLD 50
 
 struct histogram {
 	uint16_t count[(1<<HISTOGRAM_BITS)];
@@ -212,28 +248,28 @@ struct histogram {
 
 
 #ifdef __ARM_NEON__
-static void NOINLINE get_min_max_neon(const struct rgb * __restrict in, 
+static void NOINLINE get_min_max_neon(const struct bgr * __restrict in, 
 				      uint32_t size,
-				      struct rgb *min, 
-				      struct rgb *max)
+				      struct bgr *min, 
+				      struct bgr *max)
 {
 	const uint8_t *src;
 	uint32_t i;
 	uint8x8_t rmax, rmin, gmax, gmin, bmax, bmin;
-	uint8x8x3_t rgb;
+	uint8x8x3_t bgr;
 
 	rmin = gmin = bmin = vdup_n_u8(255);
 	rmax = gmax = bmax = vdup_n_u8(0);
 
 	src = (const uint8_t *)in;
 	for (i=0; i<size/8; i++) {
-		rgb = vld3_u8(src);
-		bmin = vmin_u8(bmin, rgb.val[0]);
-		bmax = vmax_u8(bmax, rgb.val[0]);
-		gmin = vmin_u8(gmin, rgb.val[1]);
-		gmax = vmax_u8(gmax, rgb.val[1]);
-		rmin = vmin_u8(rmin, rgb.val[2]);
-		rmax = vmax_u8(rmax, rgb.val[2]);
+		bgr = vld3_u8(src);
+		bmin = vmin_u8(bmin, bgr.val[0]);
+		bmax = vmax_u8(bmax, bgr.val[0]);
+		gmin = vmin_u8(gmin, bgr.val[1]);
+		gmax = vmax_u8(gmax, bgr.val[1]);
+		rmin = vmin_u8(rmin, bgr.val[2]);
+		rmax = vmax_u8(rmax, bgr.val[2]);
 		src += 8*3;
 	}
 
@@ -254,10 +290,10 @@ static void NOINLINE get_min_max_neon(const struct rgb * __restrict in,
   find the min and max of each color over an image. Used to find
   bounds of histogram bins
  */
-static void get_min_max(const struct rgb * __restrict in, 
+static void get_min_max(const struct bgr * __restrict in, 
 			uint32_t size,
-			struct rgb *min, 
-			struct rgb *max)
+			struct bgr *min, 
+			struct bgr *max)
 {
 	uint32_t i;
 
@@ -265,25 +301,25 @@ static void get_min_max(const struct rgb * __restrict in,
 	max->r = max->g = max->b = 0;
 
 	for (i=0; i<size; i++) {
-		const struct rgb *v = &in[i];
-		if (v->r < min->r) min->r = v->r;
-		if (v->g < min->g) min->g = v->g;
+		const struct bgr *v = &in[i];
 		if (v->b < min->b) min->b = v->b;
-		if (v->r > max->r) max->r = v->r;
-		if (v->g > max->g) max->g = v->g;
+		if (v->g < min->g) min->g = v->g;
+		if (v->r < min->r) min->r = v->r;
 		if (v->b > max->b) max->b = v->b;
+		if (v->g > max->g) max->g = v->g;
+		if (v->r > max->r) max->r = v->r;
 	}	
 }
 
 
 /*
-  quantise an RGB image
+  quantise an BGR image
  */
-static void quantise_image(const struct rgb *in,
+static void quantise_image(const struct bgr *in,
 			   uint32_t size,
-			   struct rgb *out,
-			   const struct rgb *min, 
-			   const struct rgb *bin_spacing)
+			   struct bgr *out,
+			   const struct bgr *min, 
+			   const struct bgr *bin_spacing)
 {
 	unsigned i;
 	uint8_t btab[0x100], gtab[0x100], rtab[0x100];
@@ -304,36 +340,37 @@ static void quantise_image(const struct rgb *in,
 	}
 
 	for (i=0; i<size; i++) {
+#if BLUE_SPECIAL_CASE
 		if (in[i].b > in[i].r+5 && 
 		    in[i].b > in[i].g+5) {
 			// special case for blue pixels
 			out[i].b = (1<<HISTOGRAM_BITS_PER_COLOR)-1;
 			out[i].g = 0;
 			out[i].r = 0;
-		} else {
-			out[i].b = btab[in[i].b];
-			out[i].g = gtab[in[i].g];
-			out[i].r = rtab[in[i].r];
+                        continue;
 		}
+#endif
+                out[i].b = btab[in[i].b];
+                out[i].g = gtab[in[i].g];
+                out[i].r = rtab[in[i].r];
 	}
 }
 
-#if SAVE_INTERMEDIATE
 /*
-  unquantise an RGB image, useful for visualising the effect of
+  unquantise an BGR image, useful for visualising the effect of
   quantisation by restoring the original colour ranges, which makes
   the granularity of the quantisation very clear visually
  */
-static void unquantise_image(const struct rgb_image *in,
-			     struct rgb_image *out,
-			     const struct rgb *min, 
-			     const struct rgb *bin_spacing)
+static void unquantise_image(const struct bgr_image *in,
+			     struct bgr_image *out,
+			     const struct bgr *min, 
+			     const struct bgr *bin_spacing)
 {
 	unsigned x, y;
 
 	for (y=0; y<in->height; y++) {
 		for (x=0; x<in->width; x++) {
-			const struct rgb *v = &in->data[y][x];
+			const struct bgr *v = &in->data[y][x];
 			out->data[y][x].r = (v->r * bin_spacing->r) + min->r;
 			out->data[y][x].g = (v->g * bin_spacing->g) + min->g;
 			out->data[y][x].b = (v->b * bin_spacing->b) + min->b;
@@ -341,12 +378,11 @@ static void unquantise_image(const struct rgb_image *in,
 	}
 
 }
-#endif
 
 /*
-  calculate a histogram bin for a rgb value
+  calculate a histogram bin for a bgr value
  */
-static inline uint16_t rgb_bin(const struct rgb *in)
+static inline uint16_t bgr_bin(const struct bgr *in)
 {
 	return (in->r << (2*HISTOGRAM_BITS_PER_COLOR)) |
 		(in->g << (HISTOGRAM_BITS_PER_COLOR)) |
@@ -356,7 +392,7 @@ static inline uint16_t rgb_bin(const struct rgb *in)
 /*
   build a histogram of an image
  */
-static void build_histogram(const struct rgb *in,
+static void build_histogram(const struct bgr *in,
 			    uint32_t size,
 			    struct histogram *out)
 {
@@ -365,17 +401,16 @@ static void build_histogram(const struct rgb *in,
 	memset(out->count, 0, sizeof(out->count));
 
 	for (i=0; i<size; i++) {
-		uint16_t b = rgb_bin(&in[i]);
+		uint16_t b = bgr_bin(&in[i]);
 		out->count[b]++;
 	}	
 }
 
-#if SAVE_INTERMEDIATE
 /*
   threshold an image by its histogram. Pixels that have a histogram
   count of more than the given threshold are set to zero value
  */
-static void histogram_threshold(struct rgb_image *in,
+static void histogram_threshold(struct bgr_image *in,
 				const struct histogram *histogram,
 				unsigned threshold)
 {
@@ -383,15 +418,14 @@ static void histogram_threshold(struct rgb_image *in,
 
 	for (y=0; y<in->height; y++) {
 		for (x=0; x<in->width; x++) {
-			struct rgb *v = &in->data[y][x];
-			uint16_t b = rgb_bin(v);
+			struct bgr *v = &in->data[y][x];
+			uint16_t b = bgr_bin(v);
 			if (histogram->count[b] > threshold) {
 				v->r = v->g = v->b = 0;
 			}
 		}
 	}	
 }
-#endif
 
 /*
   threshold an image by its histogram, Pixels that have a histogram
@@ -402,32 +436,32 @@ static void histogram_threshold(struct rgb_image *in,
   expensive to calculate, but also makes it much less susceptible to
   edge effects in the histogram
  */
-static void histogram_threshold_neighbours(const struct rgb *in,
+static void histogram_threshold_neighbours(const struct bgr *in,
 					   uint32_t size,
-					   struct rgb *out,
+					   struct bgr *out,
 					   const struct histogram *histogram,
 					   unsigned threshold)
 {
 	uint32_t i;
 
 	for (i=0; i<size; i++) {
-		struct rgb v = in[i];
+		struct bgr v = in[i];
 		int8_t rofs, gofs, bofs;
 
-		if (histogram->count[rgb_bin(&v)] > threshold) {
+		if (histogram->count[bgr_bin(&v)] > threshold) {
 			goto zero;
 		}
 
 		for (rofs=-1; rofs<= 1; rofs++) {
 			for (gofs=-1; gofs<= 1; gofs++) {
 				for (bofs=-1; bofs<= 1; bofs++) {
-					struct rgb v2 = { .b=v.b+bofs, .g=v.g+gofs, .r=v.r+rofs };
+					struct bgr v2 = { .b=v.b+bofs, .g=v.g+gofs, .r=v.r+rofs };
 					if (v2.r >= (1<<HISTOGRAM_BITS_PER_COLOR) ||
 					    v2.g >= (1<<HISTOGRAM_BITS_PER_COLOR) ||
 					    v2.b >= (1<<HISTOGRAM_BITS_PER_COLOR)) {
 						continue;
 					}
-					if (histogram->count[rgb_bin(&v2)] > threshold) {
+					if (histogram->count[bgr_bin(&v2)] > threshold) {
 						goto zero;
 					}
 				}
@@ -441,26 +475,23 @@ static void histogram_threshold_neighbours(const struct rgb *in,
 }
 
 
-static void colour_histogram(const struct rgb_image *in, struct rgb_image *out)
+static void colour_histogram(const struct bgr_image *in, struct bgr_image *out, 
+                             struct bgr_image *quantised,
+                             struct histogram *histogram)
 {
-	struct rgb min, max;
-	struct rgb bin_spacing;
-	struct rgb_image *quantised, *neighbours;
-	struct histogram *histogram;
+	struct bgr min, max;
+	struct bgr bin_spacing;
+	struct bgr_image *neighbours;
 	unsigned num_bins = (1<<HISTOGRAM_BITS_PER_COLOR);
-#if SAVE_INTERMEDIATE
-	struct rgb_image *qsaved;
-	struct rgb_image *unquantised;
-#endif
+	struct bgr_image *qsaved = NULL;
+	struct bgr_image *unquantised = NULL;
 
-        quantised = allocate_rgb_image8(in->height, in->width, NULL);
-        neighbours = allocate_rgb_image8(in->height, in->width, NULL);
+        neighbours = allocate_bgr_image8(in->height, in->width, NULL);
 
-	ALLOCATE(histogram);
-#if SAVE_INTERMEDIATE
-        unquantised = allocate_rgb_image8(in->height, in->width, NULL);
-        qsaved = allocate_rgb_image8(in->height, in->width, NULL);
-#endif
+        if (scan_params.save_intermediate) {
+                unquantised = allocate_bgr_image8(in->height, in->width, NULL);
+                qsaved = allocate_bgr_image8(in->height, in->width, NULL);
+        }
 
 #ifdef __ARM_NEON__
 	get_min_max_neon(&in->data[0][0], in->width*in->height, &min, &max);
@@ -469,9 +500,16 @@ static void colour_histogram(const struct rgb_image *in, struct rgb_image *out)
 #endif
 
 #if 0
-	struct rgb min2, max2;
-	if (!rgb_equal(&min, &min2) ||
-	    !rgb_equal(&max, &max2)) {
+        printf("red %u %u  green %u %u  blue %u %u\n",
+               min.r, max.r,
+               min.g, max.g,
+               min.b, max.b);
+#endif
+
+#if 0
+	struct bgr min2, max2;
+	if (!bgr_equal(&min, &min2) ||
+	    !bgr_equal(&max, &max2)) {
 		printf("get_min_max_neon failure\n");
 	}
 #endif
@@ -492,56 +530,41 @@ static void colour_histogram(const struct rgb_image *in, struct rgb_image *out)
 
 	quantise_image(&in->data[0][0], in->width*in->height, &quantised->data[0][0], &min, &bin_spacing);
 
-#if SAVE_INTERMEDIATE
-	unquantise_image(quantised, unquantised, &min, &bin_spacing);
-	colour_save_pnm("unquantised.pnm", unquantised);
-#endif
+        if (scan_params.save_intermediate) {
+                unquantise_image(quantised, unquantised, &min, &bin_spacing);
+                colour_save_pnm("unquantised.pnm", unquantised);
+        }
 
 	build_histogram(&quantised->data[0][0], in->width*in->height, histogram);
 
-#if SAVE_INTERMEDIATE
-	copy_rgb_image8(quantised, qsaved);
-	histogram_threshold(quantised, histogram, HISTOGRAM_COUNT_THRESHOLD);
-	unquantise_image(quantised, unquantised, &min, &bin_spacing);
-	colour_save_pnm("thresholded.pnm", unquantised);
-        copy_rgb_image8(qsaved, quantised);
-#endif
+        if (scan_params.save_intermediate) {
+                copy_bgr_image8(quantised, qsaved);
+                histogram_threshold(quantised, histogram, scan_params.histogram_count_threshold);
+                unquantise_image(quantised, unquantised, &min, &bin_spacing);
+                colour_save_pnm("thresholded.pnm", unquantised);
+                copy_bgr_image8(qsaved, quantised);
+        }
 
 
 	histogram_threshold_neighbours(&quantised->data[0][0], in->width*in->height, 
-				       &neighbours->data[0][0], histogram, HISTOGRAM_COUNT_THRESHOLD);
-#if SAVE_INTERMEDIATE
-	unquantise_image(neighbours, unquantised, &min, &bin_spacing);
-	colour_save_pnm("neighbours.pnm", unquantised);
-#endif
+				       &neighbours->data[0][0], histogram, scan_params.histogram_count_threshold);
 
-	copy_rgb_image8(neighbours, out);
+        if (scan_params.save_intermediate) {
+                unquantise_image(neighbours, unquantised, &min, &bin_spacing);
+                colour_save_pnm("neighbours.pnm", unquantised);
+                free(unquantised);
+                free(qsaved);
+        }
 
-	free(quantised);
+	copy_bgr_image8(neighbours, out);
+
 	free(neighbours);
-	free(histogram);
-#if SAVE_INTERMEDIATE
-	free(unquantised);
-	free(qsaved);
-#endif
 }
-
-static struct {
-    uint16_t min_region_size;
-    uint16_t max_region_size;
-    uint16_t min_region_size_xy;
-    uint16_t max_region_size_xy;
-} scan_params = {
-	min_region_size : 8,
-        max_region_size : 400,
-        min_region_size_xy : 2,
-        max_region_size_xy : 30
-};
 
 #define REGION_UNKNOWN -2
 #define REGION_NONE -1
 
-static bool is_zero_rgb(const struct rgb *v)
+static bool is_zero_bgr(const struct bgr *v)
 {
 	return v->r == 0 && v->g == 0 && v->b == 0;
 }
@@ -549,33 +572,42 @@ static bool is_zero_rgb(const struct rgb *v)
 /*
   expand a region by looking for neighboring non-zero pixels
  */
-static void expand_region(const struct rgb_image *in, struct regions *out,
+static void expand_region(const struct bgr_image *in, struct regions *out,
 			  unsigned y, unsigned x)
 {
 	int yofs, xofs;
+        uint16_t m = scan_params.region_merge;
 
-	for (yofs= y>0?-1:0; yofs <= (y<in->height-1?1:0); yofs++) {
-		for (xofs= x>0?-1:0; xofs <= (x<in->width-1?1:0); xofs++) {
+	for (yofs=-m; yofs <= m; yofs++) {
+		for (xofs=-m; xofs <= m; xofs++) {
 			uint16_t r;
+                        if (yofs+y < 0) continue;
+                        if (yofs+y >= in->height) continue;
+                        if (xofs+x < 0) continue;
+                        if (xofs+x >= in->width) continue;
+
 
 			if (out->data[y+yofs][x+xofs] != REGION_UNKNOWN) {
 				continue;
 			}
-			if (is_zero_rgb(&in->data[y+yofs][x+xofs])) {
+			if (is_zero_bgr(&in->data[y+yofs][x+xofs])) {
 				out->data[y+yofs][x+xofs] = REGION_NONE;
 				continue;
 			}
 			r = out->data[y][x];
 			out->data[y+yofs][x+xofs] = r;
-			out->region_size[r]++;
-			if (out->region_size[r] > scan_params.max_region_size) {
-				return;
-			}
 
 			out->bounds[r].minx = MIN(out->bounds[r].minx, x+xofs);
 			out->bounds[r].miny = MIN(out->bounds[r].miny, y+yofs);
 			out->bounds[r].maxx = MAX(out->bounds[r].maxx, x+xofs);
 			out->bounds[r].maxy = MAX(out->bounds[r].maxy, y+yofs);
+
+			out->region_size[r] = 
+                                (out->bounds[r].maxx - out->bounds[r].minx) * 
+                                (out->bounds[r].maxy - out->bounds[r].miny);
+			if (out->region_size[r] > scan_params.max_region_size) {
+				return;
+			}
 
 			expand_region(in, out, y+yofs, x+xofs);
 		}
@@ -586,7 +618,7 @@ static void expand_region(const struct rgb_image *in, struct regions *out,
   assign region numbers to contigouus regions of non-zero data in an
   image
  */
-static void assign_regions(const struct rgb_image *in, struct regions *out)
+static void assign_regions(const struct bgr_image *in, struct regions *out)
 {
 	unsigned x, y;
 
@@ -605,7 +637,7 @@ static void assign_regions(const struct rgb_image *in, struct regions *out)
 				/* already assigned a region */
 				continue;
 			}
-			if (is_zero_rgb(&in->data[y][x])) {
+			if (is_zero_bgr(&in->data[y][x])) {
 				out->data[y][x] = REGION_NONE;
 				continue;
 			}
@@ -645,6 +677,16 @@ static void prune_regions(struct regions *in)
 		    (in->bounds[i].maxx - in->bounds[i].minx) < scan_params.min_region_size_xy ||
 		    (in->bounds[i].maxy - in->bounds[i].miny) > scan_params.max_region_size_xy ||
 		    (in->bounds[i].maxy - in->bounds[i].miny) < scan_params.min_region_size_xy) {
+#if 0
+                        printf("prune size=%u xsize=%u ysize=%u range=(min:%u,max:%u,minxy:%u,maxxy:%u)\n",
+                               in->region_size[i], 
+                               in->bounds[i].maxx - in->bounds[i].minx,
+                               in->bounds[i].maxy - in->bounds[i].miny,
+                               scan_params.min_region_size, 
+                               scan_params.max_region_size,
+                               scan_params.min_region_size_xy, 
+                               scan_params.max_region_size_xy);
+#endif
 			memmove(&in->region_size[i], &in->region_size[i+1], 
 				sizeof(in->region_size[i])*(in->num_regions-(i+1)));
 			memmove(&in->bounds[i], &in->bounds[i+1], 
@@ -658,13 +700,53 @@ static void prune_regions(struct regions *in)
 	}
 }
 
+/*
+  score one region in an image
+ */
+static float score_one_region(const struct region_bounds *bounds, 
+                              const struct bgr_image *quantised,
+                              const struct histogram *histogram)
+{
+        float score = 0;
+        uint16_t count = 0;
+        for (uint16_t x=bounds->minx; x<bounds->maxx; x++) {
+                for (uint16_t y=bounds->miny; y<bounds->maxy; y++) {
+			const struct bgr *v = &quantised->data[y][x];                        
+			uint16_t b = bgr_bin(v);
+                        if (histogram->count[b] >= scan_params.histogram_count_threshold) {
+                                continue;
+                        }
+                        int diff = (scan_params.histogram_count_threshold - histogram->count[b]);
+                        count++;
+                        score += diff;
+                }
+        }
+        if (count == 0) {
+                return 0;
+        }
+        return score / count;
+}
 
-#if SAVE_INTERMEDIATE
+/*
+  score the regions based on their histogram.
+  Score is the sum of the distance below the histogram theshold for
+  all pixels in the region, divided by the number of pixels that were
+  below the threshold
+ */
+static void score_regions(struct regions *in, 
+                          const struct bgr_image *quantised, const struct histogram *histogram)
+{
+	unsigned i;
+	for (i=0; i<in->num_regions; i++) {
+                in->region_score[i] = score_one_region(&in->bounds[i], quantised, histogram);
+        }
+}
+
 /*
   draw a square on an image
  */
-static void draw_square(struct rgb_image *img,
-			const struct rgb *c,
+static void draw_square(struct bgr_image *img,
+			const struct bgr *c,
 			uint16_t left, 
 			uint16_t top,
 			uint16_t right, 
@@ -684,17 +766,15 @@ static void draw_square(struct rgb_image *img,
 		img->data[y][right-1] = *c;
 	}
 }
-#endif
 
 
-#if SAVE_INTERMEDIATE
 /*
   mark regions in an image with a blue square
  */
-static void mark_regions(struct rgb_image *img, const struct regions *r)
+static void mark_regions(struct bgr_image *img, const struct regions *r)
 {
 	unsigned i;
-	struct rgb c = { 255, 0, 0 };
+	struct bgr c = { 255, 0, 0 };
 	for (i=0; i<r->num_regions; i++) {
 		draw_square(img, 
 			    &c,
@@ -704,7 +784,6 @@ static void mark_regions(struct rgb_image *img, const struct regions *r)
 			    MIN(r->bounds[i].maxy+2, (img->height)-1));
 	}
 }
-#endif
 
 /*
   debayer a 8 bit image to half size 24 bit
@@ -736,13 +815,13 @@ scanner_debayer_half(PyObject *self, PyObject *args)
 	}
 	
 	const struct grey_image8 *in = allocate_grey_image8(height, width, PyArray_DATA(img_in));
-	struct rgb_image *out = allocate_rgb_image8(height/2, width/2, NULL);
+	struct bgr_image *out = allocate_bgr_image8(height/2, width/2, NULL);
 
 	Py_BEGIN_ALLOW_THREADS;
         colour_convert_half(in, out);
 	Py_END_ALLOW_THREADS;
 
-        memcpy(PyArray_DATA(img_out), &out->data[0][0], out->width*out->height*sizeof(struct rgb));
+        memcpy(PyArray_DATA(img_out), &out->data[0][0], out->width*out->height*sizeof(struct bgr));
 
         free(out);
         free((void*)in);
@@ -779,7 +858,7 @@ scanner_debayer(PyObject *self, PyObject *args)
 		return NULL;
         }
 	const struct grey_image8 *in8 = allocate_grey_image8(height, width, PyArray_DATA(img_in));
-        struct rgb_image *out = allocate_rgb_image8(height, width, PyArray_DATA(img_out));
+        struct bgr_image *out = allocate_bgr_image8(height, width, PyArray_DATA(img_out));
 
 	Py_BEGIN_ALLOW_THREADS;
         colour_convert(in8, out);
@@ -820,7 +899,7 @@ scanner_rebayer(PyObject *self, PyObject *args)
 		return NULL;
 	}
 
-	const struct rgb_image *in = allocate_rgb_image8(height, width, PyArray_DATA(img_in));
+	const struct bgr_image *in = allocate_bgr_image8(height, width, PyArray_DATA(img_in));
 	struct grey_image8 *out = allocate_grey_image8(height, width, NULL);
 
 	Py_BEGIN_ALLOW_THREADS;
@@ -833,6 +912,24 @@ scanner_rebayer(PyObject *self, PyObject *args)
         free((void*)in);
 
 	Py_RETURN_NONE;
+}
+
+/*
+  scale the scan parameters for the image being scanned
+ */
+static void scale_scan_params(uint32_t height, uint32_t width)
+{
+    float wscale = width/640.0;
+    float ascale = (width*height)/(640.0*480.0);
+    if (ascale < 1.0) ascale = 1.0;
+    if (wscale < 1.0) wscale = 1.0;
+    scan_params = scan_params_640_480;
+    scan_params.min_region_size *= ascale;
+    scan_params.max_region_size *= ascale;
+    scan_params.min_region_size_xy *= wscale;
+    scan_params.max_region_size_xy *= wscale;
+    scan_params.histogram_count_threshold *= ascale;
+    scan_params.region_merge *= ascale;
 }
 
 /*
@@ -852,11 +949,11 @@ scanner_scan(PyObject *self, PyObject *args)
         uint16_t height = PyArray_DIM(img_in, 0);
         uint16_t width  = PyArray_DIM(img_in, 1);
 	if (PyArray_STRIDE(img_in, 0) != 3*width) {
-		PyErr_SetString(ScannerError, "input must be RGB 24 bit");		
+		PyErr_SetString(ScannerError, "input must be BGR 24 bit");		
 		return NULL;
 	}
 
-        const struct rgb_image *in = allocate_rgb_image8(height, width, PyArray_DATA(img_in));
+        const struct bgr_image *in = allocate_bgr_image8(height, width, PyArray_DATA(img_in));
 
 	struct regions *regions = any_matrix(2, 
                                              sizeof(int16_t), 
@@ -866,37 +963,64 @@ scanner_scan(PyObject *self, PyObject *args)
 
 	Py_BEGIN_ALLOW_THREADS;
 
-        struct rgb_image *himage = allocate_rgb_image8(height, width, NULL);
-        struct rgb_image *jimage = allocate_rgb_image8(height, width, NULL);
+        scale_scan_params(height, width);
+
+        struct bgr_image *himage = allocate_bgr_image8(height, width, NULL);
+        struct bgr_image *jimage = allocate_bgr_image8(height, width, NULL);
         regions->height = height;
         regions->width = width;
 
-	colour_histogram(in, himage);
-	assign_regions(himage, regions);
-	prune_regions(regions);
+        /*
+          we need to allocate the histogram and quantised structures
+          here and pass them into colour_histogram() so that they can
+          be kept around for the score_regions() code.
+         */
+        struct histogram *histogram;
+        struct bgr_image *quantised;
 
-#if SAVE_INTERMEDIATE
-	struct rgb_image *marked;
-        marked = allocate_rgb_image8(height, width, NULL);
-	copy_rgb_image8(in, marked);
-	mark_regions(marked, regions);
-	colour_save_pnm("marked.pnm", marked);
-	free(marked);
-#endif
+        quantised = allocate_bgr_image8(height, width, NULL);
+        ALLOCATE(histogram);
+
+	colour_histogram(in, himage, quantised, histogram);
+	assign_regions(himage, regions);
+
+        if (scan_params.save_intermediate) {
+                struct bgr_image *marked;
+                marked = allocate_bgr_image8(height, width, NULL);
+                copy_bgr_image8(in, marked);
+                mark_regions(marked, regions);
+                colour_save_pnm("regions.pnm", marked);
+                free(marked);
+        }
+
+	prune_regions(regions);
+        score_regions(regions, quantised, histogram);
+
+        if (scan_params.save_intermediate) {
+                struct bgr_image *marked;
+                marked = allocate_bgr_image8(height, width, NULL);
+                copy_bgr_image8(in, marked);
+                mark_regions(marked, regions);
+                colour_save_pnm("pruned.pnm", marked);
+                free(marked);
+        }
 
 	free(himage);
 	free(jimage);
+        free(histogram);
+        free(quantised);
         free((void*)in);
 
 	Py_END_ALLOW_THREADS;
 
 	PyObject *list = PyList_New(regions->num_regions);
 	for (unsigned i=0; i<regions->num_regions; i++) {
-		PyObject *t = Py_BuildValue("(iiii)", 
+		PyObject *t = Py_BuildValue("(iiiif)", 
 					    regions->bounds[i].minx,
 					    regions->bounds[i].miny,
 					    regions->bounds[i].maxx,
-					    regions->bounds[i].maxy);
+					    regions->bounds[i].maxy,
+                                            regions->region_score[i]);
 		PyList_SET_ITEM(list, i, t);
 	}
 
@@ -906,7 +1030,7 @@ scanner_scan(PyObject *self, PyObject *args)
 }
 
 /*
-  compress a 24 bit RGB image to a jpeg, returning as python bytes (a
+  compress a 24 bit BGR image to a jpeg, returning as python bytes (a
   string in python 2.x)
  */
 static PyObject *
@@ -926,7 +1050,7 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 	}
 	const uint16_t w = PyArray_DIM(img_in, 1);
 	const uint16_t h = PyArray_DIM(img_in, 0);
-	const struct rgb *rgb_in = PyArray_DATA(img_in);
+	const struct bgr *bgr_in = PyArray_DATA(img_in);
 	tjhandle handle=NULL;
 	const int subsamp = TJSAMP_422;
 	unsigned long jpegSize = tjBufSize(w, h, subsamp);
@@ -934,7 +1058,7 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 
 	Py_BEGIN_ALLOW_THREADS;
 	handle=tjInitCompress();
-	tjCompress2(handle, (unsigned char *)&rgb_in[0], w, 0, h, TJPF_BGR, &jpegBuf,
+	tjCompress2(handle, (unsigned char *)&bgr_in[0], w, 0, h, TJPF_BGR, &jpegBuf,
 		    &jpegSize, subsamp, quality, 0);
 	Py_END_ALLOW_THREADS;
 
@@ -972,17 +1096,17 @@ scanner_downsample(PyObject *self, PyObject *args)
 		return NULL;
 	}
 
-        const struct rgb_image *in = allocate_rgb_image8(height, width, PyArray_DATA(img_in));
-	struct rgb_image *out = allocate_rgb_image8(height/2, width/2, NULL);
+        const struct bgr_image *in = allocate_bgr_image8(height, width, PyArray_DATA(img_in));
+	struct bgr_image *out = allocate_bgr_image8(height/2, width/2, NULL);
 
 	Py_BEGIN_ALLOW_THREADS;
 	for (uint16_t y=0; y<height/2; y++) {
 		for (uint16_t x=0; x<width/2; x++) {
-			const struct rgb *p0 = &in->data[y*2+0][x*2+0];
-			const struct rgb *p1 = &in->data[y*2+0][x*2+1];
-			const struct rgb *p2 = &in->data[y*2+1][x*2+0];
-			const struct rgb *p3 = &in->data[y*2+1][x*2+1];
-			struct rgb *d = &out->data[y][x];
+			const struct bgr *p0 = &in->data[y*2+0][x*2+0];
+			const struct bgr *p1 = &in->data[y*2+0][x*2+1];
+			const struct bgr *p2 = &in->data[y*2+1][x*2+0];
+			const struct bgr *p3 = &in->data[y*2+1][x*2+1];
+			struct bgr *d = &out->data[y][x];
 			d->b = ((uint16_t)p0->b + (uint16_t)p1->b + (uint16_t)p2->b + (uint16_t)p3->b)/4;
 			d->g = ((uint16_t)p0->g + (uint16_t)p1->g + (uint16_t)p2->g + (uint16_t)p3->g)/4;
 			d->r = ((uint16_t)p0->r + (uint16_t)p1->r + (uint16_t)p2->r + (uint16_t)p3->r)/4;
@@ -990,7 +1114,7 @@ scanner_downsample(PyObject *self, PyObject *args)
 	}
 	Py_END_ALLOW_THREADS;
 
-        memcpy(PyArray_DATA(img_out), &out->data[0][0], out->width*out->height*sizeof(struct rgb));
+        memcpy(PyArray_DATA(img_out), &out->data[0][0], out->width*out->height*sizeof(struct bgr));
 
         free(out);
         free((void*)in);
@@ -1102,7 +1226,7 @@ scanner_gamma_correct(PyObject *self, PyObject *args)
 
 
 /*
-  extract a rectange from a 24 bit RGB image
+  extract a rectange from a 24 bit BGR image
   img_in is a 24 bit large image
   img_out is a 24 bit small target image
   x1, y1 are top left coordinates of target in img1
@@ -1139,8 +1263,8 @@ scanner_rect_extract(PyObject *self, PyObject *args)
 		return NULL;		
 	}
 
-	const struct rgb *in = PyArray_DATA(img_in);
-	struct rgb *out = PyArray_DATA(img_out);
+	const struct bgr *in = PyArray_DATA(img_in);
+	struct bgr *out = PyArray_DATA(img_out);
 
 	Py_BEGIN_ALLOW_THREADS;
 	x2 = x1 + w_out - 1;
@@ -1150,8 +1274,8 @@ scanner_rect_extract(PyObject *self, PyObject *args)
 	if (y2 >= h) y2 = h-1;
 
 	for (y=y1; y<=y2; y++) {
-		const struct rgb *in_y = in + y*w;
-		struct rgb *out_y = out + (y-y1)*w_out;
+		const struct bgr *in_y = in + y*w;
+		struct bgr *out_y = out + (y-y1)*w_out;
 		for (x=x1; x<=x2; x++) {
 			out_y[x-x1] = in_y[x];
 		}
@@ -1162,7 +1286,7 @@ scanner_rect_extract(PyObject *self, PyObject *args)
 }
 
 /*
-  overlay a rectange on a 24 bit RGB image
+  overlay a rectange on a 24 bit BGR image
   img1 is a large image
   img2 is a small image to be overlayed on top of img1
   x1, y1 are top left coordinates of target in img1
@@ -1202,8 +1326,8 @@ scanner_rect_overlay(PyObject *self, PyObject *args)
 		return NULL;		
 	}
 
-	struct rgb *im1 = PyArray_DATA(img1);
-	const struct rgb *im2 = PyArray_DATA(img2);
+	struct bgr *im1 = PyArray_DATA(img1);
+	const struct bgr *im2 = PyArray_DATA(img2);
 
 	Py_BEGIN_ALLOW_THREADS;
 	x2 = x1 + w2 - 1;
@@ -1214,10 +1338,10 @@ scanner_rect_overlay(PyObject *self, PyObject *args)
 
 	if (skip_black) {
 		for (y=y1; y<=y2; y++) {
-			struct rgb *im1_y = im1 + y*w1;
-			const struct rgb *im2_y = im2 + (y-y1)*w2;
+			struct bgr *im1_y = im1 + y*w1;
+			const struct bgr *im2_y = im2 + (y-y1)*w2;
 			for (x=x1; x<=x2; x++) {
-				const struct rgb *px = &im2_y[x-x1];
+				const struct bgr *px = &im2_y[x-x1];
 				if (px->b == 0 && 
 				    px->g == 0 && 
 				    px->r == 0) continue;
@@ -1226,8 +1350,8 @@ scanner_rect_overlay(PyObject *self, PyObject *args)
 		}
 	} else {
 		for (y=y1; y<=y2; y++) {
-			struct rgb *im1_y = im1 + y*w1;
-			const struct rgb *im2_y = im2 + (y-y1)*w2;
+			struct bgr *im1_y = im1 + y*w1;
+			const struct bgr *im2_y = im2 + (y-y1)*w2;
 			for (x=x1; x<=x2; x++) {
 				im1_y[x] = im2_y[x-x1];
 			}
@@ -1247,10 +1371,10 @@ static PyMethodDef ScannerMethods[] = {
 	{"rebayer", scanner_rebayer, METH_VARARGS, "rebayer of image"},
 	{"scan", scanner_scan, METH_VARARGS, "histogram scan a colour image"},
 	{"jpeg_compress", scanner_jpeg_compress, METH_VARARGS, "compress a colour image to a jpeg image as a python string"},
-	{"downsample", scanner_downsample, METH_VARARGS, "downsample a 24 bit RGB colour image to half size"},
+	{"downsample", scanner_downsample, METH_VARARGS, "downsample a 24 bit BGR colour image to half size"},
 	{"reduce_depth", scanner_reduce_depth, METH_VARARGS, "reduce greyscale bit depth from 16 bit to 8 bit"},
 	{"gamma_correct", scanner_gamma_correct, METH_VARARGS, "reduce greyscale, applying gamma"},
-	{"rect_extract", scanner_rect_extract, METH_VARARGS, "extract a rectange from a 24 bit RGB image"},
+	{"rect_extract", scanner_rect_extract, METH_VARARGS, "extract a rectange from a 24 bit BGR image"},
 	{"rect_overlay", scanner_rect_overlay, METH_VARARGS, "overlay a image with another smaller image at x,y"},
 	{NULL, NULL, 0, NULL}
 };
