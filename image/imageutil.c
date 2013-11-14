@@ -91,29 +91,29 @@ void *any_matrix(uint8_t dimension, uint16_t el_size, uint16_t header_size, ...)
 
 
 /*
-  create a dynamic 8 bit rgb image. Can be freed with free()
+  create a dynamic 8 bit bgr image. Can be freed with free()
  */
-struct rgb_image *allocate_rgb_image8(uint16_t height, 
+struct bgr_image *allocate_bgr_image8(uint16_t height, 
                                       uint16_t width, 
-                                      const struct rgb *data)
+                                      const struct bgr *data)
 {
-        struct rgb_image *ret = any_matrix(2, sizeof(struct rgb), 
-                                           offsetof(struct rgb_image, data),
+        struct bgr_image *ret = any_matrix(2, sizeof(struct bgr), 
+                                           offsetof(struct bgr_image, data),
                                            height, width);
         ret->height = height;
         ret->width  = width;
         if (data != NULL) {
-                memcpy(&ret->data[0][0], data, width*height*sizeof(struct rgb));
+                memcpy(&ret->data[0][0], data, width*height*sizeof(struct bgr));
         }
         return ret;
 }
 
-void copy_rgb_image8(const struct rgb_image *in, 
-                     struct rgb_image *out)
+void copy_bgr_image8(const struct bgr_image *in, 
+                     struct bgr_image *out)
 {
         assert(in->height == out->height);
         assert(in->width == out->width);
-        memcpy(&out->data[0][0], &in->data[0][0], sizeof(struct rgb)*in->width*in->height);
+        memcpy(&out->data[0][0], &in->data[0][0], sizeof(struct bgr)*in->width*in->height);
 }
 
 /*
@@ -137,7 +137,7 @@ struct grey_image8 *allocate_grey_image8(uint16_t height,
 #ifdef MAIN_PROGRAM
 int main(void)
 {
-        struct rgb_image *im = allocate_rgb_image8(960, 1280, NULL);
+        struct bgr_image *im = allocate_bgr_image8(960, 1280, NULL);
         for (uint16_t i = 0; i<im->height; i++) {
                 for (uint16_t j = 0; j<im->width; j++) {
                         im->data[i][j].r = 0;

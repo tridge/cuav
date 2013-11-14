@@ -11,7 +11,7 @@
 
 #define PACKED __attribute__((__packed__))
 
-struct PACKED rgb {
+struct PACKED bgr {
 	uint8_t b, g, r;
 };
 
@@ -19,18 +19,18 @@ struct PACKED rgb {
   greyscale 8 bit image
  */
 struct grey_image8 {
-    uint16_t width;
-    uint16_t height;
+    uint32_t width;
+    uint32_t height;
     uint8_t **data;
 };
 
 /*
-  general purpose RGB 8 bit image
+  general purpose BGR 8 bit image
  */
-struct rgb_image {
-    uint16_t width;
-    uint16_t height;
-    struct rgb **data;
+struct bgr_image {
+    uint32_t width;
+    uint32_t height;
+    struct bgr **data;
 };
 
 /*
@@ -44,9 +44,9 @@ void *any_matrix(uint8_t dimension,
 /*
   allocate an RGM 8 bit image
  */
-struct rgb_image *allocate_rgb_image8(uint16_t height, 
+struct bgr_image *allocate_bgr_image8(uint16_t height, 
                                       uint16_t width, 
-                                      const struct rgb *data);
+                                      const struct bgr *data);
 
 /*
   allocate a greyscale 8 bit image
@@ -58,6 +58,6 @@ struct grey_image8 *allocate_grey_image8(uint16_t height,
 /*
   copy image data from one image to another of same size
  */
-void copy_rgb_image8(const struct rgb_image *in, 
-                     struct rgb_image *out);
+void copy_bgr_image8(const struct bgr_image *in, 
+                     struct bgr_image *out);
 
