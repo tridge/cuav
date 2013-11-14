@@ -362,3 +362,53 @@ def exif_timestamp(filename):
         m = pyexiv2.ImageMetadata(filename)
         m.read()
         return time.mktime(m['Exif.Image.DateTime'].value.timetuple())
+
+
+class KmlPosition(object):
+        '''parse a kmz file to get positions for images'''
+        def __init__(self, filenames):
+                import glob
+                self.images = {}
+                for f in glob.glob(filenames):
+                        self._add_kmz(f)
+
+        def _add_kmz(self, filename):
+                import xml.dom.minidom
+                dom = None
+                if filename.endswith('.kmz'):
+                        import zipfile
+                        z = zipfile.ZipFile(filename, mode='r')
+                        names = z.namelist()
+                        for n in names:
+                                if n.endswith('.kml'):
+                                        dom = xml.dom.minidom.parse(z.open(n))
+                                        break
+                else:
+                        dom = xml.dom.minidom.parse(filename)
+                if dom is None:
+                        return
+                marks = dom.getElementsByTagName('Placemark')
+                for m in marks:
+                        name = self._getElement(m.getElementsByTagName('name')[0])
+                        latitude = self._getElement(m.getElementsByTagName('latitude')[0])
+                        longitude = self._getElement(m.getElementsByTagName('longitude')[0])
+                        self.images[name] = MavPosition(float(latitude), float(longitude), 0, 0, 0, 0, 0)
+
+        def position(self, imagename):
+                imagename = os.path.basename(imagename)
+                if not imagename in self.images:
+                        print("No position for %s" % imagename)
+                        return self.images[0]
+                return self.images[imagename]
+
+        def _getText(self, nodelist):
+                '''Get the text inside an XML node'''
+                rc = ""
+                for node in nodelist:
+                        if node.nodeType == node.TEXT_NODE:
+                                rc = rc + node.nodeValue
+                return rc
+        
+        def _getElement(self, element):
+                '''Get and XML element'''
+                return self._getText(element.childNodes)
