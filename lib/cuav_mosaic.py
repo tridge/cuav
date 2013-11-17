@@ -103,7 +103,7 @@ class Mosaic():
         '''set mosaic brightness'''
         self.brightness = b
 
-    def show_region(self, ridx):
+    def show_region(self, ridx, view_the_image=False):
         '''display a region on the map'''
         region = self.regions[ridx]
         thumbnail = cv.CloneImage(region.full_thumbnail)
@@ -119,9 +119,43 @@ class Mosaic():
                                                                   region.region.center(),
                                                                   str(region.latlon), os.path.basename(region.filename))
         self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
+        if view_the_image and os.path.exists(region.filename):
+            self.view_imagefile(region.filename)
 
-    def show_closest(self, latlon):
+    def view_imagefile(self, filename):
+        '''view an image in a zoomable window'''
+        img = cuav_util.LoadImage(filename)
+        if self.view_image is None or not self.view_image.is_alive():
+            import wx
+            self.view_image = mp_image.MPImage(title='View',
+                                               events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN],
+                                               can_zoom=True,
+                                               can_drag=True)
+        self.view_image.set_image(img, bgr=True)
+
+    def show_selected(self, selected):
+        '''try to show a selected image'''
+        key = str(selected.objkey)
+        if not key.startswith("region "):
+            return False
+        r = key.split()
+        ridx = int(r[1])
+        print("Selected %s ridx=%u" % (key, ridx))
+        if ridx < 0 or ridx >= len(self.regions):
+            print("Invalid region %u selected" % ridx)
+            return False
+        region = self.regions[ridx]
+        if os.path.exists(region.filename):
+            self.view_imagefile(region.filename)
+            return True
+            
+        return False
+
+    def show_closest(self, latlon, selected):
         '''show closest camera image'''
+        # first try to show the exact image selected
+        if len(selected) != 0 and self.show_selected(selected[0]):
+            return
         (lat, lon) = latlon
         closest = -1
         closest_distance = -1
@@ -136,13 +170,7 @@ class Mosaic():
             return
         self.current_view = closest
         image = self.images[closest]
-        img = cuav_util.LoadImage(image.filename)
-        if self.view_image is None or not self.view_image.is_alive():
-            import wx
-            self.view_image = mp_image.MPImage(title='View', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
-        im_1280 = cv.CreateImage((1280, 960), 8, 3)
-        cv.Resize(img, im_1280, cv.CV_INTER_NN)
-        self.view_image.set_image(im_1280, bgr=True)
+        self.view_imagefile(image.filename)
 
     def map_callback(self, event):
         '''called when an event happens on the slipmap'''
@@ -150,7 +178,7 @@ class Mosaic():
             return
         if event.event.m_middleDown:
             # show closest image from history
-            self.show_closest(event.latlon)
+            self.show_closest(event.latlon, event.selected)
             return
         if len(event.selected) == 0:
             # no objects were selected
@@ -187,7 +215,7 @@ class Mosaic():
         if ridx >= len(self.regions):
             return
         region = self.regions_sorted[ridx]
-        self.show_region(region.ridx)
+        self.show_region(region.ridx, event.m_middleDown)
         if region.latlon != (None,None):
             self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
 
