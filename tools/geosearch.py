@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import numpy, os, time, cv, sys, math, sys, glob
+import multiprocessing
 
 from cuav.lib import cuav_util
 from cuav.image import scanner
@@ -8,39 +9,6 @@ from cuav.lib import cuav_mosaic, mav_position, cuav_joe, cuav_region
 from cuav.camera import cam_params
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 from MAVProxy.modules.mavproxy_map import mp_image
-
-def parse_args():
-  '''parse command line arguments'''
-  if 1 == len(sys.argv):
-    from MAVProxy.modules.lib.optparse_gui import OptionParser
-    file_type='file'
-    directory_type='directory'
-  else:
-    from optparse import OptionParser
-    file_type='str'
-    directory_type='str'
-
-  parser = OptionParser("geosearch.py [options] <directory>")
-  parser.add_option("--directory", default=None, type=directory_type,
-                    help="directory containing image files")
-  parser.add_option("--mission", default=None, type=file_type, help="mission file to display")
-  parser.add_option("--mavlog", default=None, type=file_type, help="MAVLink telemetry log file")
-  parser.add_option("--kmzlog", default=None, type=file_type, help="kmz file for image positions")
-  parser.add_option("--minscore", default=500, type='int', help="minimum score")
-  parser.add_option("--filter-type", type='choice', default='simple', choices=['simple', 'compactness'], help="object filter type")
-  parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
-  parser.add_option("--altitude", type='int', default=90, help="camera altitude above ground (meters)")
-  parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
-  parser.add_option("--view", action='store_true', default=False, help="show images")
-  parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
-  parser.add_option("--service", default='YahooSat', help="map service")
-  parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
-  parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
-  parser.add_option("--fullres", action='store_true', default=False, help="scan at full resolution")
-  return parser.parse_args()
-
-if __name__ == '__main__':
-  (opts, args) = parse_args()
 
 slipmap = None
 mosaic = None
@@ -214,7 +182,40 @@ def process(args):
       #raw_input("hit ENTER when ready")
 
 
+def parse_args():
+  '''parse command line arguments'''
+  if 1 == len(sys.argv):
+    from MAVProxy.modules.lib.optparse_gui import OptionParser
+    file_type='file'
+    directory_type='directory'
+  else:
+    from optparse import OptionParser
+    file_type='str'
+    directory_type='str'
+
+  parser = OptionParser("geosearch.py [options] <directory>")
+  parser.add_option("--directory", default=None, type=directory_type,
+                    help="directory containing image files")
+  parser.add_option("--mission", default=None, type=file_type, help="mission file to display")
+  parser.add_option("--mavlog", default=None, type=file_type, help="MAVLink telemetry log file")
+  parser.add_option("--kmzlog", default=None, type=file_type, help="kmz file for image positions")
+  parser.add_option("--minscore", default=500, type='int', help="minimum score")
+  parser.add_option("--filter-type", type='choice', default='simple', choices=['simple', 'compactness'], help="object filter type")
+  parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
+  parser.add_option("--altitude", type='int', default=90, help="camera altitude above ground (meters)")
+  parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
+  parser.add_option("--view", action='store_true', default=False, help="show images")
+  parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
+  parser.add_option("--service", default='YahooSat', help="map service")
+  parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
+  parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
+  parser.add_option("--fullres", action='store_true', default=False, help="scan at full resolution")
+  return parser.parse_args()
+
 if __name__ == '__main__':
+  multiprocessing.freeze_support()
+  (opts, args) = parse_args()
+
   # main program
   if opts.directory is not None:
     process([opts.directory])
