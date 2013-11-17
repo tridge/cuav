@@ -124,13 +124,15 @@ def raw_hsv_score(hsv):
 			score += pix_score
 			scorix[y,x] = pix_score
 	avg_v = sum_v / (width*height)
-        score /= (width*height)
+        score = 500 * float(score) / (width*height)
 
 	return (score, scorix, blue_count, red_count, avg_v)
 
 def hsv_score(r, hsv, use_compactness=False, use_whiteness=False):
 	'''try to score a HSV image based on how "interesting" it is for joe detection'''
   	(score, scorix, blue_count, red_count, avg_v) = raw_hsv_score(hsv)
+
+        r.hsv_score = score
 
 	if blue_count < 100 and red_count < 50 and avg_v < 150:
 		if blue_count > 1 and red_count > 1:
@@ -150,10 +152,8 @@ def hsv_score(r, hsv, use_compactness=False, use_whiteness=False):
 	if use_whiteness:
 		not_white = 1.0-r.whiteness
 		score = score*not_white
-
         score *= (1+r.scan_score)
-
-        r.score = int(score)
+        r.score = score
 
 def score_region(img, r, filter_type='simple'):
 	'''filter a list of regions using HSV values'''
