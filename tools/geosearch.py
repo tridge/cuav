@@ -114,7 +114,7 @@ def process(args):
   joelog = cuav_joe.JoeLog(None)
 
   if opts.view:
-    viewer = mp_image.MPImage(title='Image')
+    viewer = mp_image.MPImage(title='Image', can_zoom=True, can_drag=True)
 
   for f in files:
       if mpos:
