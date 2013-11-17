@@ -116,8 +116,9 @@ static bool colour_save_pnm(const char *filename, const struct bgr_image *image)
                 }
         }
         
-        
-	dprintf(fd, "P6\n%u %u\n255\n", image->width, image->height);
+	char header[64];
+	snprintf(header, sizeof(header), "P6\n%u %u\n255\n", image->width, image->height);
+	write(fd, header, strlen(header));
         size_t size = image->width*image->height*sizeof(struct bgr);
 	if (write(fd, &rgb->data[0][0], size) != size) {
                 free(rgb);
