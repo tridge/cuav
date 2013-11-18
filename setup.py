@@ -2,7 +2,7 @@ from distutils.core import setup, Extension
 import numpy as np
 import platform
 
-version = '1.0.8'
+version = '1.1.0'
 
 ext_modules = []
 
@@ -19,14 +19,14 @@ else:
         extra_compile_args=["-std=gnu99", "-O3"]
 
     chameleon = Extension('cuav.camera.chameleon',
-                          sources = ['camera/chameleon_py.c', 'camera/chameleon.c', 'camera/chameleon_util.c'],
+                          sources = ['cuav/camera/chameleon_py.c', 'cuav/camera/chameleon.c', 'cuav/camera/chameleon_util.c'],
                           libraries = ['dc1394', 'm', 'usb-1.0'],
                           extra_compile_args=extra_compile_args + ['-O0'])
     ext_modules.append(chameleon)
 
  
 scanner = Extension('cuav.image.scanner',
-                    sources = ['image/scanner.c', 'image/imageutil.c'],
+                    sources = ['cuav/image/scanner.c', 'cuav/image/imageutil.c'],
                     libraries = ['turbojpeg'],
                     library_dirs = [jpegturbo_libpath],
                     extra_compile_args=extra_compile_args)
@@ -52,11 +52,11 @@ setup (name = 'cuav',
        license='GPLv3',
        include_dirs = [np.get_include(),
                        jpegturbo_incpath],
-       package_dir = { 'cuav' : '.' },
+       package_dir = { 'cuav' : 'cuav' },
        packages = ['cuav', 'cuav.lib', 'cuav.image', 'cuav.camera', 'cuav.uav'],
-       scripts = [ 'tools/geosearch.py', 'tools/geotag.py',
-                   'tools/cuav_lens.py', 'tools/agl_mission.py',
-                   'tools/pgm_convert.py',
-                   'tests/cuav_benchmark.py' ],
+       scripts = [ 'cuav/tools/geosearch.py', 'cuav/tools/geotag.py',
+                   'cuav/tools/cuav_lens.py', 'cuav/tools/agl_mission.py',
+                   'cuav/tools/pgm_convert.py',
+                   'cuav/tests/cuav_benchmark.py' ],
        package_data = { 'cuav' : [ 'tests/test-8bit.pgm', 'data/chameleon1_arecont0.json' ]},
        ext_modules = ext_modules)
