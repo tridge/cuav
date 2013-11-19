@@ -163,15 +163,7 @@ def process(args):
         (wview,hview) = cuav_util.image_shape(img_view)
         mat = cv.fromarray(img_view)
         for r in regions:
-          print(r)
-          (x1,y1,x2,y2) = r.tuple()
-          (wview,hview) = cuav_util.image_shape(img_view)
-          (w,h) = cuav_util.image_shape(im_full)
-          x1 = x1*wview//w
-          x2 = x2*wview//w
-          y1 = y1*hview//h
-          y2 = y2*hview//h
-          cv.Rectangle(mat, (max(x1-2,0),max(y1-2,0)), (x2+2,y2+2), (255,0,0), 2)
+          r.draw_rectangle(mat, (255,0,0))
         cv.CvtColor(mat, mat, cv.CV_BGR2RGB)
         viewer.set_image(mat)
 

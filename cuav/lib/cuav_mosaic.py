@@ -127,6 +127,9 @@ class Mosaic():
     def view_imagefile(self, filename):
         '''view an image in a zoomable window'''
         img = cuav_util.LoadImage(filename)
+        for r in self.regions:
+            if r.filename == filename:
+                r.region.draw_rectangle(img, colour=(255,0,0), linewidth=2, offset=10)
         if self.view_image is None or not self.view_image.is_alive():
             import wx
             self.view_image = mp_image.MPImage(title='View',
