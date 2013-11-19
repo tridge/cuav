@@ -1,4 +1,7 @@
-from distutils.core import setup, Extension
+try:
+    from setuptools import setup, Extension
+except ImportError:
+    from distutils.core import setup, Extension
 import numpy as np
 import platform
 
@@ -34,6 +37,7 @@ scanner = Extension('cuav.image.scanner',
 ext_modules.append(scanner)
  
 setup (name = 'cuav',
+       zip_safe=True,
        version = version,
        description = 'CanberraUAV UAV code',
        long_description = '''A set of python libraries and tools developed by CanberraUAV for the Outback Challenge. This includes an image search algorithm with optimisation for ARM processors and a number of mission planning and analysis tools.''',
@@ -52,7 +56,6 @@ setup (name = 'cuav',
        license='GPLv3',
        include_dirs = [np.get_include(),
                        jpegturbo_incpath],
-       package_dir = { 'cuav' : 'cuav' },
        packages = ['cuav', 'cuav.lib', 'cuav.image', 'cuav.camera', 'cuav.uav'],
        scripts = [ 'cuav/tools/geosearch.py', 'cuav/tools/geotag.py',
                    'cuav/tools/cuav_lens.py', 'cuav/tools/agl_mission.py',
