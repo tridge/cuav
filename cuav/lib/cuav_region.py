@@ -18,12 +18,23 @@ class Region:
                 self.blue_score = None
 
         def tuple(self):
-            '''return the boundary as a tuple'''
-            return (self.x1, self.y1, self.x2, self.y2)
+                '''return the boundary as a tuple'''
+                return (self.x1, self.y1, self.x2, self.y2)
 
         def center(self):
-            '''return the center of the region'''
-            return ((self.x1+self.x2)//2, (self.y1+self.y2)//2)
+                '''return the center of the region'''
+                return ((self.x1+self.x2)//2, (self.y1+self.y2)//2)
+
+        def draw_rectangle(self, img, colour=(255,0,0), linewidth=2, offset=2):
+                '''draw a rectange around the region in an image'''
+                (x1,y1,x2,y2) = self.tuple()
+                (wview,hview) = cuav_util.image_shape(img)
+                (w,h) = cuav_util.image_shape(img)
+                x1 = x1*wview//w
+                x2 = x2*wview//w
+                y1 = y1*hview//h
+                y2 = y2*hview//h
+                cv.Rectangle(img, (max(x1-offset,0),max(y1-offset,0)), (x2+offset,y2+offset), colour, linewidth) 
 
         def __str__(self):
 		return '%s latlon=%s score=%s' % (str(self.tuple()), str(self.latlon), self.score)
