@@ -571,48 +571,37 @@ static bool is_zero_bgr(const struct bgr *v)
 }
 
 /*
-  expand a region by looking for neighboring non-zero pixels
+  find a region number for a pixel by looking at the surrounding pixels
+  up to scan_params.region_merge
  */
-static void expand_region(const struct bgr_image *in, struct regions *out,
-			  unsigned y, unsigned x)
+static unsigned find_region(const struct bgr_image *in, struct regions *out,
+			    int y, int x)
 {
 	int yofs, xofs;
         uint16_t m = scan_params.region_merge;
 
-	for (yofs=-m; yofs <= m; yofs++) {
+	/*
+	  we only need to look up or directly to the left, as this function is used
+	  from assign_regions() where we scan from top to bottom, left to right
+	 */
+	for (yofs=-m; yofs <= 0; yofs++) {
 		for (xofs=-m; xofs <= m; xofs++) {
-			uint16_t r;
                         if (yofs+y < 0) continue;
-                        if (yofs+y >= in->height) continue;
                         if (xofs+x < 0) continue;
                         if (xofs+x >= in->width) continue;
 
-
-			if (out->data[y+yofs][x+xofs] != REGION_UNKNOWN) {
-				continue;
+			if (out->data[y+yofs][x+xofs] >= 0) {
+				return out->data[y+yofs][x+xofs];
 			}
-			if (is_zero_bgr(&in->data[y+yofs][x+xofs])) {
-				out->data[y+yofs][x+xofs] = REGION_NONE;
-				continue;
-			}
-			r = out->data[y][x];
-			out->data[y+yofs][x+xofs] = r;
-
-			out->bounds[r].minx = MIN(out->bounds[r].minx, x+xofs);
-			out->bounds[r].miny = MIN(out->bounds[r].miny, y+yofs);
-			out->bounds[r].maxx = MAX(out->bounds[r].maxx, x+xofs);
-			out->bounds[r].maxy = MAX(out->bounds[r].maxy, y+yofs);
-
-			out->region_size[r] = 
-                                (out->bounds[r].maxx - out->bounds[r].minx) * 
-                                (out->bounds[r].maxy - out->bounds[r].miny);
-			if (out->region_size[r] > scan_params.max_region_size) {
-				return;
-			}
-
-			expand_region(in, out, y+yofs, x+xofs);
 		}
 	}
+	for (xofs=-m; xofs < 0; xofs++) {
+		if (xofs+x < 0) continue;
+		if (out->data[y][x+xofs] >= 0) {
+			return out->data[y][x+xofs];
+		}
+	}
+	return REGION_NONE;
 }
 
 /*
@@ -647,19 +636,29 @@ static void assign_regions(const struct bgr_image *in, struct regions *out)
 				return;
 			}
 
-			/* a new region */
-			unsigned r = out->num_regions;
+			unsigned r;
+			r = find_region(in, out, y, x);
+			if (r == REGION_NONE) {
+			  /* a new region */
+			  r = out->num_regions;
+			  out->num_regions++;
+			  out->bounds[r].minx = x;
+			  out->bounds[r].maxx = x;
+			  out->bounds[r].miny = y;
+			  out->bounds[r].maxy = y;
+			  out->region_size[r] = 1;
+			} else {
+			  /* an existing region */
+			  out->bounds[r].minx = MIN(out->bounds[r].minx, x);
+			  out->bounds[r].miny = MIN(out->bounds[r].miny, y);
+			  out->bounds[r].maxx = MAX(out->bounds[r].maxx, x);
+			  out->bounds[r].maxy = MAX(out->bounds[r].maxy, y);
+			  out->region_size[r] = 
+			    (1+out->bounds[r].maxx - out->bounds[r].minx) * 
+			    (1+out->bounds[r].maxy - out->bounds[r].miny);
+			}
 
 			out->data[y][x] = r;
-			out->region_size[r] = 1;
-			out->bounds[r].minx = x;
-			out->bounds[r].maxx = x;
-			out->bounds[r].miny = y;
-			out->bounds[r].maxy = y;
-
-			out->num_regions++;
-
-			expand_region(in, out, y, x);
 		}
 	}	
 }
