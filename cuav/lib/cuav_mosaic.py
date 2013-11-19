@@ -90,7 +90,9 @@ class Mosaic():
         self.last_click_position = None
         self.c_params = C
         import wx
-        self.image_mosaic = mp_image.MPImage(title='Mosaic', events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN])
+        self.image_mosaic = mp_image.MPImage(title='Mosaic', 
+                                             mouse_events=True,
+                                             key_events=True)
         self.slipmap = slipmap
         self.selected_region = 0
 
@@ -128,7 +130,8 @@ class Mosaic():
         if self.view_image is None or not self.view_image.is_alive():
             import wx
             self.view_image = mp_image.MPImage(title='View',
-                                               events=[wx.EVT_MOUSE_EVENTS, wx.EVT_KEY_DOWN],
+                                               mouse_events=True,
+                                               key_events=True,
                                                can_zoom=True,
                                                can_drag=True)
         self.view_image.set_image(img, bgr=True)
