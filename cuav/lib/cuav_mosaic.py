@@ -138,6 +138,7 @@ class Mosaic():
                                                can_zoom=True,
                                                can_drag=True)
         self.view_image.set_image(img, bgr=True)
+        self.view_image.set_title('View: ' + os.path.basename(filename))
 
     def show_selected(self, selected):
         '''try to show a selected image'''

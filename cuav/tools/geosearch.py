@@ -166,6 +166,7 @@ def process(args):
           r.draw_rectangle(mat, (255,0,0))
         cv.CvtColor(mat, mat, cv.CV_BGR2RGB)
         viewer.set_image(mat)
+        viewer.set_title('Image: ' + os.path.basename(f))
 
       total_time += (t1-t0)
       if t1 != t0:
