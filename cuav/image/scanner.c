@@ -77,7 +77,6 @@ static const struct scan_params scan_params_640_480 = {
         region_merge : 1,
         save_intermediate : false
 };
-static struct scan_params scan_params;
 
 struct regions {
         uint16_t height;
@@ -89,6 +88,7 @@ struct regions {
 		uint16_t maxx, maxy;
 	} bounds[MAX_REGIONS];
 	float region_score[MAX_REGIONS];
+        PyArrayObject *pixel_scores[MAX_REGIONS];
         // data is a 2D array of image dimensions. Each value is the 
         // assigned region number or REGION_NONE
         int16_t **data;
@@ -118,7 +118,11 @@ static bool colour_save_pnm(const char *filename, const struct bgr_image *image)
         
 	char header[64];
 	snprintf(header, sizeof(header), "P6\n%u %u\n255\n", image->width, image->height);
-	write(fd, header, strlen(header));
+	if (write(fd, header, strlen(header)) != strlen(header)) {
+                free(rgb);
+		close(fd);
+		return false;                
+        }
         size_t size = image->width*image->height*sizeof(struct bgr);
 	if (write(fd, &rgb->data[0][0], size) != size) {
                 free(rgb);
@@ -154,10 +158,6 @@ static void colour_convert_half(const struct grey_image8 *in, struct bgr_image *
 			out->data[y][x].r = in->data[y*2+1][x*2+0];
 		}
 	}
-
-        if (scan_params.save_intermediate) {
-                colour_save_pnm("test.pnm", out);
-        }
 }
 
 
@@ -476,7 +476,8 @@ static void histogram_threshold_neighbours(const struct bgr *in,
 }
 
 
-static void colour_histogram(const struct bgr_image *in, struct bgr_image *out, 
+static void colour_histogram(const struct scan_params *scan_params, 
+                             const struct bgr_image *in, struct bgr_image *out, 
                              struct bgr_image *quantised,
                              struct histogram *histogram)
 {
@@ -489,7 +490,7 @@ static void colour_histogram(const struct bgr_image *in, struct bgr_image *out,
 
         neighbours = allocate_bgr_image8(in->height, in->width, NULL);
 
-        if (scan_params.save_intermediate) {
+        if (scan_params->save_intermediate) {
                 unquantised = allocate_bgr_image8(in->height, in->width, NULL);
                 qsaved = allocate_bgr_image8(in->height, in->width, NULL);
         }
@@ -531,16 +532,16 @@ static void colour_histogram(const struct bgr_image *in, struct bgr_image *out,
 
 	quantise_image(&in->data[0][0], in->width*in->height, &quantised->data[0][0], &min, &bin_spacing);
 
-        if (scan_params.save_intermediate) {
+        if (scan_params->save_intermediate) {
                 unquantise_image(quantised, unquantised, &min, &bin_spacing);
                 colour_save_pnm("unquantised.pnm", unquantised);
         }
 
 	build_histogram(&quantised->data[0][0], in->width*in->height, histogram);
 
-        if (scan_params.save_intermediate) {
+        if (scan_params->save_intermediate) {
                 copy_bgr_image8(quantised, qsaved);
-                histogram_threshold(quantised, histogram, scan_params.histogram_count_threshold);
+                histogram_threshold(quantised, histogram, scan_params->histogram_count_threshold);
                 unquantise_image(quantised, unquantised, &min, &bin_spacing);
                 colour_save_pnm("thresholded.pnm", unquantised);
                 copy_bgr_image8(qsaved, quantised);
@@ -548,9 +549,9 @@ static void colour_histogram(const struct bgr_image *in, struct bgr_image *out,
 
 
 	histogram_threshold_neighbours(&quantised->data[0][0], in->width*in->height, 
-				       &neighbours->data[0][0], histogram, scan_params.histogram_count_threshold);
+				       &neighbours->data[0][0], histogram, scan_params->histogram_count_threshold);
 
-        if (scan_params.save_intermediate) {
+        if (scan_params->save_intermediate) {
                 unquantise_image(neighbours, unquantised, &min, &bin_spacing);
                 colour_save_pnm("neighbours.pnm", unquantised);
                 free(unquantised);
@@ -574,11 +575,12 @@ static bool is_zero_bgr(const struct bgr *v)
   find a region number for a pixel by looking at the surrounding pixels
   up to scan_params.region_merge
  */
-static unsigned find_region(const struct bgr_image *in, struct regions *out,
+static unsigned find_region(const struct scan_params *scan_params, 
+                            const struct bgr_image *in, struct regions *out,
 			    int y, int x)
 {
 	int yofs, xofs;
-        uint16_t m = scan_params.region_merge;
+        uint16_t m = scan_params->region_merge;
 
 	/*
 	  we only need to look up or directly to the left, as this function is used
@@ -608,7 +610,8 @@ static unsigned find_region(const struct bgr_image *in, struct regions *out,
   assign region numbers to contigouus regions of non-zero data in an
   image
  */
-static void assign_regions(const struct bgr_image *in, struct regions *out)
+static void assign_regions(const struct scan_params *scan_params, 
+                           const struct bgr_image *in, struct regions *out)
 {
 	unsigned x, y;
 
@@ -637,7 +640,7 @@ static void assign_regions(const struct bgr_image *in, struct regions *out)
 			}
 
 			unsigned r;
-			r = find_region(in, out, y, x);
+			r = find_region(scan_params, in, out, y, x);
 			if (r == REGION_NONE) {
 			  /* a new region */
 			  r = out->num_regions;
@@ -667,25 +670,25 @@ static void assign_regions(const struct bgr_image *in, struct regions *out)
 /*
   remove any too small or large regions
  */
-static void prune_regions(struct regions *in)
+static void prune_regions(const struct scan_params *scan_params, struct regions *in)
 {
 	unsigned i;
 	for (i=0; i<in->num_regions; i++) {
-		if (in->region_size[i] < scan_params.min_region_size ||
-		    in->region_size[i] > scan_params.max_region_size ||
-		    (in->bounds[i].maxx - in->bounds[i].minx) > scan_params.max_region_size_xy ||
-		    (in->bounds[i].maxx - in->bounds[i].minx) < scan_params.min_region_size_xy ||
-		    (in->bounds[i].maxy - in->bounds[i].miny) > scan_params.max_region_size_xy ||
-		    (in->bounds[i].maxy - in->bounds[i].miny) < scan_params.min_region_size_xy) {
+		if (in->region_size[i] < scan_params->min_region_size ||
+		    in->region_size[i] > scan_params->max_region_size ||
+		    (in->bounds[i].maxx - in->bounds[i].minx) > scan_params->max_region_size_xy ||
+		    (in->bounds[i].maxx - in->bounds[i].minx) < scan_params->min_region_size_xy ||
+		    (in->bounds[i].maxy - in->bounds[i].miny) > scan_params->max_region_size_xy ||
+		    (in->bounds[i].maxy - in->bounds[i].miny) < scan_params->min_region_size_xy) {
 #if 0
                         printf("prune size=%u xsize=%u ysize=%u range=(min:%u,max:%u,minxy:%u,maxxy:%u)\n",
                                in->region_size[i], 
                                in->bounds[i].maxx - in->bounds[i].minx,
                                in->bounds[i].maxy - in->bounds[i].miny,
-                               scan_params.min_region_size, 
-                               scan_params.max_region_size,
-                               scan_params.min_region_size_xy, 
-                               scan_params.max_region_size_xy);
+                               scan_params->min_region_size, 
+                               scan_params->max_region_size,
+                               scan_params->min_region_size_xy, 
+                               scan_params->max_region_size_xy);
 #endif
 			memmove(&in->region_size[i], &in->region_size[i+1], 
 				sizeof(in->region_size[i])*(in->num_regions-(i+1)));
@@ -703,22 +706,31 @@ static void prune_regions(struct regions *in)
 /*
   score one region in an image
  */
-static float score_one_region(const struct region_bounds *bounds, 
+static float score_one_region(const struct scan_params *scan_params, 
+                              const struct region_bounds *bounds, 
                               const struct bgr_image *quantised,
-                              const struct histogram *histogram)
+                              const struct histogram *histogram,
+                              PyArrayObject **pixel_scores)
 {
         float score = 0;
         uint16_t count = 0;
-        for (uint16_t x=bounds->minx; x<bounds->maxx; x++) {
-                for (uint16_t y=bounds->miny; y<bounds->maxy; y++) {
+        uint16_t width, height;
+        width  = 1 + bounds->maxx - bounds->minx;
+        height = 1 + bounds->maxy - bounds->miny;
+        int dims[2] = { height, width };
+        (*pixel_scores) = PyArray_FromDims(2, dims, NPY_DOUBLE);
+        for (uint16_t y=bounds->miny; y<bounds->maxy; y++) {
+                double *scorep = ((y-bounds->miny)*width)+(double *)(*pixel_scores)->data;
+                for (uint16_t x=bounds->minx; x<bounds->maxx; x++) {
 			const struct bgr *v = &quantised->data[y][x];                        
 			uint16_t b = bgr_bin(v);
-                        if (histogram->count[b] >= scan_params.histogram_count_threshold) {
+                        if (histogram->count[b] >= scan_params->histogram_count_threshold) {
                                 continue;
                         }
-                        int diff = (scan_params.histogram_count_threshold - histogram->count[b]);
+                        int diff = (scan_params->histogram_count_threshold - histogram->count[b]);
                         count++;
                         score += diff;
+                        *scorep++ = diff;
                 }
         }
         if (count == 0) {
@@ -733,12 +745,15 @@ static float score_one_region(const struct region_bounds *bounds,
   all pixels in the region, divided by the number of pixels that were
   below the threshold
  */
-static void score_regions(struct regions *in, 
+static void score_regions(const struct scan_params *scan_params, 
+                          struct regions *in, 
                           const struct bgr_image *quantised, const struct histogram *histogram)
 {
 	unsigned i;
 	for (i=0; i<in->num_regions; i++) {
-                in->region_score[i] = score_one_region(&in->bounds[i], quantised, histogram);
+                in->region_score[i] = score_one_region(scan_params, 
+                                                       &in->bounds[i], quantised, histogram, 
+                                                       &in->pixel_scores[i]);
         }
 }
 
@@ -917,19 +932,19 @@ scanner_rebayer(PyObject *self, PyObject *args)
 /*
   scale the scan parameters for the image being scanned
  */
-static void scale_scan_params(uint32_t height, uint32_t width)
+static void scale_scan_params(struct scan_params *scan_params, uint32_t height, uint32_t width)
 {
     float wscale = width/640.0;
     float ascale = (width*height)/(640.0*480.0);
     if (ascale < 1.0) ascale = 1.0;
     if (wscale < 1.0) wscale = 1.0;
-    scan_params = scan_params_640_480;
-    scan_params.min_region_size *= ascale;
-    scan_params.max_region_size *= ascale;
-    scan_params.min_region_size_xy *= wscale;
-    scan_params.max_region_size_xy *= wscale;
-    scan_params.histogram_count_threshold *= ascale;
-    scan_params.region_merge *= ascale;
+    *scan_params = scan_params_640_480;
+    scan_params->min_region_size *= ascale;
+    scan_params->max_region_size *= ascale;
+    scan_params->min_region_size_xy *= wscale;
+    scan_params->max_region_size_xy *= wscale;
+    scan_params->histogram_count_threshold *= ascale;
+    scan_params->region_merge *= ascale;
 }
 
 /*
@@ -961,15 +976,6 @@ scanner_scan(PyObject *self, PyObject *args)
                                              height, 
                                              width);
 
-	Py_BEGIN_ALLOW_THREADS;
-
-        scale_scan_params(height, width);
-
-        struct bgr_image *himage = allocate_bgr_image8(height, width, NULL);
-        struct bgr_image *jimage = allocate_bgr_image8(height, width, NULL);
-        regions->height = height;
-        regions->width = width;
-
         /*
           we need to allocate the histogram and quantised structures
           here and pass them into colour_histogram() so that they can
@@ -977,12 +983,22 @@ scanner_scan(PyObject *self, PyObject *args)
          */
         struct histogram *histogram;
         struct bgr_image *quantised;
+        struct scan_params scan_params;
 
         quantised = allocate_bgr_image8(height, width, NULL);
         ALLOCATE(histogram);
 
-	colour_histogram(in, himage, quantised, histogram);
-	assign_regions(himage, regions);
+	Py_BEGIN_ALLOW_THREADS;
+
+        scale_scan_params(&scan_params, height, width);
+
+        struct bgr_image *himage = allocate_bgr_image8(height, width, NULL);
+        struct bgr_image *jimage = allocate_bgr_image8(height, width, NULL);
+        regions->height = height;
+        regions->width = width;
+
+	colour_histogram(&scan_params, in, himage, quantised, histogram);
+	assign_regions(&scan_params, himage, regions);
 
         if (scan_params.save_intermediate) {
                 struct bgr_image *marked;
@@ -993,8 +1009,7 @@ scanner_scan(PyObject *self, PyObject *args)
                 free(marked);
         }
 
-	prune_regions(regions);
-        score_regions(regions, quantised, histogram);
+	prune_regions(&scan_params, regions);
 
         if (scan_params.save_intermediate) {
                 struct bgr_image *marked;
@@ -1007,20 +1022,23 @@ scanner_scan(PyObject *self, PyObject *args)
 
 	free(himage);
 	free(jimage);
+        free((void*)in);
+	Py_END_ALLOW_THREADS;
+
+        score_regions(&scan_params, regions, quantised, histogram);
+
         free(histogram);
         free(quantised);
-        free((void*)in);
-
-	Py_END_ALLOW_THREADS;
 
 	PyObject *list = PyList_New(regions->num_regions);
 	for (unsigned i=0; i<regions->num_regions; i++) {
-		PyObject *t = Py_BuildValue("(iiiif)", 
+		PyObject *t = Py_BuildValue("(iiiifO)", 
 					    regions->bounds[i].minx,
 					    regions->bounds[i].miny,
 					    regions->bounds[i].maxx,
 					    regions->bounds[i].maxy,
-                                            regions->region_score[i]);
+                                            regions->region_score[i],
+                                            regions->pixel_scores[i]);
 		PyList_SET_ITEM(list, i, t);
 	}
 
