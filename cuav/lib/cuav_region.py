@@ -5,7 +5,7 @@ import numpy, sys, os, time, cuav_util, cv
 
 class Region:
 	'''a object representing a recognised region in an image'''
-	def __init__(self, x1, y1, x2, y2, scan_score=0):
+	def __init__(self, x1, y1, x2, y2, scan_score=0, compactness=0):
 		self.x1 = x1
 		self.y1 = y1
 		self.x2 = x2
@@ -13,7 +13,7 @@ class Region:
 		self.latlon = None
 		self.score = None
                 self.scan_score = scan_score
-                self.compactness = None
+                self.compactness = compactness
                 self.whiteness = None
                 self.blue_score = None
 
@@ -48,57 +48,61 @@ def RegionsConvert(rlist, scan_shape, full_shape):
         full_w = full_shape[0]
         full_h = full_shape[1]
 	for r in rlist:
-		(x1,y1,x2,y2,score) = r
+		(x1,y1,x2,y2,score,pixscore) = r
 		x1 = (x1 * full_w) // scan_w
 		x2 = (x2 * full_w) // scan_w
 		y1 = (y1 * full_h) // scan_h
 		y2 = (y2 * full_h) // scan_h
-		ret.append(Region(x1,y1,x2,y2,score))
+                compactness = array_compactness(pixscore)
+		ret.append(Region(x1,y1,x2,y2,score,compactness))
 	return ret
 
-def compactness(im):
-  from numpy import array,meshgrid,arange,shape,mean,zeros
-  from numpy import outer,sum,max,linalg
-  from numpy import sqrt
-  from math import exp
-  (h,w) = shape(im)
-  (X,Y) = meshgrid(arange(w),arange(h))
-  x = X.flatten()
-  y = Y.flatten()
-  wgts = im[y,x]
-  sw = sum(wgts)
-  if sw == 0:
-          return 1
-  wgts /= sw
-  wpts = array([wgts*x, wgts*y])
-  wmean = sum(wpts, 1)
-  N = len(x)
-  s = array([x,y])
-  P = zeros((2,2))
-  for i in range(0,N):
-    P += wgts[i]*outer(s[:,i],s[:,i])
-  P = P - outer(wmean,wmean);
+def array_compactness(im):
+        '''
+        calculate the compactness of a 2D array. Each element of the 2D array
+        should be proportional to the score of that pixel in the overall scoring scheme
+        . '''
+        from numpy import array,meshgrid,arange,shape,mean,zeros
+        from numpy import outer,sum,max,linalg
+        from numpy import sqrt
+        from math import exp
+        (h,w) = shape(im)
+        (X,Y) = meshgrid(arange(w),arange(h))
+        x = X.flatten()
+        y = Y.flatten()
+        wgts = im[y,x]
+        sw = sum(wgts)
+        if sw == 0:
+                return 1
+        wgts /= sw
+        wpts = array([wgts*x, wgts*y])
+        wmean = sum(wpts, 1)
+        N = len(x)
+        s = array([x,y])
+        P = zeros((2,2))
+        for i in range(0,N):
+                P += wgts[i]*outer(s[:,i],s[:,i])
+        P = P - outer(wmean,wmean);
 
-  det = abs(linalg.det(P))
-  if (det > 0):
-    v = linalg.eigvalsh(P)
-    v = abs(v)
-    r = min(v)/max(v)
-    return 100.0*sqrt(r/det)
-  else:
-    return 0.0
+        det = abs(linalg.det(P))
+        if (det < 0):
+                return 0.0
+        v = linalg.eigvalsh(P)
+        v = abs(v)
+        r = min(v)/max(v)
+        return 100.0*sqrt(r/det)
 
-def whiteness(hsv):
-  ''' a measure of the whiteness of an HSV image 0 to 1'''
-  (width,height) = cv.GetSize(hsv)
-  score = 0
-  count = 0
-  for x in range(width):
-    for y in range(height):
-      (h,s,v) = hsv[y,x]
-      if (s < 25 and v > 50):
-        count += 1
-  return float(count)/float(width*height)
+def image_whiteness(hsv):
+        ''' a measure of the whiteness of an HSV image 0 to 1'''
+        (width,height) = cv.GetSize(hsv)
+        score = 0
+        count = 0
+        for x in range(width):
+                for y in range(height):
+                        (h,s,v) = hsv[y,x]
+                        if (s < 25 and v > 50):
+                                count += 1
+        return float(count)/float(width*height)
 
 def raw_hsv_score(hsv):
 	'''try to score a HSV image based on hsv'''
@@ -154,12 +158,11 @@ def hsv_score(r, hsv, use_compactness=False, use_whiteness=False):
 			score *= 2
 
         scorix = (scorix>0).astype(float)
-        r.compactness = compactness(scorix)
 
 	if use_compactness:
         	score = score*r.compactness
 
-        r.whiteness = whiteness(hsv)
+        r.whiteness = image_whiteness(hsv)
 	if use_whiteness:
 		not_white = 1.0-r.whiteness
 		score = score*not_white
