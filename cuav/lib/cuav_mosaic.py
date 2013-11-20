@@ -92,7 +92,8 @@ class Mosaic():
         import wx
         self.image_mosaic = mp_image.MPImage(title='Mosaic', 
                                              mouse_events=True,
-                                             key_events=True)
+                                             key_events=True,
+                                             auto_size=True)
         self.slipmap = slipmap
         self.selected_region = 0
 
