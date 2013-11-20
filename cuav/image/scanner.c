@@ -705,6 +705,9 @@ static void prune_regions(const struct scan_params *scan_params, struct regions 
 
 /*
   score one region in an image
+
+  A score of 1000 is maximum, and means that every pixel that was
+  below the detection threshold was maximally rare
  */
 static float score_one_region(const struct scan_params *scan_params, 
                               const struct region_bounds *bounds, 
@@ -719,24 +722,25 @@ static float score_one_region(const struct scan_params *scan_params,
         height = 1 + bounds->maxy - bounds->miny;
         int dims[2] = { height, width };
         (*pixel_scores) = PyArray_FromDims(2, dims, NPY_DOUBLE);
-        for (uint16_t y=bounds->miny; y<bounds->maxy; y++) {
-                double *scorep = ((y-bounds->miny)*width)+(double *)(*pixel_scores)->data;
-                for (uint16_t x=bounds->minx; x<bounds->maxx; x++) {
+        for (uint16_t y=bounds->miny; y<=bounds->maxy; y++) {
+                for (uint16_t x=bounds->minx; x<=bounds->maxx; x++) {
 			const struct bgr *v = &quantised->data[y][x];                        
 			uint16_t b = bgr_bin(v);
+                        double *scorep = PyArray_GETPTR2(*pixel_scores, y-bounds->miny, x-bounds->minx);
                         if (histogram->count[b] >= scan_params->histogram_count_threshold) {
+                                *scorep = 0;
                                 continue;
                         }
                         int diff = (scan_params->histogram_count_threshold - histogram->count[b]);
                         count++;
                         score += diff;
-                        *scorep++ = diff;
+                        *scorep = diff;
                 }
         }
         if (count == 0) {
                 return 0;
         }
-        return score / count;
+        return 1000.0 * score / (count * scan_params->histogram_count_threshold);
 }
 
 /*
