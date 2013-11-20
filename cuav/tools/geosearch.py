@@ -186,7 +186,8 @@ def parse_args():
     file_type='str'
     directory_type='str'
 
-  parser = OptionParser("geosearch.py [options] <directory>")
+  parser = OptionParser("geosearch.py [options] <directory>", description='GeoSearch')
+
   parser.add_option("--directory", default=None, type=directory_type,
                     help="directory containing image files")
   parser.add_option("--mission", default=None, type=file_type, help="mission file to display")
