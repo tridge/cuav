@@ -5,8 +5,8 @@
     exit 1
 }
 
-[ -r "$1"/flight.log ] || {
-    echo "Invalid log directory - $1/flight.log not found"
+[ -r "$1"/flight.tlog ] || {
+    echo "Invalid log directory - $1/flight.tlog not found"
     exit 1
 }
 [ -d "$1"/camera/raw ] || {
@@ -14,5 +14,5 @@
     exit 1
 }
 
-./cuav/cuav/tests/playback.py --loop --imagedir "$1"/camera/raw "$1"/flight.log
+./cuav/cuav/tests/playback.py --loop --imagedir "$1"/camera/raw "$1"/flight.tlog
 
