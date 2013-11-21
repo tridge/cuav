@@ -14,5 +14,5 @@
     exit 1
 }
 
-./cuav/tests/playback.py --loop --imagedir "$1"/camera/raw "$1"/flight.log
+./cuav/cuav/tests/playback.py --loop --imagedir "$1"/camera/raw "$1"/flight.log
 
