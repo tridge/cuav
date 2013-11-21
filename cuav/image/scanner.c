@@ -666,6 +666,55 @@ static void assign_regions(const struct scan_params *scan_params,
 	}	
 }
 
+/*
+  remove a region
+ */
+static void remove_region(struct regions *in, unsigned i)
+{
+        if (i < in->num_regions-1) {
+                memmove(&in->region_size[i], &in->region_size[i+1], 
+                        sizeof(in->region_size[i])*(in->num_regions-(i+1)));
+                memmove(&in->bounds[i], &in->bounds[i+1], 
+                        sizeof(in->bounds[i])*(in->num_regions-(i+1)));
+        }
+        in->num_regions--;
+}
+
+static bool regions_overlap(const struct region_bounds *r1, const struct region_bounds *r2)
+{
+    if (r1->maxx < r2->minx) return false;
+    if (r2->maxx < r1->minx) return false;
+    if (r1->maxy < r2->miny) return false;
+    if (r2->maxy < r1->miny) return false;
+    return true;
+}
+
+/*
+  merge regions that overlap
+ */
+static void merge_regions(const struct scan_params *scan_params, struct regions *in)
+{
+	unsigned i, j;
+        bool found_overlapping = true;
+        while (found_overlapping) {
+                found_overlapping = false;
+                for (i=0; i<in->num_regions; i++) {
+                        for (j=i+1; j<in->num_regions; j++) {
+                                if (regions_overlap(&in->bounds[i], &in->bounds[j])) {
+                                        found_overlapping = true;
+                                        struct region_bounds *b1 = &in->bounds[i];                                        
+                                        struct region_bounds *b2 = &in->bounds[j];                                        
+                                        b1->minx = MIN(b1->minx, b2->minx);
+                                        b1->maxx = MAX(b1->maxx, b2->maxx);
+                                        b1->miny = MIN(b1->miny, b2->miny);
+                                        b1->maxy = MAX(b1->maxy, b2->maxy);
+                                        remove_region(in, j);
+                                        j--;
+                                }
+                        }
+                }
+        }
+}
 
 /*
   remove any too small or large regions
@@ -690,13 +739,7 @@ static void prune_regions(const struct scan_params *scan_params, struct regions 
                                scan_params->min_region_size_xy, 
                                scan_params->max_region_size_xy);
 #endif
-			memmove(&in->region_size[i], &in->region_size[i+1], 
-				sizeof(in->region_size[i])*(in->num_regions-(i+1)));
-			memmove(&in->bounds[i], &in->bounds[i+1], 
-				sizeof(in->bounds[i])*(in->num_regions-(i+1)));
-			if (in->num_regions > 0) {
-				in->num_regions--;
-			}
+                        remove_region(in, i);
 			i--;
 		}
 		    
@@ -1013,6 +1056,7 @@ scanner_scan(PyObject *self, PyObject *args)
                 free(marked);
         }
 
+	merge_regions(&scan_params, regions);
 	prune_regions(&scan_params, regions);
 
         if (scan_params.save_intermediate) {
