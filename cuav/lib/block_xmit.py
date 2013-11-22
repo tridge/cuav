@@ -49,6 +49,7 @@ class BlockSenderSet:
 		self.first_missing = 0
 		self.mss = mss
 		self.last_sent = 0
+                #print("Created %s" % str(self))
 
 	def __str__(self):
 		return 'BlockSenderSet<%u/%u>' % (len(self.chunks), self.num_chunks)
@@ -143,6 +144,10 @@ class BlockSenderComplete:
 		self.blockid = blockid
 		self.timestamp = timestamp
 		self.dest = dest
+                #print("Created %s" % str(self))
+
+	def __str__(self):
+		return 'BlockSenderComplete<%u>' % self.blockid
 
 	def pack(self):
 		'''return a linearized representation'''        
@@ -169,6 +174,10 @@ class BlockSenderChunk:
 			self.packed_size = len(data) + self.header_size
 		else:
 			self.packed_size = 0
+                #print("Created %s" % str(self))
+
+	def __str__(self):
+		return 'BlockSenderChunk<%u,%u,%u,%u>' % (self.blockid, self.chunk_id, self.size, self.chunk_size)
 
 	def pack(self):
 		'''return a linearized representation'''        
@@ -203,6 +212,10 @@ class BlockSenderBlock:
 		self.priority = priority
 		self.sends = 0
 		self.chunk_send_times = {}
+                #print("Created %s" % str(self))
+
+	def __str__(self):
+		return 'BlockSenderBlock<%u,%u,%u,%u>' % (self.blockid,self.size,self.chunk_size,self.num_chunks)
 
 	def chunk(self, chunk_id):
 		'''return data for a chunk'''
@@ -348,11 +361,14 @@ class BlockSender:
 		if priority > 0:
 			for i in range(len(self.outgoing), 0, -1):
 				if self.outgoing[i-1].priority >= priority:
+                                        #print("Inserted blk %u len=%u %s" % (i, len(self.outgoing), newblk))
 					self.outgoing.insert(i, newblk)
 					return
+                        #print("Inserted blk %u len=%u %s" % (0, len(self.outgoing), newblk))
 			self.outgoing.insert(0, newblk)
 			return
 		# otherwise append to the outgoing list
+                #print("Appended blk len=%u %s" % (len(self.outgoing), newblk))
 		self.outgoing.append(newblk)
 
 	def _crc(self, buffer):
@@ -369,6 +385,7 @@ class BlockSender:
 		'''low level object send'''
 		if self.packet_loss != 0:
 			if random.uniform(0, 1) < self.packet_loss*0.01:
+                                #print("lose packet")
 				return
 		try:
 			buf = obj.pack()
@@ -376,6 +393,7 @@ class BlockSender:
 			buf = bytes(struct.pack('<BL', type, crc)) + buf
 			self.sock.sendto(buf, dest)
 			self.send_count += 1
+                        #print("send_count=%u %s" % (self.send_count, obj))
 		except socket.error:
 			pass
 
@@ -417,6 +435,7 @@ class BlockSender:
 	def _complete_send(self, blk):
 		'''complete send of a block'''
 		if blk.callback:
+                        #print("Callback %s" % blk.callback)
 			blk.callback()
 		efficiency = blk.num_chunks / float(blk.sends)
 		#print("_complete_send: efficiency=%.2f sends=%u recvs=%u" % (efficiency, self.send_count, self.recv_count))
@@ -461,6 +480,7 @@ class BlockSender:
 			self._debug('_check_incoming: bad packet %s' % str(e))
 			return True
 		tnow = time.time()
+                #print(obj)
 		if isinstance(obj, BlockSenderSet):
 			# we've received a set of acks for some data
 			# find the corresponding outgoing block
@@ -473,7 +493,7 @@ class BlockSender:
 					out.acks.update(obj)
 					if out.acks.complete():
 						if self.enable_debug:
-							self._debug("send complete %u" % out.blockid)
+							self._debug("send complete %u %s" % (out.blockid, obj))
 						blk = self.outgoing.pop(i)
 						self._complete_send(blk)
 					return True
@@ -488,9 +508,10 @@ class BlockSender:
 			for i in range(len(self.outgoing)):
 				out = self.outgoing[i]
 				if out.blockid == obj.blockid:
-					if self.enable_debug:
-						self._debug("send complete %u" % out.blockid)
 					blk = self.outgoing.pop(i)
+					if self.enable_debug:
+						self._debug("send complete %u outlen=%u %s %s" % (
+                                                        out.blockid, len(self.outgoing), obj, blk))
 					self._complete_send(blk)
 					return True
 			# an ack for something already complete
@@ -518,7 +539,8 @@ class BlockSender:
 					return True
 			# its a new block
 			if self.enable_debug:
-				self._debug("new block chunk %u of %u" % (obj.chunk_id, obj.blockid))
+				self._debug("new block chunk %u of %u (size=%u chunk_size=%u)" % (
+                                        obj.chunk_id, obj.blockid, obj.size, obj.chunk_size))
 			self.incoming.append(BlockSenderBlock(obj.blockid, obj.size, obj.chunk_size, fromaddr, self.mss))
 			blk = self.incoming[-1]
 			blk.timestamp = obj.timestamp
@@ -558,11 +580,13 @@ class BlockSender:
 			total_chunks += blk.acks.num_chunks
 			if detailed:
 				print("block %u  acked %u/%u" % (blk.blockid, len(blk.acks.chunks), blk.acks.num_chunks))
-		if total_chunks != 0:
-			print("total_acked=%u total_chunks=%u eff=%.2f rtt=%.1f bw=%.2f qsize=%u" % (
-				total_acked, total_chunks, self.get_efficiency(), self.get_rtt_estimate(),
-				self.get_bandwidth_used(),
-				self.sendq_size()))
+                complete = "0"
+                if len(self.incoming) > 0:
+                        complete = "%u/%u" % (len(self.incoming[0].acks.chunks), self.incoming[0].acks.num_chunks)
+                        print("total_acked=%u total_chunks=%u eff=%.2f rtt=%.1f bw=%.2f qsize=%u in=%u/%s" % (
+                                total_acked, total_chunks, self.get_efficiency(), self.get_rtt_estimate(),
+                                self.get_bandwidth_used(),
+                                self.sendq_size(), len(self.incoming), complete))
 
 	def sendq_size(self):
 		'''return number of uncompleted blocks in the send queue'''
@@ -655,6 +679,8 @@ class BlockSender:
 				except Exception as e:
 					self._debug('_send_outgoing: ' + str(e))
 					break
+                                #print("sent chunk size=%u of %u sends=%u blockid=%u" % (
+                                #        chunk.chunk_size, blk.size, blk.sends, blk.blockid))
 				bytes_sent += chunk.packed_size
 				blk.next_chunk = (c + 1) % blk.num_chunks
 				blk.timestamp = tnow
