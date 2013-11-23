@@ -1,4 +1,4 @@
-module load CUAV.camera
+module load cuav.modules.camera
 camera set save_pgm 0
 set moddebug 1
 camera set gcs_address 127.0.0.2
@@ -8,3 +8,4 @@ camera start
 camera set filter_type compactness
 camera set minscore 35
 camera set fullres 1
+
