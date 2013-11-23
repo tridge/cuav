@@ -167,7 +167,7 @@ def hsv_score(r, hsv, use_compactness=False, use_whiteness=False):
 		not_white = 1.0-r.whiteness
 		score = score*not_white
         score *= (1+r.scan_score)
-        r.score = score
+        r.score = r.scan_score
 
 def score_region(img, r, filter_type='simple'):
 	'''filter a list of regions using HSV values'''
