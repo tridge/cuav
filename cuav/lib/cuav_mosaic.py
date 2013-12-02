@@ -10,6 +10,7 @@ import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
 from MAVProxy.modules.mavproxy_map import mp_image, mp_slipmap
 from cuav.image import scanner
 from cuav.camera.cam_params import CameraParams
+from MAVProxy.modules.lib.mp_menu import *
 
 class MosaicRegion:
     def __init__(self, ridx, region, filename, pos, full_thumbnail, small_thumbnail, latlon=(None,None)):
@@ -102,6 +103,18 @@ class Mosaic():
 
         self.slipmap.add_callback(functools.partial(self.map_callback))
 
+        self.menu = MPMenuTop([MPMenuSubMenu('View',
+                                             items=[MPMenuRadio('Sort By', 'Select sorting key',
+                                                                returnkey='setSort',
+                                                                selected='Time',
+                                                                items=['Score', 'Compactness',
+                                                                       'Distinctiveness', 'Whiteness',
+                                                                       'Time']),
+                                                    MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
+                                                    MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage')
+                                                    ])])
+        self.image_mosaic.set_menu(self.menu)
+
     def set_brightness(self, b):
         '''set mosaic brightness'''
         self.brightness = b
@@ -118,9 +131,11 @@ class Mosaic():
         self.selected_region = ridx
         if region.score is None:
             region.score = 0
-        region_text = "Selected region %u score=%u %s\n%s\n%s" % (ridx, region.score,
-                                                                  region.region.center(),
-                                                                  str(region.latlon), os.path.basename(region.filename))
+        region_text = "Selected region %u score=%u/%u/%.2f %s\n%s\n%s" % (ridx, region.score,
+                                                                          region.region.scan_score,
+                                                                          region.region.compactness,
+                                                                          region.region.center(),
+                                                                          str(region.latlon), os.path.basename(region.filename))
         self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
         if view_the_image and os.path.exists(region.filename):
             self.view_imagefile(region.filename)
@@ -212,6 +227,37 @@ class Mosaic():
         self.boundary = boundary[:]
         self.slipmap.add_object(mp_slipmap.SlipPolygon('boundary', self.boundary, layer=1, linewidth=2, colour=(0,0,255)))
 
+    def change_page(self, page):
+        '''change page number'''
+        last_page = self.page
+        self.page = page
+        if self.page < 0:
+            self.page = 0
+        if self.page > len(self.regions) / self.display_regions:
+            self.page = len(self.regions) / self.display_regions
+        if last_page != self.page:
+            print("Page %u" % self.page)
+            self.redisplay_mosaic()
+
+    def menu_event(self, event):
+        '''called on menu events on the mosaic'''
+        if event.returnkey == 'setSort':
+            sortby = event.get_choice()
+            if sortby == 'Score':
+                self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
+            elif sortby == 'Compactness':
+                self.regions_sorted.sort(key = lambda r : r.region.compactness, reverse=True)
+            elif sortby == 'Distinctiveness':
+                self.regions_sorted.sort(key = lambda r : r.region.scan_score, reverse=True)
+            elif sortby == 'Whiteness':
+                self.regions_sorted.sort(key = lambda r : r.region.whiteness, reverse=True)
+            elif sortby == 'Time':
+                self.regions_sorted.sort(key = lambda r : r.ridx, reverse=True)
+            self.redisplay_mosaic()
+        elif event.returnkey == 'nextPage':
+            self.change_page(self.page + 1)
+        elif event.returnkey == 'previousPage':
+            self.change_page(self.page - 1)
 
     def mouse_event(self, event):
         '''called on mouse events on the mosaic'''
@@ -239,44 +285,8 @@ class Mosaic():
 
     def key_event(self, event):
         '''called on key events'''
-        last_page = self.page
-        if event.KeyCode == ord('S'):
-            self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
-            self.redisplay_mosaic()
-        if event.KeyCode == ord('C'):
-            self.regions_sorted.sort(key = lambda r : r.region.compactness, reverse=True)
-            self.redisplay_mosaic()
-        if event.KeyCode == ord('D'):
-            self.regions_sorted.sort(key = lambda r : r.region.scan_score, reverse=True)
-            self.redisplay_mosaic()
-        if event.KeyCode == ord('W'):
-            self.regions_sorted.sort(key = lambda r : r.region.whiteness, reverse=True)
-            self.redisplay_mosaic()
-        if event.KeyCode == ord('H'):
-            self.regions_sorted[0].score = 0
-            self.regions_sorted = self.regions_sorted[1:] + self.regions_sorted[:1]
-            self.redisplay_mosaic()
-        if event.KeyCode == ord('M'):
-            self.regions[self.selected_region].score *= 2
-        if event.KeyCode == ord('R'):
-            for r in self.regions_sorted:
-                r.score = r.region.score
-            self.redisplay_mosaic()
-        if event.KeyCode == ord('T'):
-            self.regions_sorted.sort(key = lambda r : r.ridx)
-            self.redisplay_mosaic()
-        if event.KeyCode == ord('N'):
-            self.page += 1
-        if event.KeyCode == ord('P'):
-            self.page -= 1
-        if self.page < 0:
-            self.page = 0
-        if self.page > len(self.regions) / self.display_regions:
-            self.page = len(self.regions) / self.display_regions
-        if last_page != self.page:
-            print("Page %u" % self.page)
-            self.redisplay_mosaic()
-
+        pass
+    
     def display_mosaic_region(self, ridx):
         '''display a thumbnail on the mosaic'''
         region = self.regions_sorted[ridx]
@@ -350,9 +360,11 @@ class Mosaic():
         '''check for mouse/keyboard events'''
         if self.image_mosaic.is_alive():
             for event in self.image_mosaic.events():
-                if event.ClassName == 'wxMouseEvent':
+                if isinstance(event, MPMenuGeneric):
+                    self.menu_event(event)
+                elif event.ClassName == 'wxMouseEvent':
                     self.mouse_event(event)
-                if event.ClassName == 'wxKeyEvent':
+                elif event.ClassName == 'wxKeyEvent':
                     self.key_event(event)
         if self.view_image and self.view_image.is_alive():
             for event in self.view_image.events():
