@@ -164,6 +164,8 @@ class Mosaic():
                                                       items=[
                 MPMenuItem('Next Image\tCtrl+N', 'Next Image', 'nextImage'),
                 MPMenuItem('Previous Image\tCtrl+P', 'Previous Image', 'previousImage'),
+                MPMenuItem('Fit Window\tCtrl+F', 'Fit Window', 'fitWindow'),
+                MPMenuItem('Full Zoom\tCtrl+Z', 'Full Zoom', 'fullSize'),
                 MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
                 MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness')])])
             self.view_image.set_menu(self.view_menu)
@@ -305,6 +307,10 @@ class Mosaic():
         elif event.returnkey == 'decreaseBrightness':
             self.brightness /= 1.25
             self.view_image.set_brightness(self.brightness)
+        elif event.returnkey == 'fitWindow':
+            self.view_image.fit_to_window()
+        elif event.returnkey == 'fullSize':
+            self.view_image.full_size()
         elif event.returnkey == 'nextImage':
             idx = self.find_image_idx(self.view_filename)
             if idx is not None:
