@@ -115,6 +115,10 @@ class Mosaic():
                                                     ])])
         self.image_mosaic.set_menu(self.menu)
 
+        self.popup_menu = MPMenuSubMenu('Popup',
+                                        items=[MPMenuItem('Show Image', returnkey='showImage')])
+        self.image_mosaic.set_popup_menu(self.popup_menu)
+
     def set_brightness(self, b):
         '''set mosaic brightness'''
         self.brightness = b
@@ -258,17 +262,27 @@ class Mosaic():
             self.change_page(self.page + 1)
         elif event.returnkey == 'previousPage':
             self.change_page(self.page - 1)
+        elif event.returnkey == 'showImage':
+            region = self.pos_to_region(event.popup_pos)
+            if region is not None:
+                self.show_region(region.ridx, True)
+                if region.latlon != (None,None):
+                    self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
+
+    def pos_to_region(self, pos):
+        '''work out region for a clicked position on the mosaic'''
+        x = pos.x
+        y = pos.y
+        page_idx = (x/self.thumb_size) + (self.width/self.thumb_size)*(y/self.thumb_size)
+        ridx = page_idx + self.page * self.display_regions
+        if ridx >= len(self.regions):
+            return None
+        return self.regions_sorted[ridx]
 
     def mouse_event(self, event):
         '''called on mouse events on the mosaic'''
         # work out which region they want, taking into account wrap
-        x = event.X
-        y = event.Y
-        page_idx = (x/self.thumb_size) + (self.width/self.thumb_size)*(y/self.thumb_size)
-        ridx = page_idx + self.page * self.display_regions
-        if ridx >= len(self.regions):
-            return
-        region = self.regions_sorted[ridx]
+        region = self.pos_to_region(wx.Point(event.X, event.Y))
         self.show_region(region.ridx, event.m_middleDown)
         if region.latlon != (None,None):
             self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
