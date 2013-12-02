@@ -85,6 +85,7 @@ class Mosaic():
         self.page = 0
         self.images = []
         self.current_view = 0
+        self.view_filename = None
         self.full_res = False
         self.boundary = []
         self.displayed_image = None
@@ -159,8 +160,29 @@ class Mosaic():
                                                key_events=True,
                                                can_zoom=True,
                                                can_drag=True)
+            self.view_menu = MPMenuTop([MPMenuSubMenu('View',
+                                                      items=[
+                MPMenuItem('Next Image\tCtrl+N', 'Next Image', 'nextImage'),
+                MPMenuItem('Previous Image\tCtrl+P', 'Previous Image', 'previousImage'),
+                MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
+                MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness')])])
+            self.view_image.set_menu(self.view_menu)
+        self.view_filename = filename
         self.view_image.set_image(img, bgr=True)
         self.view_image.set_title('View: ' + os.path.basename(filename))
+
+    def find_image_idx(self, filename):
+        '''find index of image'''
+        for i in range(len(self.images)):
+            if self.images[i].filename == filename:
+                return i
+        return None
+
+    def view_imagefile_by_idx(self, idx):
+        '''view an image in a zoomable window by index'''
+        if idx is None or idx < 0 or idx >= len(self.images):
+            return
+        self.view_imagefile(self.images[idx].filename)
 
     def show_selected(self, selected):
         '''try to show a selected image'''
@@ -274,6 +296,23 @@ class Mosaic():
                 if region.latlon != (None,None):
                     self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
         self.redisplay_mosaic()
+
+    def menu_event_view(self, event):
+        '''called on menu events on the view image'''
+        if event.returnkey == 'increaseBrightness':
+            self.brightness *= 1.25
+            self.view_image.set_brightness(self.brightness)
+        elif event.returnkey == 'decreaseBrightness':
+            self.brightness /= 1.25
+            self.view_image.set_brightness(self.brightness)
+        elif event.returnkey == 'nextImage':
+            idx = self.find_image_idx(self.view_filename)
+            if idx is not None:
+                self.view_imagefile_by_idx(idx+1)
+        elif event.returnkey == 'previousImage':
+            idx = self.find_image_idx(self.view_filename)
+            if idx is not None:
+                self.view_imagefile_by_idx(idx-1)
 
     def pos_to_region(self, pos):
         '''work out region for a clicked position on the mosaic'''
@@ -390,7 +429,9 @@ class Mosaic():
                     self.key_event(event)
         if self.view_image and self.view_image.is_alive():
             for event in self.view_image.events():
-                if event.ClassName == 'wxMouseEvent':
+                if isinstance(event, MPMenuGeneric):
+                    self.menu_event_view(event)
+                elif event.ClassName == 'wxMouseEvent':
                     self.mouse_event_view(event)
             
         
