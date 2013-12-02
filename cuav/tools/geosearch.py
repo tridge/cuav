@@ -48,9 +48,6 @@ def process(args):
                                          follow=True,
                                          trail=mp_slipmap.SlipTrail()))
 
-  if opts.grid:
-    slipmap.add_object(mp_slipmap.SlipGrid('grid', layer=1, linewidth=1, colour=(255,255,0)))
-
   if opts.mission:
     from pymavlink import mavwp
     wp = mavwp.MAVWPLoader()
@@ -197,7 +194,6 @@ def parse_args():
   parser.add_option("--filter-type", type='choice', default='simple', choices=['simple', 'compactness'], help="object filter type")
   parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
   parser.add_option("--altitude", type='int', default=90, help="camera altitude above ground (meters)")
-  parser.add_option("--grid", action='store_true', default=False, help="add a UTM grid")
   parser.add_option("--view", action='store_true', default=False, help="show images")
   parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
   parser.add_option("--service", default='YahooSat', help="map service")
