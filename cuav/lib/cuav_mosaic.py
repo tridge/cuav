@@ -111,7 +111,9 @@ class Mosaic():
                                                                        'Distinctiveness', 'Whiteness',
                                                                        'Time']),
                                                     MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
-                                                    MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage')
+                                                    MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage'),
+                                                    MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
+                                                    MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness')
                                                     ])])
         self.image_mosaic.set_menu(self.menu)
 
@@ -257,17 +259,21 @@ class Mosaic():
                 self.regions_sorted.sort(key = lambda r : r.region.whiteness, reverse=True)
             elif sortby == 'Time':
                 self.regions_sorted.sort(key = lambda r : r.ridx, reverse=True)
-            self.redisplay_mosaic()
         elif event.returnkey == 'nextPage':
             self.change_page(self.page + 1)
         elif event.returnkey == 'previousPage':
             self.change_page(self.page - 1)
+        elif event.returnkey == 'increaseBrightness':
+            self.brightness *= 1.25
+        elif event.returnkey == 'decreaseBrightness':
+            self.brightness /= 1.25
         elif event.returnkey == 'showImage':
             region = self.pos_to_region(event.popup_pos)
             if region is not None:
                 self.show_region(region.ridx, True)
                 if region.latlon != (None,None):
                     self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
+        self.redisplay_mosaic()
 
     def pos_to_region(self, pos):
         '''work out region for a clicked position on the mosaic'''
@@ -283,6 +289,8 @@ class Mosaic():
         '''called on mouse events on the mosaic'''
         # work out which region they want, taking into account wrap
         region = self.pos_to_region(wx.Point(event.X, event.Y))
+        if region is None:
+            return
         self.show_region(region.ridx, event.m_middleDown)
         if region.latlon != (None,None):
             self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
