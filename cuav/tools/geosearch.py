@@ -74,7 +74,7 @@ def process(args):
     triggerpos = None
 
   # create a simple lens model using the focal length
-  C_params = cam_params.CameraParams(lens=opts.lens)
+  C_params = cam_params.CameraParams(lens=opts.lens, sensorwidth=opts.sensorwidth)
 
   if opts.camera_params:
     C_params.load(opts.camera_params)
@@ -129,6 +129,10 @@ def process(args):
 
       im_orig = cuav_util.LoadImage(f)
       (w,h) = cuav_util.image_shape(im_orig)
+
+      if not opts.camera_params:
+        C_params.set_resolution(w, h)
+      
       im_full = im_orig
         
       im_640 = cv.CreateImage((640, 480), 8, 3)
@@ -147,7 +151,9 @@ def process(args):
 
       if pos is not None:
         (sw,sh) = cuav_util.image_shape(img_scan)
-        scan_parms['MetersPerPixel'] = cuav_util.meters_per_pixel(pos, sw, sh, C_params)
+        scan_parms['MetersPerPixel'] = cuav_util.meters_per_pixel(pos, C=C_params)
+        scan_parms['MetersPerPixel'] *= w/float(sw)
+        print(scan_parms)
         regions = scanner.scan(img_scan, scan_parms)
       else:
         regions = scanner.scan(img_scan)
@@ -215,17 +221,18 @@ def parse_args():
   parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
   parser.add_option("--altitude", type='int', default=90, help="camera altitude above ground (meters)")
   parser.add_option("--view", action='store_true', default=False, help="show images")
-  parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
-  parser.add_option("--service", default='YahooSat', help="map service")
+  parser.add_option("--lens", default=28.0, type='float', help="lens focal length")
+  parser.add_option("--sensorwidth", default=35.0, type='float', help="sensor width")
+  parser.add_option("--service", default='MicrosoftSat', help="map service")
   parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
   parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
   parser.add_option("--fullres", action='store_true', default=False, help="scan at full resolution")
-  parser.add_option("--min-region-area", default=1.0, type='float', help="minimum region area (m^2)")
-  parser.add_option("--max-region-area", default=4.0, type='float', help="maximum region area (m^2)")
-  parser.add_option("--min-region-size", default=0.25, type='float', help="minimum region size (m)")
-  parser.add_option("--max-region-size", default=4.0, type='float', help="maximum region size (m)")
-  parser.add_option("--region-merge", default=1.0, type='float', help="region merge size (m)")
-  parser.add_option("--max-rarity-pct", default=0.016, type='float', help="maximum percentage rarity (percent)")
+  parser.add_option("--min-region-area", default=0.003, type='float', help="minimum region area (m^2)")
+  parser.add_option("--max-region-area", default=2.0, type='float', help="maximum region area (m^2)")
+  parser.add_option("--min-region-size", default=0.05, type='float', help="minimum region size (m)")
+  parser.add_option("--max-region-size", default=2.0, type='float', help="maximum region size (m)")
+  parser.add_option("--region-merge", default=0.5, type='float', help="region merge size (m)")
+  parser.add_option("--max-rarity-pct", default=0.02, type='float', help="maximum percentage rarity (percent)")
   return parser.parse_args()
 
 if __name__ == '__main__':
