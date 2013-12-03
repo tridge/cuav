@@ -18,11 +18,15 @@ class CameraParams:
     self.version = 0
     self.sensorwidth = sensorwidth
     self.lens = lens
+    self.set_resolution(xresolution, yresolution)
+
+  def set_resolution(self, xresolution, yresolution):
+    '''set camera resolution'''
     self.xresolution = xresolution
     self.yresolution = yresolution
 
     # compute focal length in pixels
-    f_p = xresolution * lens / sensorwidth
+    f_p = xresolution * self.lens / self.sensorwidth
 
     self.K = array([[f_p, 0.0, xresolution/2],[0.0, f_p, yresolution/2], [0.0,0.0,1.0]])
     self.D = array([[0.0, 0.0, 0.0, 0.0, 0.0]])
