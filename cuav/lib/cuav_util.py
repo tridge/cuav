@@ -407,6 +407,14 @@ def gps_position_from_xy(x, y, pos, width=1280, height=960, C=CameraParams(), al
     return pixel_coordinates(x, y, pos.lat, pos.lon, altitude,
                              pos.pitch, pos.roll, pos.yaw, C)
 
+def meters_per_pixel(pos, width, height, C=CameraParams()):
+        '''return meters per pixel scale given a MavPosition'''
+        p1 = gps_position_from_xy(width/2, height/2, pos, width, height, C)
+        p2 = gps_position_from_xy(width/2+1, height/2+1, pos, width, height, C)
+        dist = gps_distance(p1[0], p1[1], p2[0], p2[1]) / math.sqrt(2.0)
+        return dist
+        
+
 def gps_position_from_image_region(region, pos, width=1280, height=960, C=CameraParams(), altitude=None):
     '''
     return a GPS position in an image given a MavPosition object
