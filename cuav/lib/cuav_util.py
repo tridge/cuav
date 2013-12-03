@@ -390,13 +390,15 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     distance = math.sqrt(xofs**2 + yofs**2)
     return gps_newpos(latitude, longitude, bearing, distance)
 
-def gps_position_from_xy(x, y, pos, width=1280, height=960, C=CameraParams(), altitude=None):
+def gps_position_from_xy(x, y, pos, C=CameraParams(), altitude=None):
     '''
     return a GPS position in an image given a MavPosition object
     and an image x,y position
     '''
     if pos is None:
-        return None
+            return None
+    width=C.xresolution
+    height=C.yresolution
     # assume the image came from the same camera but may no longer be original size
     scale_x = float(C.xresolution)/float(width)
     scale_y = float(C.yresolution)/float(height)
@@ -407,12 +409,16 @@ def gps_position_from_xy(x, y, pos, width=1280, height=960, C=CameraParams(), al
     return pixel_coordinates(x, y, pos.lat, pos.lon, altitude,
                              pos.pitch, pos.roll, pos.yaw, C)
 
-def meters_per_pixel(pos, width, height, C=CameraParams()):
+def meters_per_pixel(pos, C):
         '''return meters per pixel scale given a MavPosition'''
-        p1 = gps_position_from_xy(width/2, height/2, pos, width, height, C)
-        p2 = gps_position_from_xy(width/2+1, height/2+1, pos, width, height, C)
-        dist = gps_distance(p1[0], p1[1], p2[0], p2[1]) / math.sqrt(2.0)
-        return dist
+        width=C.xresolution
+        height=C.yresolution
+        p1 = gps_position_from_xy(0, height/2, pos, C=C)
+        p2 = gps_position_from_xy(width-1, height/2, pos, C=C)
+        dist = gps_distance(p1[0], p1[1], p2[0], p2[1])
+        mpp = dist / float(width)
+        print("mpp ", dist, width, width, height, p1, p2, str(pos))
+        return mpp
         
 
 def gps_position_from_image_region(region, pos, width=1280, height=960, C=CameraParams(), altitude=None):
@@ -424,7 +430,7 @@ def gps_position_from_image_region(region, pos, width=1280, height=960, C=Camera
         return None
     x = (region.x1+region.x2)*0.5
     y = (region.y1+region.y2)*0.5
-    return gps_position_from_xy(x, y, pos, width=width, height=height, C=C, altitude=altitude)
+    return gps_position_from_xy(x, y, pos, C=C, altitude=altitude)
 
 def mkdir_p(dir):
     '''like mkdir -p'''
