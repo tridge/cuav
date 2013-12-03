@@ -68,6 +68,11 @@ def process(args):
   else:
     kmzpos = None
 
+  if opts.triggerlog:
+    triggerpos = mav_position.TriggerPosition(opts.triggerlog)
+  else:
+    triggerpos = None
+
   # create a simple lens model using the focal length
   C_params = cam_params.CameraParams(lens=opts.lens)
 
@@ -98,6 +103,8 @@ def process(args):
           continue
       elif kmzpos is not None:
         pos = kmzpos.position(f)
+      elif triggerpos is not None:
+        pos = triggerpos.position(f)
       else:
         # get the position using EXIF data
         pos = mav_position.exif_position(f)
@@ -190,6 +197,7 @@ def parse_args():
   parser.add_option("--mission", default=None, type=file_type, help="mission file to display")
   parser.add_option("--mavlog", default=None, type=file_type, help="MAVLink telemetry log file")
   parser.add_option("--kmzlog", default=None, type=file_type, help="kmz file for image positions")
+  parser.add_option("--triggerlog", default=None, type=file_type, help="robota trigger file for image positions")
   parser.add_option("--minscore", default=500, type='int', help="minimum score")
   parser.add_option("--filter-type", type='choice', default='simple', choices=['simple', 'compactness'], help="object filter type")
   parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
