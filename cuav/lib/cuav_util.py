@@ -417,7 +417,6 @@ def meters_per_pixel(pos, C):
         p2 = gps_position_from_xy(width-1, height/2, pos, C=C)
         dist = gps_distance(p1[0], p1[1], p2[0], p2[1])
         mpp = dist / float(width)
-        print("mpp ", dist, width, width, height, p1, p2, str(pos))
         return mpp
         
 
