@@ -108,9 +108,11 @@ class Mosaic():
                                              items=[MPMenuRadio('Sort By', 'Select sorting key',
                                                                 returnkey='setSort',
                                                                 selected='Time',
-                                                                items=['Score', 'Compactness',
-                                                                       'Distinctiveness', 'Whiteness',
-                                                                       'Time']),
+                                                                items=['Score\tAlt+S',
+                                                                       'Compactness\tAlt+C',
+                                                                       'Distinctiveness\tAlt+D',
+                                                                       'Whiteness\tAlt+W',
+                                                                       'Time\tAlt+W']),
                                                     MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
                                                     MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage'),
                                                     MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
@@ -273,6 +275,7 @@ class Mosaic():
         '''called on menu events on the mosaic'''
         if event.returnkey == 'setSort':
             sortby = event.get_choice()
+            sortby = sortby.split('\t')[0]
             if sortby == 'Score':
                 self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
             elif sortby == 'Compactness':
