@@ -412,3 +412,67 @@ class KmlPosition(object):
         def _getElement(self, element):
                 '''Get and XML element'''
                 return self._getText(element.childNodes)
+
+
+class TriggerPosition(object):
+        '''parse a Robota trigger file to get positions for images'''
+        def __init__(self, filename):
+                f = open(filename)
+                lines = f.readlines()
+                f.close()
+                self.positions = []
+                self.columns = lines[0].rstrip().split(' ')
+                self.colmap = {}
+                self.time_offset = None
+                for i in range(len(self.columns)):
+                        self.colmap[self.columns[i]] = i
+                for i in range(1, len(lines)):
+                        self._parse_line(lines[i].rstrip())
+
+        def _column(self, colname, vals, defvalue):
+                '''return a value for a column'''
+                import datetime
+                if not colname in self.colmap:
+                        return defvalue
+                v = vals[self.colmap[colname]]
+                if v.endswith('Z'):
+                        v = time.mktime(datetime.datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ").timetuple())
+                else:
+                        v = float(v)
+                return v
+
+        def _parse_line(self, line):
+                '''parse one line'''
+                vals = line.split(' ')
+                pos = MavPosition(self._column('Lat(deg)', vals, 0),
+                                  self._column('Lon(deg)', vals, 0),
+                                  self._column('AltAboveLaunch(m)', vals, 0),
+                                  self._column('Roll(deg)', vals, 0),
+                                  self._column('Pitch(deg)', vals, 0),
+                                  self._column('Heading(deg)', vals, 0),
+                                  self._column('DateTimeYYYY-MM-DDTHH:MM:SSZ', vals, 0))
+                self.positions.append(pos)                                  
+
+        def position(self, imagename):
+                '''find the best matching MavPosition for an image file'''
+                tstamp = exif_timestamp(imagename)
+                if self.time_offset is None:
+                        # assume first file matches first trigger record
+                        self.time_offset = tstamp - self.positions[0].time
+                # find the best time match
+                besti = 0
+                bestdt = -1
+                for i in range(len(self.positions)):
+                        dt = abs((self.positions[i].time - tstamp) + self.time_offset)
+                        if bestdt == -1 or dt < bestdt:
+                                bestdt = dt
+                                besti = i
+                return self.positions[besti]
+
+if __name__ == "__main__":
+        import sys
+        tpos = TriggerPosition(sys.argv[1])
+        for f in sys.argv[2:]:
+                print(os.path.basename(f), str(tpos.position(f)))
+                
+        
