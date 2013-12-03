@@ -86,6 +86,15 @@ def process(args):
   if opts.view:
     viewer = mp_image.MPImage(title='Image', can_zoom=True, can_drag=True)
 
+  scan_parms = {
+    'MinRegionArea' : opts.min_region_area,
+    'MaxRegionArea' : opts.max_region_area,
+    'MinRegionSize' : opts.min_region_size,
+    'MaxRegionSize' : opts.max_region_size,
+    'MaxRarityPct'  : opts.max_rarity_pct,
+    'RegionMerge'   : opts.region_merge
+    }
+
   for f in files:
       if mpos:
         # get the position by interpolating telemetry data from the MAVLink log file
@@ -135,11 +144,14 @@ def process(args):
         img_scan = im_full
       else:
         img_scan = im_640
-        
-      regions = scanner.scan(img_scan)
+
+      if pos is not None:
+        (sw,sh) = cuav_util.image_shape(img_scan)
+        scan_parms['MetersPerPixel'] = cuav_util.meters_per_pixel(pos, sw, sh, C_params)
+        regions = scanner.scan(img_scan, scan_parms)
+      else:
+        regions = scanner.scan(img_scan)
       regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full))
-      for r in regions:
-        print(r)
       count += 1
       t1=time.time()
 
@@ -208,6 +220,12 @@ def parse_args():
   parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
   parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
   parser.add_option("--fullres", action='store_true', default=False, help="scan at full resolution")
+  parser.add_option("--min-region-area", default=1.0, type='float', help="minimum region area (m^2)")
+  parser.add_option("--max-region-area", default=4.0, type='float', help="maximum region area (m^2)")
+  parser.add_option("--min-region-size", default=0.25, type='float', help="minimum region size (m)")
+  parser.add_option("--max-region-size", default=4.0, type='float', help="maximum region size (m)")
+  parser.add_option("--region-merge", default=1.0, type='float', help="region merge size (m)")
+  parser.add_option("--max-rarity-pct", default=0.016, type='float', help="maximum percentage rarity (percent)")
   return parser.parse_args()
 
 if __name__ == '__main__':
