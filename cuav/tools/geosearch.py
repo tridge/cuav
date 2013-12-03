@@ -153,7 +153,6 @@ def process(args):
         (sw,sh) = cuav_util.image_shape(img_scan)
         scan_parms['MetersPerPixel'] = cuav_util.meters_per_pixel(pos, C=C_params)
         scan_parms['MetersPerPixel'] *= w/float(sw)
-        print(scan_parms)
         regions = scanner.scan(img_scan, scan_parms)
       else:
         regions = scanner.scan(img_scan)
