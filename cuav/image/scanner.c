@@ -991,7 +991,36 @@ static void scale_scan_params(struct scan_params *scan_params, uint32_t height, 
     scan_params->min_region_size_xy *= wscale;
     scan_params->max_region_size_xy *= wscale;
     scan_params->histogram_count_threshold *= ascale;
-    scan_params->region_merge *= ascale;
+    scan_params->region_merge *= wscale;
+}
+
+/*
+  lookup a key in a dictionary and return value as a float, or
+  default_value if not found
+ */
+static float dict_lookup(PyObject *parm_dict, const char *key, float default_value)
+{
+    PyObject *obj = PyDict_GetItemString(parm_dict, key);
+    if (obj == NULL || !PyFloat_Check(obj)) {
+        return default_value;
+    }
+    return PyFloat_AsDouble(obj);
+}
+
+/*
+  scale the scan parameters for the image being scanned
+ */
+static void scale_scan_params_user(struct scan_params *scan_params, uint32_t height, uint32_t width, PyObject *parm_dict)
+{
+    float meters_per_pixel = dict_lookup(parm_dict, "MetersPerPixel", 0.25);
+    float meters_per_pixel2 = meters_per_pixel * meters_per_pixel;
+    *scan_params = scan_params_640_480;
+    scan_params->min_region_size = MAX(dict_lookup(parm_dict, "MinRegionArea", 1.0) / meters_per_pixel2, 1);
+    scan_params->max_region_size = MAX(dict_lookup(parm_dict, "MaxRegionArea", 4.0) / meters_per_pixel2, 1);
+    scan_params->min_region_size_xy = MAX(dict_lookup(parm_dict, "MinRegionSize", 0.25) / meters_per_pixel, 1);
+    scan_params->max_region_size_xy = MAX(dict_lookup(parm_dict, "MaxRegionSize", 4.0) / meters_per_pixel, 1);
+    scan_params->histogram_count_threshold = MAX(dict_lookup(parm_dict, "MaxRarityPct", 0.016) * (width*height)/100.0, 1);
+    scan_params->region_merge = MAX(dict_lookup(parm_dict, "RegionMergeSize", 0.5) / meters_per_pixel, 1);
 }
 
 /*
@@ -1002,8 +1031,9 @@ static PyObject *
 scanner_scan(PyObject *self, PyObject *args)
 {
 	PyArrayObject *img_in;
+        PyObject *parm_dict = NULL;
 
-	if (!PyArg_ParseTuple(args, "O", &img_in))
+	if (!PyArg_ParseTuple(args, "O|O", &img_in, &parm_dict))
 		return NULL;
 
 	CHECK_CONTIGUOUS(img_in);
@@ -1035,9 +1065,13 @@ scanner_scan(PyObject *self, PyObject *args)
         quantised = allocate_bgr_image8(height, width, NULL);
         ALLOCATE(histogram);
 
-	Py_BEGIN_ALLOW_THREADS;
+        if (parm_dict != NULL) {
+            scale_scan_params_user(&scan_params, height, width, parm_dict);
+        } else {
+            scale_scan_params(&scan_params, height, width);
+        }
 
-        scale_scan_params(&scan_params, height, width);
+	Py_BEGIN_ALLOW_THREADS;
 
         struct bgr_image *himage = allocate_bgr_image8(height, width, NULL);
         struct bgr_image *jimage = allocate_bgr_image8(height, width, NULL);
