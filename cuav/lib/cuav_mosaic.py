@@ -73,7 +73,7 @@ def ExtractThumbs(img, count):
 class Mosaic():
     '''keep a mosaic of found regions'''
     def __init__(self, slipmap,
-                 grid_width=20, grid_height=20, thumb_size=30, C=CameraParams()):
+                 grid_width=20, grid_height=20, thumb_size=35, C=CameraParams()):
         self.thumb_size = thumb_size
         self.width = grid_width * thumb_size
         self.height = grid_height * thumb_size
@@ -83,6 +83,7 @@ class Mosaic():
         self.regions = []
         self.regions_sorted = []
         self.page = 0
+        self.sort_type = 'Time'
         self.images = []
         self.current_view = 0
         self.last_view_latlon = None
@@ -108,12 +109,12 @@ class Mosaic():
         self.menu = MPMenuTop([MPMenuSubMenu('View',
                                              items=[MPMenuRadio('Sort By', 'Select sorting key',
                                                                 returnkey='setSort',
-                                                                selected='Time',
+                                                                selected=self.sort_type,
                                                                 items=['Score\tAlt+S',
                                                                        'Compactness\tAlt+C',
                                                                        'Distinctiveness\tAlt+D',
                                                                        'Whiteness\tAlt+W',
-                                                                       'Time\tAlt+W']),
+                                                                       'Time\tAlt+T']),
                                                     MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
                                                     MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage'),
                                                     MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
@@ -153,9 +154,10 @@ class Mosaic():
     def view_imagefile(self, filename):
         '''view an image in a zoomable window'''
         img = cuav_util.LoadImage(filename)
+        (w,h) = cuav_util.image_shape(img)
         for r in self.regions:
             if r.filename == filename:
-                r.region.draw_rectangle(img, colour=(255,0,0), linewidth=2, offset=10)
+                r.region.draw_rectangle(img, colour=(255,0,0), linewidth=min(max(w/600,1),3), offset=max(w/200,1))
         if self.view_image is None or not self.view_image.is_alive():
             import wx
             self.view_image = mp_image.MPImage(title='View',
@@ -272,21 +274,27 @@ class Mosaic():
             print("Page %u" % self.page)
             self.redisplay_mosaic()
 
+    def re_sort(self):
+        '''re sort the mosaic'''
+        sortby = self.sort_type
+        if sortby == 'Score':
+            self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
+        elif sortby == 'Compactness':
+            self.regions_sorted.sort(key = lambda r : r.region.compactness, reverse=True)
+        elif sortby == 'Distinctiveness':
+            self.regions_sorted.sort(key = lambda r : r.region.scan_score, reverse=True)
+        elif sortby == 'Whiteness':
+            self.regions_sorted.sort(key = lambda r : r.region.whiteness, reverse=True)
+        elif sortby == 'Time':
+            self.regions_sorted.sort(key = lambda r : r.ridx, reverse=True)
+
     def menu_event(self, event):
         '''called on menu events on the mosaic'''
         if event.returnkey == 'setSort':
             sortby = event.get_choice()
             sortby = sortby.split('\t')[0]
-            if sortby == 'Score':
-                self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
-            elif sortby == 'Compactness':
-                self.regions_sorted.sort(key = lambda r : r.region.compactness, reverse=True)
-            elif sortby == 'Distinctiveness':
-                self.regions_sorted.sort(key = lambda r : r.region.scan_score, reverse=True)
-            elif sortby == 'Whiteness':
-                self.regions_sorted.sort(key = lambda r : r.region.whiteness, reverse=True)
-            elif sortby == 'Time':
-                self.regions_sorted.sort(key = lambda r : r.ridx, reverse=True)
+            self.sort_type = sortby
+            self.re_sort()
         elif event.returnkey == 'nextPage':
             self.change_page(self.page + 1)
         elif event.returnkey == 'previousPage':
@@ -356,7 +364,7 @@ class Mosaic():
             dist = ''
         else:
             dist = "dist %.1f" % cuav_util.gps_distance(latlon[0], latlon[1],
-                                                        self.last_view_latlon[0], self.last_view_latlon[1])
+                                                                self.last_view_latlon[0], self.last_view_latlon[1])
         print("-> %s %s %s" % (latlon, image.filename, dist))
         self.last_view_latlon = latlon
 
