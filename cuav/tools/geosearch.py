@@ -92,7 +92,7 @@ def process(args):
     'MinRegionSize' : opts.min_region_size,
     'MaxRegionSize' : opts.max_region_size,
     'MaxRarityPct'  : opts.max_rarity_pct,
-    'RegionMerge'   : opts.region_merge
+    'RegionMergeSize' : opts.region_merge
     }
 
   for f in files:
