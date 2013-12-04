@@ -4,8 +4,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "chameleon.h"
-#include "chameleon_util.h"
+#include "include/chameleon.h"
+#include "include/chameleon_util.h"
 
 static PyObject *ChameleonError;
 

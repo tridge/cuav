@@ -44,9 +44,9 @@
 #include <getopt.h>
 #include <endian.h>
 #if USE_LIBDC1394
-#include "chameleon_dc1394.h"
+#include "include/chameleon_dc1394.h"
 #else
-#include "chameleon.h"
+#include "include/chameleon.h"
 #endif
 
 #define SHUTTER_MIN     0.000010

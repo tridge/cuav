@@ -31,7 +31,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <stdarg.h>
-#include "chameleon.h"
+#include "include/chameleon.h"
 
 #define CONFIG_ROM_BASE             0xFFFFF0000000ULL
 #define DC1394_FEATURE_ON           0x80000000UL
