@@ -5,7 +5,7 @@ except ImportError:
 import numpy as np
 import platform
 
-version = '1.1.0'
+version = '1.2.0'
 
 ext_modules = []
 
