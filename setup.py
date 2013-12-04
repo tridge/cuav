@@ -2,7 +2,7 @@ from setuptools import setup, Extension
 import numpy as np
 import platform
 
-version = '1.2.2'
+version = '1.2.3'
 
 ext_modules = []
 
@@ -42,8 +42,8 @@ setup (name = 'cuav',
        long_description = '''A set of python libraries and tools developed by CanberraUAV for the Outback Challenge. This includes an image search algorithm with optimisation for ARM processors and a number of mission planning and analysis tools.''',
        url = 'https://github.com/CanberraUAV/cuav',
        author = 'CanberraUAV',
-       install_requires = [ 'pymavlink>=1.1.2',
-                            'MAVProxy>=1.2.0' ],
+       install_requires = [ 'pymavlink',
+                            'MAVProxy' ],
        author_email = 'andrew-cuav@tridgell.net',
        classifiers=['Development Status :: 4 - Beta',
                     'Environment :: Console',
