@@ -151,8 +151,9 @@ def process(args):
 
       if pos is not None:
         (sw,sh) = cuav_util.image_shape(img_scan)
-        scan_parms['MetersPerPixel'] = cuav_util.meters_per_pixel(pos, C=C_params)
-        scan_parms['MetersPerPixel'] *= w/float(sw)
+        mpp = cuav_util.meters_per_pixel(pos, C=C_params)
+        if mpp is not None:
+          scan_parms['MetersPerPixel'] = mpp * (w/float(sw))
         regions = scanner.scan(img_scan, scan_parms)
       else:
         regions = scanner.scan(img_scan)
