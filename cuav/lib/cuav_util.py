@@ -415,6 +415,8 @@ def meters_per_pixel(pos, C):
         height=C.yresolution
         p1 = gps_position_from_xy(0, height/2, pos, C=C)
         p2 = gps_position_from_xy(width-1, height/2, pos, C=C)
+        if p1 is None or p2 is None:
+                return None
         dist = gps_distance(p1[0], p1[1], p2[0], p2[1])
         mpp = dist / float(width)
         return mpp
