@@ -2,7 +2,7 @@ from setuptools import setup, Extension
 import numpy as np
 import platform
 
-version = '1.2.1'
+version = '1.2.2'
 
 ext_modules = []
 
@@ -56,11 +56,13 @@ setup (name = 'cuav',
        license='GPLv3',
        include_dirs = [np.get_include(),
                        jpegturbo_incpath,
-                       'camera/chameleon.h'],
+                       'cuav/camera/include'],
        packages = ['cuav', 'cuav.lib', 'cuav.image', 'cuav.camera', 'cuav.uav', 'cuav.modules'],
        scripts = [ 'cuav/tools/geosearch.py', 'cuav/tools/geotag.py',
                    'cuav/tools/cuav_lens.py', 'cuav/tools/agl_mission.py',
                    'cuav/tools/pgm_convert.py',
                    'cuav/tests/cuav_benchmark.py' ],
-       package_data = { 'cuav' : [ 'tests/test-8bit.pgm', 'data/chameleon1_arecont0.json' ]},
+       package_data = { 'cuav' : [ 'tests/test-8bit.pgm',
+                                   'data/chameleon1_arecont0.json',
+                                   'camera/include/*.h']},
        ext_modules = ext_modules)
