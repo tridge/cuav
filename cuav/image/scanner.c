@@ -19,7 +19,7 @@
 #include <math.h>
 #include <numpy/arrayobject.h>
 
-#include "imageutil.h"
+#include "include/imageutil.h"
 
 //#undef __ARM_NEON__
 

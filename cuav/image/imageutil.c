@@ -5,7 +5,7 @@
   Released under GNU GPL v3 or later
  */
 
-#include "imageutil.h"
+#include "include/imageutil.h"
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
