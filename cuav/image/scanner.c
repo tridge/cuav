@@ -717,17 +717,41 @@ static void merge_regions(const struct scan_params *scan_params, struct regions 
 }
 
 /*
-  remove any too small or large regions
+  remove any too large regions
  */
-static void prune_regions(const struct scan_params *scan_params, struct regions *in)
+static void prune_large_regions(const struct scan_params *scan_params, struct regions *in)
+{
+	unsigned i;
+	for (i=0; i<in->num_regions; i++) {
+		if (in->region_size[i] > scan_params->max_region_size ||
+		    (in->bounds[i].maxx - in->bounds[i].minx) > scan_params->max_region_size_xy ||
+		    (in->bounds[i].maxy - in->bounds[i].miny) > scan_params->max_region_size_xy) {
+#if 0
+                        printf("prune size=%u xsize=%u ysize=%u range=(min:%u,max:%u,minxy:%u,maxxy:%u)\n",
+                               in->region_size[i], 
+                               in->bounds[i].maxx - in->bounds[i].minx,
+                               in->bounds[i].maxy - in->bounds[i].miny,
+                               scan_params->min_region_size, 
+                               scan_params->max_region_size,
+                               scan_params->min_region_size_xy, 
+                               scan_params->max_region_size_xy);
+#endif
+                        remove_region(in, i);
+			i--;
+		}
+		    
+	}
+}
+
+/*
+  remove any too small regions
+ */
+static void prune_small_regions(const struct scan_params *scan_params, struct regions *in)
 {
 	unsigned i;
 	for (i=0; i<in->num_regions; i++) {
 		if (in->region_size[i] < scan_params->min_region_size ||
-		    in->region_size[i] > scan_params->max_region_size ||
-		    (in->bounds[i].maxx - in->bounds[i].minx) > scan_params->max_region_size_xy ||
 		    (in->bounds[i].maxx - in->bounds[i].minx) < scan_params->min_region_size_xy ||
-		    (in->bounds[i].maxy - in->bounds[i].miny) > scan_params->max_region_size_xy ||
 		    (in->bounds[i].maxy - in->bounds[i].miny) < scan_params->min_region_size_xy) {
 #if 0
                         printf("prune size=%u xsize=%u ysize=%u range=(min:%u,max:%u,minxy:%u,maxxy:%u)\n",
@@ -745,6 +769,7 @@ static void prune_regions(const struct scan_params *scan_params, struct regions 
 		    
 	}
 }
+
 
 /*
   score one region in an image
@@ -1090,8 +1115,9 @@ scanner_scan(PyObject *self, PyObject *args)
                 free(marked);
         }
 
+	prune_large_regions(&scan_params, regions);
 	merge_regions(&scan_params, regions);
-	prune_regions(&scan_params, regions);
+	prune_small_regions(&scan_params, regions);
 
         if (scan_params.save_intermediate) {
                 struct bgr_image *marked;
