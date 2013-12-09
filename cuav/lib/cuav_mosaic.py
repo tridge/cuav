@@ -172,15 +172,17 @@ class Mosaic():
                                                key_events=True,
                                                can_zoom=True,
                                                can_drag=True)
-            self.view_menu = MPMenuTop([MPMenuSubMenu('View',
-                                                      items=[
+            vmenu = MPMenuSubMenu('View',
+                                  items=[
                 MPMenuItem('Next Image\tCtrl+N', 'Next Image', 'nextImage'),
                 MPMenuItem('Previous Image\tCtrl+P', 'Previous Image', 'previousImage'),
                 MPMenuItem('Fit Window\tCtrl+F', 'Fit Window', 'fitWindow'),
                 MPMenuItem('Full Zoom\tCtrl+Z', 'Full Zoom', 'fullSize'),
                 MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
-                MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness')])])
+                MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness')])
+            self.view_menu = MPMenuTop([vmenu])
             self.view_image.set_menu(self.view_menu)
+            self.view_image.set_popup_menu(vmenu)
         self.view_filename = filename
         self.view_image.set_image(img, bgr=True)
         self.view_image.set_title('View: ' + os.path.basename(filename))
