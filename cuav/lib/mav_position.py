@@ -417,6 +417,7 @@ class KmlPosition(object):
 class TriggerPosition(object):
         '''parse a Robota trigger file to get positions for images'''
         def __init__(self, filename):
+                from MAVProxy.modules.mavproxy_map import mp_elevation
                 f = open(filename)
                 lines = f.readlines()
                 f.close()
@@ -424,6 +425,7 @@ class TriggerPosition(object):
                 self.columns = lines[0].rstrip().split(' ')
                 self.colmap = {}
                 self.time_offset = None
+                self.ElevationMap = mp_elevation.ElevationModel()
                 for i in range(len(self.columns)):
                         self.colmap[self.columns[i]] = i
                 for i in range(1, len(lines)):
@@ -444,9 +446,11 @@ class TriggerPosition(object):
         def _parse_line(self, line):
                 '''parse one line'''
                 vals = line.split(' ')
-                pos = MavPosition(self._column('Lat(deg)', vals, 0),
-                                  self._column('Lon(deg)', vals, 0),
-                                  self._column('AltAboveLaunch(m)', vals, 0),
+                lat = self._column('Lat(deg)', vals, 0)
+                lon = self._column('Lon(deg)', vals, 0)
+                ground_alt = self.ElevationMap.GetElevation(lat, lon)
+                pos = MavPosition(lat, lon,
+                                  max(self._column('GpsAlt(m)', vals, 0) - ground_alt, 10),
                                   self._column('Roll(deg)', vals, 0),
                                   self._column('Pitch(deg)', vals, 0),
                                   self._column('Heading(deg)', vals, 0),
