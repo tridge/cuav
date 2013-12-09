@@ -122,6 +122,8 @@ def process(args):
       # update the plane icon on the map
       if pos is not None:
         slipmap.set_position('plane', (pos.lat, pos.lon), rotation=pos.yaw)
+        if opts.altitude is not None:
+          pos.altitude = opts.altitude
 
       # check for any events from the map
       slipmap.check_events()
@@ -219,7 +221,7 @@ def parse_args():
   parser.add_option("--minscore", default=500, type='int', help="minimum score")
   parser.add_option("--filter-type", type='choice', default='simple', choices=['simple', 'compactness'], help="object filter type")
   parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
-  parser.add_option("--altitude", type='int', default=90, help="camera altitude above ground (meters)")
+  parser.add_option("--altitude", type='int', default=None, help="camera altitude above ground (meters)")
   parser.add_option("--view", action='store_true', default=False, help="show images")
   parser.add_option("--lens", default=28.0, type='float', help="lens focal length")
   parser.add_option("--sensorwidth", default=35.0, type='float', help="sensor width")
@@ -227,11 +229,11 @@ def parse_args():
   parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
   parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
   parser.add_option("--fullres", action='store_true', default=False, help="scan at full resolution")
-  parser.add_option("--min-region-area", default=0.003, type='float', help="minimum region area (m^2)")
+  parser.add_option("--min-region-area", default=0.15, type='float', help="minimum region area (m^2)")
   parser.add_option("--max-region-area", default=2.0, type='float', help="maximum region area (m^2)")
-  parser.add_option("--min-region-size", default=0.05, type='float', help="minimum region size (m)")
+  parser.add_option("--min-region-size", default=0.1, type='float', help="minimum region size (m)")
   parser.add_option("--max-region-size", default=2.0, type='float', help="maximum region size (m)")
-  parser.add_option("--region-merge", default=0.5, type='float', help="region merge size (m)")
+  parser.add_option("--region-merge", default=3.0, type='float', help="region merge size (m)")
   parser.add_option("--max-rarity-pct", default=0.02, type='float', help="maximum percentage rarity (percent)")
   return parser.parse_args()
 
