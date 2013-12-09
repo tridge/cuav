@@ -56,11 +56,11 @@ static PyObject *ScannerError;
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-#define MAX_REGIONS 200
+#define MAX_REGIONS 2000
 
 struct scan_params {
-    uint16_t min_region_size;
-    uint16_t max_region_size;
+    uint16_t min_region_area;
+    uint16_t max_region_area;
     uint16_t min_region_size_xy;
     uint16_t max_region_size_xy;
     uint16_t histogram_count_threshold;
@@ -69,8 +69,8 @@ struct scan_params {
 };
 
 static const struct scan_params scan_params_640_480 = {
-	min_region_size : 8,
-        max_region_size : 400,
+	min_region_area : 8,
+        max_region_area : 400,
         min_region_size_xy : 2,
         max_region_size_xy : 30,
         histogram_count_threshold : 50,
@@ -580,7 +580,7 @@ static unsigned find_region(const struct scan_params *scan_params,
 			    int y, int x)
 {
 	int yofs, xofs;
-        uint16_t m = scan_params->region_merge;
+        uint16_t m = MAX(1, scan_params->region_merge/10);
 
 	/*
 	  we only need to look up or directly to the left, as this function is used
@@ -680,12 +680,18 @@ static void remove_region(struct regions *in, unsigned i)
         in->num_regions--;
 }
 
-static bool regions_overlap(const struct region_bounds *r1, const struct region_bounds *r2)
+/*
+  determine if two regions overlap, taking into account the
+  region_merge size
+ */
+static bool regions_overlap(const struct scan_params *scan_params,
+                            const struct region_bounds *r1, const struct region_bounds *r2)
 {
-    if (r1->maxx < r2->minx) return false;
-    if (r2->maxx < r1->minx) return false;
-    if (r1->maxy < r2->miny) return false;
-    if (r2->maxy < r1->miny) return false;
+    uint16_t m = scan_params->region_merge;
+    if (r1->maxx+m < r2->minx) return false;
+    if (r2->maxx+m < r1->minx) return false;
+    if (r1->maxy+m < r2->miny) return false;
+    if (r2->maxy+m < r1->miny) return false;
     return true;
 }
 
@@ -700,7 +706,7 @@ static void merge_regions(const struct scan_params *scan_params, struct regions 
                 found_overlapping = false;
                 for (i=0; i<in->num_regions; i++) {
                         for (j=i+1; j<in->num_regions; j++) {
-                                if (regions_overlap(&in->bounds[i], &in->bounds[j])) {
+                            if (regions_overlap(scan_params, &in->bounds[i], &in->bounds[j])) {
                                         found_overlapping = true;
                                         struct region_bounds *b1 = &in->bounds[i];                                        
                                         struct region_bounds *b2 = &in->bounds[j];                                        
@@ -723,7 +729,7 @@ static void prune_large_regions(const struct scan_params *scan_params, struct re
 {
 	unsigned i;
 	for (i=0; i<in->num_regions; i++) {
-		if (in->region_size[i] > scan_params->max_region_size ||
+		if (in->region_size[i] > scan_params->max_region_area ||
 		    (in->bounds[i].maxx - in->bounds[i].minx) > scan_params->max_region_size_xy ||
 		    (in->bounds[i].maxy - in->bounds[i].miny) > scan_params->max_region_size_xy) {
 #if 0
@@ -731,8 +737,8 @@ static void prune_large_regions(const struct scan_params *scan_params, struct re
                                in->region_size[i], 
                                in->bounds[i].maxx - in->bounds[i].minx,
                                in->bounds[i].maxy - in->bounds[i].miny,
-                               scan_params->min_region_size, 
-                               scan_params->max_region_size,
+                               scan_params->min_region_area, 
+                               scan_params->max_region_area,
                                scan_params->min_region_size_xy, 
                                scan_params->max_region_size_xy);
 #endif
@@ -750,7 +756,7 @@ static void prune_small_regions(const struct scan_params *scan_params, struct re
 {
 	unsigned i;
 	for (i=0; i<in->num_regions; i++) {
-		if (in->region_size[i] < scan_params->min_region_size ||
+		if (in->region_size[i] < scan_params->min_region_area ||
 		    (in->bounds[i].maxx - in->bounds[i].minx) < scan_params->min_region_size_xy ||
 		    (in->bounds[i].maxy - in->bounds[i].miny) < scan_params->min_region_size_xy) {
 #if 0
@@ -758,8 +764,8 @@ static void prune_small_regions(const struct scan_params *scan_params, struct re
                                in->region_size[i], 
                                in->bounds[i].maxx - in->bounds[i].minx,
                                in->bounds[i].maxy - in->bounds[i].miny,
-                               scan_params->min_region_size, 
-                               scan_params->max_region_size,
+                               scan_params->min_region_area, 
+                               scan_params->max_region_area,
                                scan_params->min_region_size_xy, 
                                scan_params->max_region_size_xy);
 #endif
@@ -1011,8 +1017,8 @@ static void scale_scan_params(struct scan_params *scan_params, uint32_t height, 
     if (ascale < 1.0) ascale = 1.0;
     if (wscale < 1.0) wscale = 1.0;
     *scan_params = scan_params_640_480;
-    scan_params->min_region_size *= ascale;
-    scan_params->max_region_size *= ascale;
+    scan_params->min_region_area *= ascale;
+    scan_params->max_region_area *= ascale;
     scan_params->min_region_size_xy *= wscale;
     scan_params->max_region_size_xy *= wscale;
     scan_params->histogram_count_threshold *= ascale;
@@ -1040,12 +1046,23 @@ static void scale_scan_params_user(struct scan_params *scan_params, uint32_t hei
     float meters_per_pixel = dict_lookup(parm_dict, "MetersPerPixel", 0.25);
     float meters_per_pixel2 = meters_per_pixel * meters_per_pixel;
     *scan_params = scan_params_640_480;
-    scan_params->min_region_size = MAX(dict_lookup(parm_dict, "MinRegionArea", 1.0) / meters_per_pixel2, 1);
-    scan_params->max_region_size = MAX(dict_lookup(parm_dict, "MaxRegionArea", 4.0) / meters_per_pixel2, 1);
+    scan_params->min_region_area = MAX(dict_lookup(parm_dict, "MinRegionArea", 1.0) / meters_per_pixel2, 1);
+    scan_params->max_region_area = MAX(dict_lookup(parm_dict, "MaxRegionArea", 4.0) / meters_per_pixel2, 1);
     scan_params->min_region_size_xy = MAX(dict_lookup(parm_dict, "MinRegionSize", 0.25) / meters_per_pixel, 1);
     scan_params->max_region_size_xy = MAX(dict_lookup(parm_dict, "MaxRegionSize", 4.0) / meters_per_pixel, 1);
     scan_params->histogram_count_threshold = MAX(dict_lookup(parm_dict, "MaxRarityPct", 0.016) * (width*height)/100.0, 1);
     scan_params->region_merge = MAX(dict_lookup(parm_dict, "RegionMergeSize", 0.5) / meters_per_pixel, 1);
+    if (scan_params->save_intermediate) {
+        printf("mpp=%f mpp2=%f min_region_area=%u max_region_area=%u min_region_size_xy=%u max_region_size_xy=%u histogram_count_threshold=%u region_merge=%u\n",
+               meters_per_pixel,
+               meters_per_pixel2,
+               scan_params->min_region_area,
+               scan_params->max_region_area,
+               scan_params->min_region_size_xy,
+               scan_params->max_region_size_xy,
+               scan_params->histogram_count_threshold,
+               scan_params->region_merge);
+    }
 }
 
 /*
