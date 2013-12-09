@@ -53,9 +53,16 @@ def CompositeThumbnail(img, regions, thumb_size=100):
         midx = (x1+x2)/2
         midy = (y1+y2)/2
 
-        x1 = midx - thumb_size/2
-        y1 = midy - thumb_size/2
-        thumb = cuav_util.SubImage(img, (x1, y1, thumb_size, thumb_size))
+        if (x2-x1) > thumb_size or (y2-y1) > thumb_size:
+            # we need to shrink the region
+            rsize = max(x2+1-x1, y2+1-y1)
+            src = cuav_util.SubImage(img, (midx-rsize/2,midy-rsize/2,rsize,rsize))
+            thumb = cv.CreateImage((thumb_size, thumb_size),8,3)
+            cv.Resize(src, thumb)
+        else:
+            x1 = midx - thumb_size/2
+            y1 = midy - thumb_size/2
+            thumb = cuav_util.SubImage(img, (x1, y1, thumb_size, thumb_size))
         cv.SetImageROI(composite, (thumb_size*i, 0, thumb_size, thumb_size))
         cv.Copy(thumb, composite)
         cv.ResetImageROI(composite)
@@ -418,11 +425,16 @@ class Mosaic():
             # the thumbnail we have been given will be bigger than the size we want to
             # display on the mosaic. Extract the middle of it for display
             full_thumb = thumbs[i]
+            rsize = max(x2+1-x1,y2+1-y1)
             tsize = cuav_util.image_width(full_thumb)
-            thumb = cuav_util.SubImage(full_thumb, ((tsize-self.thumb_size)//2,
-                                                    (tsize-self.thumb_size)//2,
-                                                    self.thumb_size,
-                                                    self.thumb_size))
+            if rsize < tsize:
+                thumb = cuav_util.SubImage(full_thumb, ((tsize-self.thumb_size)//2,
+                                                        (tsize-self.thumb_size)//2,
+                                                        self.thumb_size,
+                                                        self.thumb_size))
+            else:
+                thumb = cv.CreateImage((self.thumb_size, self.thumb_size),8,3)
+                cv.Resize(full_thumb, thumb)
 
             ridx = len(self.regions)
             self.regions.append(MosaicRegion(ridx, r, filename, pos, thumbs[i], thumb, latlon=(lat,lon)))
