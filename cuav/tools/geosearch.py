@@ -92,7 +92,8 @@ def process(args):
     'MinRegionSize' : opts.min_region_size,
     'MaxRegionSize' : opts.max_region_size,
     'MaxRarityPct'  : opts.max_rarity_pct,
-    'RegionMergeSize' : opts.region_merge
+    'RegionMergeSize' : opts.region_merge,
+    'SaveIntermediate' : float(opts.debug)
     }
 
   for f in files:
@@ -235,6 +236,7 @@ def parse_args():
   parser.add_option("--max-region-size", default=2.0, type='float', help="maximum region size (m)")
   parser.add_option("--region-merge", default=3.0, type='float', help="region merge size (m)")
   parser.add_option("--max-rarity-pct", default=0.02, type='float', help="maximum percentage rarity (percent)")
+  parser.add_option("--debug", default=False, action='store_true', help="enable debug info")
   return parser.parse_args()
 
 if __name__ == '__main__':

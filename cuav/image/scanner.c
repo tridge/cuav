@@ -1052,6 +1052,7 @@ static void scale_scan_params_user(struct scan_params *scan_params, uint32_t hei
     scan_params->max_region_size_xy = MAX(dict_lookup(parm_dict, "MaxRegionSize", 4.0) / meters_per_pixel, 1);
     scan_params->histogram_count_threshold = MAX(dict_lookup(parm_dict, "MaxRarityPct", 0.016) * (width*height)/100.0, 1);
     scan_params->region_merge = MAX(dict_lookup(parm_dict, "RegionMergeSize", 0.5) / meters_per_pixel, 1);
+    scan_params->save_intermediate = dict_lookup(parm_dict, "SaveIntermediate", 0);
     if (scan_params->save_intermediate) {
         printf("mpp=%f mpp2=%f min_region_area=%u max_region_area=%u min_region_size_xy=%u max_region_size_xy=%u histogram_count_threshold=%u region_merge=%u\n",
                meters_per_pixel,
