@@ -1,0 +1,60 @@
+Slightly more detailed installation instructions are available here:
+
+http://diydrones.com/profiles/blog/show?id=705844%3ABlogPost%3A1296458
+
+For the impatient Ubuntu/pip user: 
+
+1) Use apt to install the operating system pre-requsites:
+
+  sudo apt-get install python-wxgtk2.8 python-matplotlib python-numpy python-pyexiv2 python-opencv python-httplib2 libjpeg-turbo-progs
+
+2) Use pip to install the python package dependancies:
+
+  pip install -r requirements.txt
+
+
+For developers:
+
+To build:
+
+  python setup.py build
+
+Which requires also:
+
+  sudo apt-get install libusb1.0.0-dev libdc1394-22-dev nasm
+
+It also requires the libjpeg-turbo headers. There is an issue with the
+libjpeg-turbo8-dev package on 64 bit Ubuntu only including the .a
+library and not the (required) shared object. In this case, you need to
+build your own libjpev-turbo from sources.
+
+Rather than following the build instructions here:
+
+  http://libjpeg-turbo.virtualgl.org/
+
+First remoge libjpeg-turbo-progs
+
+ > sudo apt-get remove libjpeg-turbo-progs
+
+then build it with the following:
+
+ > svn co svn://svn.code.sf.net/p/libjpeg-turbo/code/trunk libjpeg-turbo
+ > cd libjpeg-turbo
+ > autoreconf -fiv
+ > ./configure --with-jpeg8
+ > make
+ > sudo make install
+
+The virtualgl.org build system passes --with-java to ./configure
+(causing it to fail unless you have the appropriate java stack) and also
+fails to pass --with-jpeg8, which we require,
+
+After installing, you may need to update your ldconfig. For example add
+the following line to /etc/ld.so.conf.d/x86_64-linux-gnu.conf
+
+ /opt/libjpeg-turbo/lib64
+
+then run 
+
+ sudo ldconfig
+
