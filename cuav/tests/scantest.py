@@ -30,6 +30,14 @@ parser.add_option("--filter", default=False, action='store_true', help="filter u
 parser.add_option("--minscore", default=3, type='int', help="minimum score")
 parser.add_option("--altitude", type='int', default=None, help="camera assumed altitude")
 parser.add_option("--filter-type", type='choice', default='simple', choices=['simple', 'compactness'], help="object filter type")
+parser.add_option("--min-region-area", default=0.15, type='float', help="minimum region area (m^2)")
+parser.add_option("--max-region-area", default=2.0, type='float', help="maximum region area (m^2)")
+parser.add_option("--min-region-size", default=0.1, type='float', help="minimum region size (m)")
+parser.add_option("--max-region-size", default=2.0, type='float', help="maximum region size (m)")
+parser.add_option("--region-merge", default=3.0, type='float', help="region merge size (m)")
+parser.add_option("--max-rarity-pct", default=0.02, type='float', help="maximum percentage rarity (percent)")
+parser.add_option("--meters-per-pixel", default=0.2, type='float', help="meters per pixel on ground")
+parser.add_option("--debug", default=False, action='store_true', help="enable debug info")
 (opts, args) = parser.parse_args()
 
 slipmap = None
@@ -95,6 +103,23 @@ def process(args):
 
   frame_time = 0
 
+  scan_parms = {
+    'MinRegionArea' : opts.min_region_area,
+    'MaxRegionArea' : opts.max_region_area,
+    'MinRegionSize' : opts.min_region_size,
+    'MaxRegionSize' : opts.max_region_size,
+    'MaxRarityPct'  : opts.max_rarity_pct,
+    'RegionMergeSize' : opts.region_merge,
+    'SaveIntermediate' : float(opts.debug),
+    'MetersPerPixel' : opts.meters_per_pixel
+    }
+
+  if opts.filter_type == 'compactness':
+    calculate_compactness = True
+    print("Using compactness filter")
+  else:
+    calculate_compactness = False
+
   for f in files:
     if mpos:
       frame_time = cuav_util.parse_frame_time(f)
@@ -142,16 +167,16 @@ def process(args):
 
     count = 0
     total_time = 0
-    img_scan = im_640
+    if opts.fullres:
+      img_scan = im_full
+    else:
+      img_scan = im_640
+      
 
     t0=time.time()
     for i in range(opts.repeat):
-      if opts.fullres:
-        regions = scanner.scan(im_full)
-        regions = cuav_region.RegionsConvert(regions, 1280, 960)
-      else:
-        regions = scanner.scan(img_scan)
-        regions = cuav_region.RegionsConvert(regions)
+      regions = scanner.scan(img_scan, scan_parms)
+      regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full), calculate_compactness)
       count += 1
     t1=time.time()
 
@@ -218,6 +243,8 @@ def process(args):
 # main program
 
 process(args)
+if not opts.mosaic and not opts.view:
+  sys.exit(0)
 while True:
   if opts.mosaic:
     slipmap.check_events()
