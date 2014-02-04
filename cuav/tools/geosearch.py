@@ -96,6 +96,12 @@ def process(args):
     'SaveIntermediate' : float(opts.debug)
     }
 
+  if opts.filter_type == 'compactness':
+    calculate_compactness = True
+    print("Using compactness filter")
+  else:
+    calculate_compactness = False
+
   for f in files:
       if mpos:
         # get the position by interpolating telemetry data from the MAVLink log file
@@ -160,7 +166,7 @@ def process(args):
         regions = scanner.scan(img_scan, scan_parms)
       else:
         regions = scanner.scan(img_scan)
-      regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full))
+      regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full), calculate_compactness)
       count += 1
       t1=time.time()
 
