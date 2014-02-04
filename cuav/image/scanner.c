@@ -94,6 +94,24 @@ struct regions {
         int16_t **data;
 };
 
+#define SHOW_TIMING 0
+#if SHOW_TIMING
+struct timeval tp1,tp2;
+
+static void start_timer()
+{
+	gettimeofday(&tp1,NULL);
+}
+
+static double end_timer()
+{
+	gettimeofday(&tp2,NULL);
+	return((tp2.tv_sec - tp1.tv_sec) + 
+	       (tp2.tv_usec - tp1.tv_usec)*1.0e-6);
+}
+#endif // SHOW_TIMING
+
+
 /*
   save a bgr image as a P6 pnm file
  */
@@ -1076,6 +1094,10 @@ scanner_scan(PyObject *self, PyObject *args)
 	PyArrayObject *img_in;
         PyObject *parm_dict = NULL;
 
+#if SHOW_TIMING
+        start_timer();
+#endif
+        
 	if (!PyArg_ParseTuple(args, "O|O", &img_in, &parm_dict))
 		return NULL;
 
@@ -1169,6 +1191,10 @@ scanner_scan(PyObject *self, PyObject *args)
 	}
 
 	free(regions);
+
+#if SHOW_TIMING
+        printf("dt=%f\n", end_timer());
+#endif
 
 	return list;
 }
