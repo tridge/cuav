@@ -39,7 +39,7 @@ class Region:
         def __str__(self):
 		return '%s latlon=%s score=%s' % (str(self.tuple()), str(self.latlon), self.score)
 	    
-def RegionsConvert(rlist, scan_shape, full_shape):
+def RegionsConvert(rlist, scan_shape, full_shape, calculate_compactness=True):
 	'''convert a region list from tuple to Region format,
 	also mapping to the shape of the full image'''
 	ret = []
@@ -53,7 +53,10 @@ def RegionsConvert(rlist, scan_shape, full_shape):
 		x2 = (x2 * full_w) // scan_w
 		y1 = (y1 * full_h) // scan_h
 		y2 = (y2 * full_h) // scan_h
-                compactness = array_compactness(pixscore)
+                if calculate_compactness:
+                        compactness = array_compactness(pixscore)
+                else:
+                        compactness = 0
 		ret.append(Region(x1,y1,x2,y2,score,compactness))
 	return ret
 
