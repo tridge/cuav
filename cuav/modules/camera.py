@@ -356,7 +356,14 @@ def scan_thread():
         else:
             img_scan = im_640
         regions = scanner.scan(img_scan)
-        regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full))
+        if state.settings.filter_type=='compactness':
+            calculate_compactness = True
+        else:
+            calculate_compactness = False
+        regions = cuav_region.RegionsConvert(regions,
+                                             cuav_util.image_shape(img_scan),
+                                             cuav_util.image_shape(im_full),
+                                             calculate_compactness)
         t2 = time.time()
         state.scan_fps = 1.0 / (t2-t1)
         state.scan_count += 1
