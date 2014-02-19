@@ -61,7 +61,8 @@ class camera_state(object):
               ('packet_loss', int, 0),             
               ('gcs_slave', str, None),
               ('filter_type', str, 'simple'),
-              ('fullres', int, 0)  
+              ('fullres', int, 0),
+              ('use_bsend2', int, 1)  
               ]
             )
 
@@ -92,6 +93,7 @@ class camera_state(object):
         self.bandwidth_used = 0
         self.rtt_estimate = 0
         self.bsocket = None
+        self.bsend = None
         self.bsend2 = None
         self.bsend_slave = None
         
@@ -215,13 +217,19 @@ def cmd_remote(args):
     '''camera commands'''
     state = mpstate.camera_state
     cmd = " ".join(args)
-    if state.bsend2 is None:
-        print("bsend2 not initialised")
-        return
     pkt = CommandPacket(cmd)
     buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
-    #print("sending buf len=%u from cmd_remote" % len(buf))
-    state.bsend2.send(buf, priority=10000)
+    if state.settings.use_bsend2:
+        if state.bsend2 is None:
+            print("bsend2 not initialised")
+            return
+        state.bsend2.set_bandwidth(state.settings.bandwidth2)
+        state.bsend2.send(buf, priority=10000)
+    else:
+        if state.bsend is None:
+            print("bsend not initialised")
+            return
+        state.bsend.send(buf, priority=10000)
 
 def get_base_time():
   '''we need to get a baseline time from the camera. To do that we trigger
@@ -427,15 +435,16 @@ def transmit_thread():
 
     tx_count = 0
     skip_count = 0
-    bsend = block_xmit.BlockSender(0, bandwidth=state.settings.bandwidth, debug=False)
+    state.bsend = block_xmit.BlockSender(0, bandwidth=state.settings.bandwidth, debug=False)
     state.bsocket = MavSocket(mpstate.mav_master[0])
     state.bsend2 = block_xmit.BlockSender(mss=96, sock=state.bsocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
     state.bsend2.set_bandwidth(state.settings.bandwidth2)
 
     while not state.unload.wait(0.02):
-        bsend.tick(packet_count=1000, max_queue=state.settings.maxqueue1)
+        state.bsend.tick(packet_count=1000, max_queue=state.settings.maxqueue1)
         state.bsend2.tick(packet_count=1000, max_queue=state.settings.maxqueue2)
-        check_commands()
+        check_commands(state.bsend)
+        check_commands(state.bsend2)
         if state.transmit_queue.empty():
             continue
 
@@ -455,11 +464,11 @@ def transmit_thread():
             regions = cuav_region.filter_regions(im_full, regions, min_score=state.settings.minscore,
                                                  filter_type=state.settings.filter_type)
 
-        state.xmit_queue = bsend.sendq_size()
+        state.xmit_queue = state.bsend.sendq_size()
         state.xmit_queue2 = state.bsend2.sendq_size()
-        state.efficiency = bsend.get_efficiency()
-        state.bandwidth_used = bsend.get_bandwidth_used()
-        state.rtt_estimate = bsend.get_rtt_estimate()
+        state.efficiency = state.bsend.get_efficiency()
+        state.bandwidth_used = state.bsend.get_bandwidth_used()
+        state.rtt_estimate = state.bsend.get_rtt_estimate()
 
         jpeg = None
 
@@ -482,12 +491,12 @@ def transmit_thread():
                     pkt = ThumbPacket(frame_time, regions, thumb, state.frame_loss, state.xmit_queue, pos)
 
                     buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
-                    bsend.set_bandwidth(state.settings.bandwidth)
-                    bsend.set_packet_loss(state.settings.packet_loss)
+                    state.bsend.set_bandwidth(state.settings.bandwidth)
+                    state.bsend.set_packet_loss(state.settings.packet_loss)
                     #print("sending thumb len=%u" % len(buf))
-                    bsend.send(buf,
-                               dest=(state.settings.gcs_address, state.settings.gcs_view_port),
-                               priority=1)
+                    state.bsend.send(buf,
+                                     dest=(state.settings.gcs_address, state.settings.gcs_view_port),
+                                     priority=1)
                 # also send thumbnails via 900MHz telemetry
                 if state.settings.send2 and highscore >= state.settings.minscore2:
                     if thumb is None or lowscore < state.settings.minscore2:
@@ -521,13 +530,13 @@ def transmit_thread():
 
         if state.settings.gcs_address is None:
             continue
-        bsend.set_packet_loss(state.settings.packet_loss)
-        bsend.set_bandwidth(state.settings.bandwidth)
+        state.bsend.set_packet_loss(state.settings.packet_loss)
+        state.bsend.set_bandwidth(state.settings.bandwidth)
         pkt = ImagePacket(frame_time, jpeg, state.xmit_queue, pos)
         str = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
         #print("sending image len=%u" % len(str))
-        bsend.send(str,
-                   dest=(state.settings.gcs_address, state.settings.gcs_view_port))
+        state.bsend.send(str,
+                         dest=(state.settings.gcs_address, state.settings.gcs_view_port))
 
 def reload_mosaic(mosaic):
     '''reload state into mosaic'''
@@ -569,7 +578,7 @@ def view_thread():
     from cuav.lib import cuav_mosaic
     state = mpstate.camera_state
 
-    bsend = block_xmit.BlockSender(state.settings.gcs_view_port, bandwidth=state.settings.bandwidth)
+    state.bsend = block_xmit.BlockSender(state.settings.gcs_view_port, bandwidth=state.settings.bandwidth)
     state.bsocket = MavSocket(mpstate.mav_master[0])
     state.bsend2 = block_xmit.BlockSender(mss=96, sock=state.bsocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
     state.bsend2.set_bandwidth(state.settings.bandwidth2)
@@ -606,7 +615,7 @@ def view_thread():
         if state.viewing:
             tnow = time.time()
             if tnow - ack_time > 0.1:
-                bsend.tick(packet_count=1000, max_queue=state.settings.maxqueue1)
+                state.bsend.tick(packet_count=1000, max_queue=state.settings.maxqueue1)
                 state.bsend2.tick(packet_count=1000, max_queue=state.settings.maxqueue2)
                 if state.bsend_slave is not None:
                     state.bsend_slave.tick(packet_count=1000)
@@ -622,9 +631,13 @@ def view_thread():
             # check for keyboard events
             mosaic.check_events()
 
-            buf = bsend.recv(0)
+            buf = state.bsend.recv(0)
             if buf is None:
                 buf = state.bsend2.recv(0)
+                bsend = state.bsend2
+                state.bsend2.set_bandwidth(state.settings.bandwidth2)
+            else:
+                bsend = state.bsend
             if buf is None:
                 continue
             try:
@@ -707,6 +720,9 @@ def view_thread():
                 mpstate.console.set_status('JPGSize', 'JPG Size %.0f' % (jpeg_total_bytes/image_count))
                 mpstate.console.set_status('ImageSize', 'ImageSize %.0f' % (image_total_bytes/image_count))
 
+            if isinstance(obj, CommandPacket):
+                handle_command_packet(obj, bsend)
+
             if isinstance(obj, CommandResponse):
                 print('REMOTE: %s' % obj.response)
                 
@@ -747,12 +763,24 @@ def unload():
         mpstate.camera_state.view_thread.join(1.0)
     print('camera unload OK')
 
-def check_commands():
+def handle_command_packet(obj, bsend):
+    '''handle CommandPacket from other end'''
+    state = mpstate.camera_state
+    stdout_saved = sys.stdout
+    buf = cStringIO.StringIO()
+    sys.stdout = buf
+    mpstate.functions.process_stdin(obj.command)
+    sys.stdout = stdout_saved
+    pkt = CommandResponse(str(buf.getvalue()))
+    buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+    bsend.send(buf, priority=10000)
+
+def check_commands(bsend):
     '''check for remote commands'''
     state = mpstate.camera_state
-    if state.bsend2 is None:
+    if bsend is None:
         return
-    buf = state.bsend2.recv(0)
+    buf = bsend.recv(0)
     if buf is None:
         return
     try:
@@ -763,17 +791,10 @@ def check_commands():
         return
 
     if isinstance(obj, CommandPacket):
-        stdout_saved = sys.stdout
-        buf = cStringIO.StringIO()
-        sys.stdout = buf
-        mpstate.functions.process_stdin(obj.command)
-        sys.stdout = stdout_saved
-        pkt = CommandResponse(str(buf.getvalue()))
-        buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
-        #print("send in check_commands")
-        state.bsend2.send(buf, priority=10000)
-        state.bsend2.set_bandwidth(state.settings.bandwidth2)
+        handle_command_packet(obj, bsend)
 
+    if isinstance(obj, CommandResponse):
+        print('REMOTE: %s' % obj.response)
 
 def mavlink_packet(m):
     '''handle an incoming mavlink packet'''
