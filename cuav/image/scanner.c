@@ -294,11 +294,20 @@ static void NOINLINE get_min_max_neon(const struct bgr * __restrict in,
 
 	min->r = min->g = min->b = 255;
 	max->r = max->g = max->b = 0;
+	/*
+	  we split this into 3 parts as gcc 4.8.1 on ARM runs out of
+	  registers and gives a spurious const error if we leave it as
+	  one chunk
+	 */
 	for (i=0; i<8; i++) {
 		if (min->b > vget_lane_u8(bmin, i)) min->b = vget_lane_u8(bmin, i);
 		if (min->g > vget_lane_u8(gmin, i)) min->g = vget_lane_u8(gmin, i);
+	}
+	for (i=0; i<8; i++) {
 		if (min->r > vget_lane_u8(rmin, i)) min->r = vget_lane_u8(rmin, i);
 		if (max->b < vget_lane_u8(bmax, i)) max->b = vget_lane_u8(bmax, i);
+	}
+	for (i=0; i<8; i++) {
 		if (max->g < vget_lane_u8(gmax, i)) max->g = vget_lane_u8(gmax, i);
 		if (max->r < vget_lane_u8(rmax, i)) max->r = vget_lane_u8(rmax, i);
 	}
