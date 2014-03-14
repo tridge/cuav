@@ -1,3 +1,4 @@
+# example mavproxy startup script for Beaver on aircraft side
 set streamrate 5
 set moddebug 1
 set heartbeat 0
