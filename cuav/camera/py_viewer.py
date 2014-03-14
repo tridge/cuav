@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
-import chameleon, cv, time, sys, os, numpy, threading, Queue
+import cv, time, sys, os, numpy, threading, Queue
 from cuav.image import scanner
 from cuav.lib import cuav_util
+from cuav.camera import chameleon
 
 from optparse import OptionParser
 parser = OptionParser("py_viewer.py [options]")
