@@ -76,6 +76,17 @@ def set_gamma(h, gamma):
     global chameleon_gamma
     chameleon_gamma = gamma
 
+def set_framerate(h, framerate):
+    global frame_rate
+    if framerate >= 15:
+        frame_rate = 15
+    elif framerate >= 7:
+        frame_rate = 7.5
+    elif framerate >= 3:
+        frame_rate = 3.75
+    else:
+        frame_rate = 1.875;
+
 def save_pgm(filename, img):
     return chameleon.save_pgm(filename, img)
 

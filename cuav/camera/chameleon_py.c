@@ -244,6 +244,30 @@ chameleon_set_gamma(PyObject *self, PyObject *args)
 	Py_RETURN_NONE;
 }
 
+static PyObject *
+chameleon_set_framerate(PyObject *self, PyObject *args)
+{
+	int handle = -1;
+	int framerate=0;
+	struct chameleon_camera* cam = NULL;
+
+	if (!PyArg_ParseTuple(args, "ii", &handle, &framerate))
+		return NULL;
+
+	if (handle >= 0 && handle < NUM_CAMERA_HANDLES && cameras[handle]) {
+		cam = cameras[handle];
+	} else {
+		PyErr_SetString(ChameleonError, "Invalid handle");
+		return NULL;
+	}
+
+	Py_BEGIN_ALLOW_THREADS;
+	camera_set_framerate(cam, framerate);
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
 /* low level file save routine */
 static int _save_file(const char *filename, unsigned size, const char *data)
 {
@@ -356,6 +380,7 @@ static PyMethodDef ChameleonMethods[] = {
   {"save_pgm", save_pgm, METH_VARARGS, "save to a PGM"},
   {"save_file", save_file, METH_VARARGS, "save to a file from a pystring"},
   {"set_gamma", chameleon_set_gamma, METH_VARARGS, "set gamma"},
+  {"set_framerate", chameleon_set_framerate, METH_VARARGS, "set framerate in Hz"},
   {"set_brightness", chameleon_set_brightness, METH_VARARGS, "set brightness"},
   {NULL, NULL, 0, NULL}        /* Terminus */
 };

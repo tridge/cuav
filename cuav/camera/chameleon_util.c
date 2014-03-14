@@ -43,11 +43,7 @@
 #include <math.h>
 #include <getopt.h>
 #include <endian.h>
-#if USE_LIBDC1394
-#include "include/chameleon_dc1394.h"
-#else
-#include "include/chameleon.h"
-#endif
+#include "include/chameleon_util.h"
 
 #define SHUTTER_MIN     0.000010
 #define SHUTTER_MAX     0.10000
@@ -189,7 +185,7 @@ static void adjust_shutter(float *shutter, float average, uint32_t num_saturated
 #endif
 
 static void camera_setup(chameleon_camera_t *camera, uint8_t depth, 
-			 uint16_t brightness)
+			 uint16_t brightness, uint8_t framerate)
 {
   CHECK(chameleon_video_set_transmission(camera, DC1394_OFF));
   CHECK(chameleon_camera_reset(camera));
@@ -199,16 +195,11 @@ static void camera_setup(chameleon_camera_t *camera, uint8_t depth,
   CHECK(chameleon_feature_set_power(camera, DC1394_FEATURE_BRIGHTNESS, DC1394_ON));
   CHECK(chameleon_feature_set_mode(camera, DC1394_FEATURE_BRIGHTNESS, DC1394_FEATURE_MODE_MANUAL));
 
-  if (depth == 8)
-  {
-    CHECK(chameleon_video_set_mode(camera, DC1394_VIDEO_MODE_1280x960_MONO8));
-    CHECK(chameleon_video_set_framerate(camera, DC1394_FRAMERATE_7_5));
-  }
-  else
-  {
-    CHECK(chameleon_video_set_mode(camera, DC1394_VIDEO_MODE_1280x960_MONO16));
-    CHECK(chameleon_video_set_framerate(camera, DC1394_FRAMERATE_7_5));
-  }
+  CHECK(chameleon_video_set_mode(camera, 
+				 depth==8?
+				 DC1394_VIDEO_MODE_1280x960_MONO8:
+				 DC1394_VIDEO_MODE_1280x960_MONO16));
+  camera_set_framerate(camera, framerate);
 
 #if USE_LIBDC1394
   chameleon_capture_setup(camera, 20, DC1394_CAPTURE_FLAGS_DEFAULT);
@@ -313,7 +304,7 @@ chameleon_camera_t *open_camera(bool colour_chameleon, uint8_t depth, uint16_t b
 
 	printf("Using camera with GUID %"PRIx64"\n", camera->guid);
 
-	camera_setup(camera, depth, brightness);
+	camera_setup(camera, depth, brightness, 8);
 
 	return camera;
 
@@ -509,4 +500,21 @@ void camera_set_gamma(chameleon_camera_t *camera, uint16_t gamma)
 void camera_set_brightness(chameleon_camera_t *camera, uint16_t brightness)
 {
 	CHECK(chameleon_feature_set_value(camera, DC1394_FEATURE_BRIGHTNESS, brightness));	
+}
+
+// set framerate in Hz, rounded to nearest
+void camera_set_framerate(chameleon_camera_t *camera, uint8_t framerate)
+{
+  dc1394framerate_t rate;
+  if (framerate >= 15) {
+    rate = DC1394_FRAMERATE_15;
+  } else if (framerate >= 7) {
+    rate = DC1394_FRAMERATE_7_5;
+  } else if (framerate >= 3) {
+    rate = DC1394_FRAMERATE_3_75;
+  } else {
+    rate = DC1394_FRAMERATE_1_875;
+  }
+  printf("Setting rate 0x%x\n", (unsigned)rate);
+  CHECK(chameleon_video_set_framerate(camera, rate));
 }

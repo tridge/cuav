@@ -1333,7 +1333,7 @@ chameleon_feature_get_value(struct chameleon_camera *camera, dc1394feature_t fea
 
     FEATURE_TO_VALUE_OFFSET(feature, offset);
 
-    printf("fetching from register 0x%x\n", offset);
+    printf("fetching from register 0x%lx\n", (unsigned long)offset);
 
     err=chameleon_get_control_register(camera, offset, &quadval);
     DC1394_ERR_RTN(err, "Could not get feature value");

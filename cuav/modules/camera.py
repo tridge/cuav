@@ -62,7 +62,8 @@ class camera_state(object):
               ('gcs_slave', str, None),
               ('filter_type', str, 'simple'),
               ('fullres', int, 0),
-              ('use_bsend2', int, 1)  
+              ('use_bsend2', int, 1),
+              ('framerate', int, 7)  
               ]
             )
 
@@ -196,10 +197,7 @@ def cmd_camera(args):
             print("Stopping image viewer")
         state.viewing = False
     elif args[0] == "set":
-        if len(args) < 3:
-            state.settings.show_all()
-        else:
-            state.settings.set(args[1], args[2])
+        state.settings.command(args[1:])
     elif args[0] == "boundary":
         if len(args) != 2:
             print("boundary=%s" % state.boundary)
@@ -268,6 +266,7 @@ def capture_thread():
     last_frame_counter = 0
     h = None
     last_gamma = 0
+    last_framerate = 7
 
     raw_dir = os.path.join(state.camera_dir, "raw")
     cuav_util.mkdir_p(raw_dir)
@@ -298,6 +297,9 @@ def capture_thread():
             if last_gamma != state.settings.gamma:
                 chameleon.set_gamma(h, state.settings.gamma)
                 last_gamma = state.settings.gamma
+            if last_framerate != state.settings.framerate:
+                chameleon.set_framerate(h, state.settings.framerate)
+                last_framerate = state.settings.framerate
             frame_time, frame_counter, shutter = chameleon.capture(h, 1000, im)
             if frame_time < last_frame_time:
                 base_time += 128
@@ -745,6 +747,10 @@ def init(_mpstate):
     mpstate.camera_state = camera_state()
     mpstate.command_map['camera'] = (cmd_camera, "camera control")
     mpstate.command_map['remote'] = (cmd_remote, "remote command")
+    mpstate.completions['camera'] = ['<start|stop|status|view|noview|boundary>',
+                                     'set (CAMERASETTING)']
+    mpstate.completions['remote'] = ['(COMMAND)']
+    mpstate.completion_functions['(CAMERASETTING)'] = mpstate.camera_state.settings.completion
     state = mpstate.camera_state
     print("camera initialised")
 

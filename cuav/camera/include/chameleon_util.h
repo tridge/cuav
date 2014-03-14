@@ -1,7 +1,11 @@
 #ifndef CHAMELEON_UTIL_H_
 #define CHAMELEON_UTIL_H_
 
+#if USE_LIBDC1394
+#include "chameleon_dc1394.h"
+#else
 #include "chameleon.h"
+#endif
 
 int capture_wait(struct chameleon_camera* c, float* shutter,
 		 void* buf, size_t stride, size_t size,
@@ -16,5 +20,6 @@ void close_camera(struct chameleon_camera *);
 
 void camera_set_brightness(chameleon_camera_t *camera, uint16_t brightness);
 void camera_set_gamma(chameleon_camera_t *camera, uint16_t gamma);
+void camera_set_framerate(chameleon_camera_t *camera, uint8_t framerate);
 
 #endif
