@@ -29,13 +29,13 @@ def process(filename):
 
   t0 = time.time()
   for i in range(opts.repeat):
-    scanner.debayer(img_full_grey, im_640)
+    scanner.debayer_half(img_full_grey, im_640)
   t1 = time.time()
   print('debayer: %.1f fps' % (opts.repeat/(t1-t0)))
 
   t0 = time.time()
   for i in range(opts.repeat):
-    scanner.debayer_full(img_full_grey, im_full)
+    scanner.debayer(img_full_grey, im_full)
   t1 = time.time()
   print('debayer_full: %.1f fps' % (opts.repeat/(t1-t0)))
 
@@ -89,7 +89,7 @@ def process(filename):
 
   t0 = time.time()
   for i in range(opts.repeat):
-    scanner.scan_full(im_full)
+    scanner.scan(im_full)
   t1 = time.time()
   print('scan_full: %.1f fps' % (opts.repeat/(t1-t0)))
 
