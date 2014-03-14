@@ -420,6 +420,7 @@ int chameleon_camera_reset(struct chameleon_camera *c);
 int chameleon_video_set_iso_speed(struct chameleon_camera *camera, dc1394speed_t speed);
 int chameleon_video_set_mode(struct chameleon_camera *camera, dc1394video_mode_t mode);
 int chameleon_video_set_framerate(struct chameleon_camera *camera, dc1394framerate_t framerate);
+dc1394error_t chameleon_video_get_framerate(struct chameleon_camera *camera, dc1394framerate_t *framerate);
 int chameleon_capture_setup(struct chameleon_camera *c, uint32_t num_dma_buffers, uint32_t flags);
 dc1394error_t
 chameleon_feature_set_power(struct chameleon_camera *camera, dc1394feature_t feature, dc1394switch_t value);

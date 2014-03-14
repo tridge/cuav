@@ -1,3 +1,4 @@
+#error "error, including dc1394.h"
 #include <dc1394/dc1394.h>
 
 #define chameleon_t dc1394_t 

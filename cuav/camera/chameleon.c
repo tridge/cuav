@@ -23,6 +23,7 @@
  */
 
 #define _GNU_SOURCE
+#define USE_LIBDC1394 0
 
 #include <stdio.h>
 #include <stdint.h>
@@ -625,7 +626,7 @@ chameleon_get_image_size_from_video_mode(struct chameleon_camera *camera, dc1394
     return DC1394_FAILURE;
 }
 
-static dc1394error_t
+dc1394error_t
 chameleon_video_get_framerate(struct chameleon_camera *camera, dc1394framerate_t *framerate)
 {
     uint32_t value;

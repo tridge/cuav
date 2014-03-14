@@ -304,7 +304,7 @@ chameleon_camera_t *open_camera(bool colour_chameleon, uint8_t depth, uint16_t b
 
 	printf("Using camera with GUID %"PRIx64"\n", camera->guid);
 
-	camera_setup(camera, depth, brightness, 8);
+	camera_setup(camera, depth, brightness, 7);
 
 	return camera;
 
@@ -515,6 +515,9 @@ void camera_set_framerate(chameleon_camera_t *camera, uint8_t framerate)
   } else {
     rate = DC1394_FRAMERATE_1_875;
   }
-  printf("Setting rate 0x%x\n", (unsigned)rate);
+  printf("Setting rate %u 0x%x\n", (unsigned)framerate, (unsigned)rate);
   CHECK(chameleon_video_set_framerate(camera, rate));
+  rate = 0;
+  CHECK(chameleon_video_get_framerate(camera, &rate));
+  printf("Got rate %u 0x%x\n", (unsigned)framerate, (unsigned)rate);
 }

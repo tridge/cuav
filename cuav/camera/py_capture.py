@@ -1,9 +1,10 @@
 #!/usr/bin/python
 
-import chameleon, numpy, os, time, threading, Queue, cv, sys
+import numpy, os, time, threading, Queue, cv, sys
 
 from cuav.image import scanner
 from cuav.lib import cuav_util
+from cuav.camera import chameleon
 
 from optparse import OptionParser
 parser = OptionParser("py_capture.py [options]")
@@ -17,6 +18,7 @@ parser.add_option("--scan-skip", type='int', default=0, help="number of scans to
 parser.add_option("--quality", type='int', default=95, help="compression quality")
 parser.add_option("--brightness", type='int', default=100, help="auto-exposure brightness")
 parser.add_option("--trigger", action='store_true', default=False, help="use triggering")
+parser.add_option("--framerate", type='int', default=0, help="capture framerate Hz")
 (opts, args) = parser.parse_args()
 
 class capture_state():
@@ -47,6 +49,9 @@ def get_base_time():
   print('Opening camera')
   h = chameleon.open(not opts.mono, opts.depth, opts.brightness)
   print('camera is open')
+
+  if opts.framerate != 0:
+    chameleon.set_framerate(h, opts.framerate)
 
   while frame_time is None:
     try:
@@ -153,10 +158,11 @@ def run_capture():
     if opts.save and not opts.compress:
       state.save_queue.put((base_time+frame_time, im, False))
 
-    print("Captured %s shutter=%f tdelta=%f ft=%f loss=%u qsave=%u qbayer=%u qcompress=%u scan=%u" % (
+    print("Captured %s shutter=%f tdelta=%f(%.2f) ft=%f loss=%u qsave=%u qbayer=%u qcompress=%u scan=%u" % (
         cuav_util.frame_time(base_time+frame_time),
         shutter, 
         frame_time - last_frame_time,
+        1.0/(frame_time - last_frame_time),
         frame_time,
         frame_loss,
         state.save_queue.qsize(),
