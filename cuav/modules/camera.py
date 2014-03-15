@@ -97,6 +97,7 @@ class camera_state(object):
         self.bsend = None
         self.bsend2 = None
         self.bsend_slave = None
+        self.framerate = 0
         
         # setup directory for images
         self.camera_dir = os.path.join(os.path.dirname(mpstate.logfile_name),
@@ -168,8 +169,10 @@ def cmd_camera(args):
         state.running = False
         print("stopped camera capture")
     elif args[0] == "status":
-        print("Cap imgs:%u err:%u scan:%u regions:%u jsize:%.0f xmitq:%u/%u lst:%u sq:%.1f eff:%.2f" % (
-            state.capture_count, state.error_count, state.scan_count, state.region_count, 
+        print("Cap imgs:%u err:%u scan:%u fr:%.3f regions:%u jsize:%.0f xmitq:%u/%u lst:%u sq:%.1f eff:%.2f" % (
+            state.capture_count, state.error_count, state.scan_count, 
+            state.framerate,
+            state.region_count, 
             state.jpeg_size,
             state.xmit_queue, state.xmit_queue2, state.frame_loss, state.scan_queue.qsize(), state.efficiency))
         #print("state.bsend2 is ", state.bsend2)
@@ -319,6 +322,8 @@ def capture_thread():
             state.capture_count += 1
             state.fps = 1.0/(frame_time - last_frame_time)
 
+            if frame_time != last_frame_time:
+                state.framerate = 1.0 / (frame_time - last_frame_time)
             last_frame_time = frame_time
             last_frame_counter = frame_counter
         except chameleon.error, msg:
