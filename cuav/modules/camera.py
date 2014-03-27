@@ -220,6 +220,7 @@ def cmd_remote(args):
     cmd = " ".join(args)
     pkt = CommandPacket(cmd)
     buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+    start_gcs_bsend()
     if state.settings.use_bsend2:
         if state.bsend2 is None:
             print("bsend2 not initialised")
@@ -442,10 +443,7 @@ def transmit_thread():
 
     tx_count = 0
     skip_count = 0
-    state.bsend = block_xmit.BlockSender(0, bandwidth=state.settings.bandwidth, debug=False)
-    state.bsocket = MavSocket(mpstate.mav_master[0])
-    state.bsend2 = block_xmit.BlockSender(mss=96, sock=state.bsocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
-    state.bsend2.set_bandwidth(state.settings.bandwidth2)
+    start_aircraft_bsend()
 
     while not state.unload.wait(0.02):
         state.bsend.tick(packet_count=1000, max_queue=state.settings.maxqueue1)
@@ -545,6 +543,7 @@ def transmit_thread():
         state.bsend.send(str,
                          dest=(state.settings.gcs_address, state.settings.gcs_view_port))
 
+
 def reload_mosaic(mosaic):
     '''reload state into mosaic'''
     state = mpstate.camera_state
@@ -577,19 +576,35 @@ def reload_mosaic(mosaic):
             mosaic.add_regions(regions, thumbs, last_joe.image_filename, last_joe.pos)
         except Exception:
             pass
+
+def start_aircraft_bsend():
+    '''start bsend for aircraft side'''
+    state = mpstate.camera_state
+    if state.bsend is None:
+        state.bsend = block_xmit.BlockSender(0, bandwidth=state.settings.bandwidth, debug=False)
+    if state.bsend2 is None:
+        state.bsocket = MavSocket(mpstate.mav_master[0])
+        state.bsend2 = block_xmit.BlockSender(mss=96, sock=state.bsocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
+        state.bsend2.set_bandwidth(state.settings.bandwidth2)
         
+
+def start_gcs_bsend():
+    '''start up block senders for GCS side'''
+    state = mpstate.camera_state
+    if state.bsend is None:
+        state.bsend = block_xmit.BlockSender(state.settings.gcs_view_port, bandwidth=state.settings.bandwidth)
+    if state.bsend2 is None:
+        state.bsocket = MavSocket(mpstate.mav_master[0])
+        state.bsend2 = block_xmit.BlockSender(mss=96, sock=state.bsocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
+        state.bsend2.set_bandwidth(state.settings.bandwidth2)
+
 
 
 def view_thread():
     '''image viewing thread - this runs on the ground station'''
     from cuav.lib import cuav_mosaic
     state = mpstate.camera_state
-
-    state.bsend = block_xmit.BlockSender(state.settings.gcs_view_port, bandwidth=state.settings.bandwidth)
-    state.bsocket = MavSocket(mpstate.mav_master[0])
-    state.bsend2 = block_xmit.BlockSender(mss=96, sock=state.bsocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
-    state.bsend2.set_bandwidth(state.settings.bandwidth2)
-
+    start_gcs_bsend()
     view_window = False
     image_count = 0
     thumb_count = 0
