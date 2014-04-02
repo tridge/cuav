@@ -518,29 +518,29 @@ class CameraModule(mp_module.MPModule):
                             # print("sending thumb2 len=%u" % len(buf))
                             self.bsend2.send(buf, priority=highscore)
 
-                # Base how many images we send on the send queue size
-                send_frequency = self.xmit_queue // 3
-                if send_frequency == 0 or (tx_count+skip_count) % send_frequency == 0:
-                    jpeg = scanner.jpeg_compress(im_640, self.camera_settings.quality)
+            # Base how many images we send on the send queue size
+            send_frequency = self.xmit_queue // 3
+            if send_frequency == 0 or (tx_count+skip_count) % send_frequency == 0:
+                jpeg = scanner.jpeg_compress(im_640, self.camera_settings.quality)
 
-                if jpeg is None:
-                    skip_count += 1
-                    continue
+            if jpeg is None:
+                skip_count += 1
+                continue
 
-                # keep filtered image size
-                self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)
+            # keep filtered image size
+            self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)
         
-                tx_count += 1
+            tx_count += 1
 
-                if self.camera_settings.gcs_address is None:
-                    continue
-                self.bsend.set_packet_loss(self.camera_settings.packet_loss)
-                self.bsend.set_bandwidth(self.camera_settings.bandwidth)
-                pkt = ImagePacket(frame_time, jpeg, self.xmit_queue, pos)
-                str = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
-                # print("sending image len=%u" % len(str))
-                self.bsend.send(str,
-                                dest=(self.camera_settings.gcs_address, self.camera_settings.gcs_view_port))
+            if self.camera_settings.gcs_address is None:
+                continue
+            self.bsend.set_packet_loss(self.camera_settings.packet_loss)
+            self.bsend.set_bandwidth(self.camera_settings.bandwidth)
+            pkt = ImagePacket(frame_time, jpeg, self.xmit_queue, pos)
+            str = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+            # print("sending image len=%u" % len(str))
+            self.bsend.send(str,
+                            dest=(self.camera_settings.gcs_address, self.camera_settings.gcs_view_port))
 
 
     def reload_mosaic(self, mosaic):
@@ -761,7 +761,7 @@ class CameraModule(mp_module.MPModule):
     def unload(self):
         '''unload module'''
         self.running = False
-        self.unload.set()
+        self.unload_event.set()
         if self.capture_thread_h is not None:
             self.capture_thread.join(1.0)
             self.save_thread.join(1.0)
