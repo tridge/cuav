@@ -753,7 +753,6 @@ class CameraModule(mp_module.MPModule):
 
     def start_thread(self, fn):
         '''start a thread running'''
-        print("Starting thread: ", fn)
         t = threading.Thread(target=fn)
         t.daemon = True
         t.start()
