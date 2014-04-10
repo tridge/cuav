@@ -1,18 +1,19 @@
 #!/bin/sh
 
-[ $# -eq 1 ] || {
+[ $# -ge 1 ] || {
     echo "Usage: test_playback.sh <LOGDIR>"
     exit 1
 }
+logdir="$1"
+shift
 
-[ -r "$1"/flight.tlog ] || {
-    echo "Invalid log directory - $1/flight.tlog not found"
+[ -r "$logdir"/flight.tlog ] || {
+    echo "Invalid log directory - $logdir/flight.tlog not found"
     exit 1
 }
-[ -d "$1"/camera/raw ] || {
-    echo "Invalid log directory - $1/camera/raw not found"
+[ -d "$logdir"/camera/raw ] || {
+    echo "Invalid log directory - $logdir/camera/raw not found"
     exit 1
 }
 
-./cuav/cuav/tests/playback.py --loop --imagedir "$1"/camera/raw "$1"/flight.tlog
-
+./cuav/cuav/tests/playback.py --loop --imagedir "$logdir"/camera/raw "$logdir"/flight.tlog $*
