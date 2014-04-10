@@ -52,11 +52,12 @@ class MavSocket:
 
 class ImagePacket:
     '''a jpeg image sent to the ground station'''
-    def __init__(self, frame_time, jpeg, xmit_queue, pos):
+    def __init__(self, frame_time, jpeg, xmit_queue, pos, priority):
         self.frame_time = frame_time
         self.jpeg = jpeg
         self.xmit_queue = xmit_queue
         self.pos = pos
+        self.priority = priority
 
 class ThumbPacket:
     '''a thumbnail region sent to the ground station'''
@@ -79,6 +80,12 @@ class CommandResponse:
         self.response = response
 
 
+class ImageRequest:
+    '''request a jpeg image from the aircraft'''
+    def __init__(self, frame_time, fullres):
+        self.frame_time = frame_time
+        self.fullres = fullres
+        
 
 class CameraModule(mp_module.MPModule):
     def __init__(self, mpstate):
@@ -520,27 +527,29 @@ class CameraModule(mp_module.MPModule):
 
             # Base how many images we send on the send queue size
             send_frequency = self.xmit_queue // 3
-            if send_frequency == 0 or (tx_count+skip_count) % send_frequency == 0:
-                jpeg = scanner.jpeg_compress(im_640, self.camera_settings.quality)
-
-            if jpeg is None:
-                skip_count += 1
-                continue
-
-            # keep filtered image size
-            self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)
-        
-            tx_count += 1
-
             if self.camera_settings.gcs_address is None:
                 continue
-            self.bsend.set_packet_loss(self.camera_settings.packet_loss)
-            self.bsend.set_bandwidth(self.camera_settings.bandwidth)
-            pkt = ImagePacket(frame_time, jpeg, self.xmit_queue, pos)
-            str = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
-            # print("sending image len=%u" % len(str))
-            self.bsend.send(str,
-                            dest=(self.camera_settings.gcs_address, self.camera_settings.gcs_view_port))
+            if send_frequency != 0 and (tx_count+skip_count) % send_frequency != 0:
+                skip_count += 1
+                continue
+            tx_count += 1
+            self.send_image(im_640, frame_time, pos, 0)
+
+    def send_image(self, img, frame_time, pos, priority):
+        '''send an image to the GCS'''
+        jpeg = scanner.jpeg_compress(img, self.camera_settings.quality)
+
+        # keep filtered image size
+        self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)        
+
+        self.bsend.set_packet_loss(self.camera_settings.packet_loss)
+        self.bsend.set_bandwidth(self.camera_settings.bandwidth)
+        pkt = ImagePacket(frame_time, jpeg, self.xmit_queue, pos, priority)
+        str = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+        # print("sending image len=%u" % len(str))
+        self.bsend.send(str,
+                        dest=(self.camera_settings.gcs_address, self.camera_settings.gcs_view_port),
+                        priority=priority)
 
 
     def reload_mosaic(self, mosaic):
@@ -652,6 +661,8 @@ class CameraModule(mp_module.MPModule):
             # check for keyboard events
             mosaic.check_events()
 
+            self.check_requested_images(mosaic)
+
             buf = self.bsend.recv(0)
             if buf is None:
                 buf = self.bsend2.recv(0)
@@ -728,7 +739,11 @@ class CameraModule(mp_module.MPModule):
                 else:
                     display_img = img
 
-                mosaic.add_image(obj.frame_time, filename, obj.pos)
+                if obj.pos is not None:
+                    mosaic.add_image(obj.frame_time, filename, obj.pos)
+
+                if obj.priority != 0:
+                    print("Downloaded image %s" % filename)
 
                 cv.ConvertScale(display_img, display_img, scale=self.camera_settings.brightness)
                 img_window.set_image(display_img, bgr=True)
@@ -743,7 +758,7 @@ class CameraModule(mp_module.MPModule):
 
             if isinstance(obj, CommandPacket):
                 self.handle_command_packet(obj, bsend)
-            
+
             if isinstance(obj, CommandResponse):
                 print('REMOTE: %s' % obj.response)
                 
@@ -800,6 +815,9 @@ class CameraModule(mp_module.MPModule):
         if isinstance(obj, CommandResponse):
             print('REMOTE: %s' % obj.response)
 
+        if isinstance(obj, ImageRequest):
+            self.handle_image_request(obj, bsend)            
+
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
         if self.mpstate.status.watch in ["camera","queue"] and time.time() > self.last_watch+1:
@@ -810,6 +828,47 @@ class CameraModule(mp_module.MPModule):
         if m.get_type() in [ 'DATA16', 'DATA32', 'DATA64', 'DATA96' ]:
             if self.bsocket is not None:
                 self.bsocket.incoming.append(m)
+
+    def check_requested_images(self, mosaic):
+        '''check if the user has requested download of an image'''
+        requests = mosaic.get_image_requests()
+        for frame_time in requests.keys():
+            fullres = requests[frame_time]
+            pkt = ImageRequest(frame_time, fullres)
+            buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+            self.start_gcs_bsend()
+            print("Requesting image %s" % frame_time)
+            if self.camera_settings.use_bsend2:
+                if self.bsend2 is None:
+                    print("bsend2 not initialised")
+                    return
+                self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
+                self.bsend2.send(buf, priority=10000)
+            else:
+                if self.bsend is None:
+                    print("bsend not initialised")
+                    return
+                self.bsend.send(buf, priority=10000)
+
+    def handle_image_request(self, obj, bsend):
+        '''handle ImageRequest from GCS'''
+        rawname = "raw%s" % cuav_util.frame_time(obj.frame_time)
+        raw_dir = os.path.join(self.camera_dir, "raw")
+        filename = '%s/%s.pgm' % (raw_dir, rawname)
+        if not os.path.exists(filename):
+            print("No file: %s" % filename)
+            return
+        try:
+            img = cuav_util.LoadImage(filename)
+            img = numpy.asarray(cv.GetMat(img))
+        except Exception:
+            return
+        if not obj.fullres:
+            im_640 = numpy.zeros((480,640,3),dtype='uint8')
+            scanner.downsample(img, im_640)
+            img = im_640
+        print("Sending image %s" % filename)
+        self.send_image(img, obj.frame_time, None, 10000)
 
 def init(mpstate):
     '''initialise module'''

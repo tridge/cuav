@@ -111,6 +111,9 @@ class Mosaic():
         self.view_image = None
         self.brightness = 1
 
+        # dictionary of image requests, contains True if fullres image is wanted
+        self.image_requests = {}
+
         self.slipmap.add_callback(functools.partial(self.map_callback))
 
         self.menu = MPMenuTop([MPMenuSubMenu('View',
@@ -130,7 +133,9 @@ class Mosaic():
         self.image_mosaic.set_menu(self.menu)
 
         self.popup_menu = MPMenuSubMenu('Popup',
-                                        items=[MPMenuItem('Show Image', returnkey='showImage')])
+                                        items=[MPMenuItem('Show Image', returnkey='showImage'),
+                                               MPMenuItem('Fetch Image', returnkey='fetchImage'),
+                                               MPMenuItem('Fetch Image (full)', returnkey='fetchImageFull')])
         self.image_mosaic.set_popup_menu(self.popup_menu)
 
     def set_brightness(self, b):
@@ -318,7 +323,19 @@ class Mosaic():
                 self.show_region(region.ridx, True)
                 if region.latlon != (None,None):
                     self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
+        elif event.returnkey in ['fetchImage', 'fetchImageFull']:
+            region = self.pos_to_region(event.popup_pos)
+            if region is not None:
+                fullres = (event.returnkey == 'fetchImageFull')
+                frame_time = cuav_util.parse_frame_time(region.filename)
+                self.image_requests[frame_time] = fullres
         self.redisplay_mosaic()
+
+    def get_image_requests(self):
+        '''return and zero image_requests dictionary'''
+        ret = self.image_requests
+        self.image_requests = {}
+        return ret
 
     def menu_event_view(self, event):
         '''called on menu events on the view image'''

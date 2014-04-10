@@ -5,7 +5,7 @@ import numpy, sys, os, time, cuav_util, cv
 
 class Region:
 	'''a object representing a recognised region in an image'''
-	def __init__(self, x1, y1, x2, y2, scan_score=0, compactness=0):
+	def __init__(self, x1, y1, x2, y2, scan_shape, scan_score=0, compactness=0):
 		self.x1 = x1
 		self.y1 = y1
 		self.x2 = x2
@@ -16,6 +16,7 @@ class Region:
                 self.compactness = compactness
                 self.whiteness = None
                 self.blue_score = None
+                self.scan_shape = scan_shape
 
         def tuple(self):
                 '''return the boundary as a tuple'''
@@ -29,7 +30,7 @@ class Region:
                 '''draw a rectange around the region in an image'''
                 (x1,y1,x2,y2) = self.tuple()
                 (wview,hview) = cuav_util.image_shape(img)
-                (w,h) = cuav_util.image_shape(img)
+                (w,h) = self.scan_shape
                 x1 = x1*wview//w
                 x2 = x2*wview//w
                 y1 = y1*hview//h
@@ -57,7 +58,7 @@ def RegionsConvert(rlist, scan_shape, full_shape, calculate_compactness=True):
                         compactness = array_compactness(pixscore)
                 else:
                         compactness = 0
-		ret.append(Region(x1,y1,x2,y2,score,compactness))
+		ret.append(Region(x1,y1,x2,y2, scan_shape, score, compactness))
 	return ret
 
 def array_compactness(im):
