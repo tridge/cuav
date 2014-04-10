@@ -559,7 +559,6 @@ class CameraModule(mp_module.MPModule):
                 try:
                     composite = cv.LoadImage(last_joe.thumb_filename)
                     thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
-                    mosaic.set_brightness(self.camera_settings.brightness)
                     mosaic.add_regions(regions, thumbs, last_joe.image_filename, last_joe.pos)
                 except Exception:
                     pass                
@@ -570,7 +569,6 @@ class CameraModule(mp_module.MPModule):
             try:
                 composite = cv.LoadImage(last_joe.thumb_filename)
                 thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
-                mosaic.set_brightness(self.camera_settings.brightness)
                 mosaic.add_regions(regions, thumbs, last_joe.image_filename, last_joe.pos)
             except Exception:
                 pass
@@ -699,7 +697,6 @@ class CameraModule(mp_module.MPModule):
                 self.log_joe_position(pos, obj.frame_time, obj.regions, filename, thumb_filename)
 
                 # update the mosaic and map
-                mosaic.set_brightness(self.camera_settings.brightness)
                 mosaic.add_regions(obj.regions, thumbs, filename, pos=pos)
 
                 # update console display
