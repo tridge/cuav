@@ -85,6 +85,12 @@ class ImageRequest:
     def __init__(self, frame_time, fullres):
         self.frame_time = frame_time
         self.fullres = fullres
+
+class ChangeSetting:
+    '''update a setting'''
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
         
 
 class CameraModule(mp_module.MPModule):
@@ -262,19 +268,7 @@ class CameraModule(mp_module.MPModule):
         '''camera commands'''
         cmd = " ".join(args)
         pkt = CommandPacket(cmd)
-        buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
-        self.start_gcs_bsend()
-        if self.camera_settings.use_bsend2:
-            if self.bsend2 is None:
-                print("bsend2 not initialised")
-                return
-            self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
-            self.bsend2.send(buf, priority=10000)
-        else:
-            if self.bsend is None:
-                print("bsend not initialised")
-                return
-            self.bsend.send(buf, priority=10000)
+        self.send_packet(pkt)
 
     def get_base_time(self):
         '''we need to get a baseline time from the camera. To do that we trigger
@@ -641,6 +635,8 @@ class CameraModule(mp_module.MPModule):
 
         ack_time = time.time()
 
+        self.camera_settings.set_callback(self.camera_settings_callback)
+
         while not self.unload_event.wait(0.02):
             if not self.viewing:
                 if view_window:
@@ -766,7 +762,6 @@ class CameraModule(mp_module.MPModule):
 
             if isinstance(obj, CommandResponse):
                 print('REMOTE: %s' % obj.response)
-                
 
     def start_thread(self, fn):
         '''start a thread running'''
@@ -794,7 +789,7 @@ class CameraModule(mp_module.MPModule):
         stdout_saved = sys.stdout
         buf = cStringIO.StringIO()
         sys.stdout = buf
-        self.mpstate.functions.process_stdin(obj.command)
+        self.mpstate.functions.process_stdin(obj.command, immediate=True)
         sys.stdout = stdout_saved
         pkt = CommandResponse(str(buf.getvalue()))
         buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
@@ -822,6 +817,9 @@ class CameraModule(mp_module.MPModule):
 
         if isinstance(obj, ImageRequest):
             self.handle_image_request(obj, bsend)            
+
+        if isinstance(obj, ChangeSetting):
+            self.camera_settings.set(obj.name, obj.value)
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -874,6 +872,27 @@ class CameraModule(mp_module.MPModule):
             img = im_640
         print("Sending image %s" % filename)
         self.send_image(img, obj.frame_time, None, 10000)
+
+    def send_packet(self, pkt):
+        '''send a packet from GCS'''
+        buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+        self.start_gcs_bsend()
+        if self.camera_settings.use_bsend2:
+            if self.bsend2 is None:
+                print("bsend2 not initialised")
+                return
+            self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
+            self.bsend2.send(buf, priority=10000)
+        else:
+            if self.bsend is None:
+                print("bsend not initialised")
+                return
+            self.bsend.send(buf, priority=10000)
+
+    def camera_settings_callback(self, setting):
+        '''called on a changed setting'''
+        pkt = ChangeSetting(setting.name, setting.value)
+        self.send_packet(pkt)
 
 def init(mpstate):
     '''initialise module'''
