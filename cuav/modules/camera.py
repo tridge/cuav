@@ -102,33 +102,37 @@ class CameraModule(mp_module.MPModule):
         self.transmit_thread_h = None
         self.view_thread_h = None
 
-        self.camera_settings = mp_settings.MPSettings(
-            [ ('depth', int, 8),
-              ('gcs_address', str, None),
-              ('gcs_view_port', int, 7543),
-              ('bandwidth',  int, 40000),
-              ('bandwidth2', int, 2000),
-              ('capture_brightness', int, 150),
-              ('gamma', int, 950),
-              ('brightness', float, 1.0),
-              ('quality', int, 75),
-              ('save_pgm', int, 1),
-              ('transmit', int, 1),
-              ('roll_stabilised', int, 1),
-              ('minscore', int, 75),
-              ('minscore2', int, 500),
-              ('altitude', int, None),
-              ('send1', int, 1),
-              ('send2', int, 1),
-              ('maxqueue1', int, None),
-              ('maxqueue2', int, 30),
-              ('thumbsize', int, 60),
-              ('packet_loss', int, 0),             
-              ('gcs_slave', str, None),
-              ('filter_type', str, 'simple'),
-              ('fullres', int, 0),
-              ('use_bsend2', int, 1),
-              ('framerate', int, 7)  
+        from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
+        self.camera_settings = MPSettings(
+            [ MPSetting('depth', int, 8, 'Image Depth', tab='Capture'),
+              MPSetting('capture_brightness', int, 150, 'Capture Brightness'),
+              MPSetting('gamma', int, 950, 'Capture Gamma'),
+              MPSetting('roll_stabilised', int, 1, 'Roll Stabilised'),
+              MPSetting('altitude', int, None, 'Altitude'),
+              MPSetting('filter_type', str, 'simple', 'Filter Type'),
+              MPSetting('fullres', int, 0, 'Full Resolution'),
+              MPSetting('framerate', int, 7, 'Frame Rate'),
+
+              MPSetting('gcs_address', str, None, 'GCS Address', tab='Comms'),
+              MPSetting('gcs_view_port', int, 7543, 'GCS View Port'),
+              MPSetting('gcs_slave', str, None, 'GCS Slave'),
+              MPSetting('bandwidth',  int, 40000, 'Link1 Bandwdith'),
+              MPSetting('bandwidth2', int, 2000, 'Link2 Bandwidth'),
+              MPSetting('quality', int, 75, 'Compression Quality'),
+              MPSetting('transmit', int, 1, 'Transmit Enable'),
+              MPSetting('minscore', int, 75, 'Min Score Link1'),
+              MPSetting('minscore2', int, 500, 'Min Score Link2'),
+              MPSetting('send1', int, 1, 'Send on Link1'),
+              MPSetting('send2', int, 1, 'Send on Link2'),
+              MPSetting('maxqueue1', int, None, 'Maximum queue Link1'),
+              MPSetting('maxqueue2', int, 30, 'Maxqueue queue Link2'),
+              MPSetting('thumbsize', int, 60, 'Thumbnail Size'),
+              MPSetting('use_bsend2', int, 1, 'Enable Link2'),
+
+              MPSetting('packet_loss', int, 0, 'Packet Loss', tab='Debug'),             
+
+              MPSetting('brightness', float, 1.0, 'Display Brightness', tab='Display'),
+              MPSetting('save_pgm', int, 1, 'Sava Raw Images')
               ]
             )
 
@@ -652,7 +656,8 @@ class CameraModule(mp_module.MPModule):
                     ack_time = tnow
             if not view_window:
                 view_window = True
-                mosaic = cuav_mosaic.Mosaic(slipmap=self.mpstate.map, C=self.c_params)
+                mosaic = cuav_mosaic.Mosaic(slipmap=self.mpstate.map, C=self.c_params,
+                                            camera_settings=self.camera_settings)
                 if self.boundary_polygon is not None:
                     mosaic.set_boundary(self.boundary_polygon)
                 if self.continue_mode:

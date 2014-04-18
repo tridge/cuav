@@ -11,6 +11,7 @@ from MAVProxy.modules.mavproxy_map import mp_image, mp_slipmap
 from cuav.image import scanner
 from cuav.camera.cam_params import CameraParams
 from MAVProxy.modules.lib.mp_menu import *
+from MAVProxy.modules.lib.wxsettings import WXSettings
 
 class MosaicRegion:
     def __init__(self, ridx, region, filename, pos, full_thumbnail, small_thumbnail, latlon=(None,None)):
@@ -80,7 +81,9 @@ def ExtractThumbs(img, count):
 class Mosaic():
     '''keep a mosaic of found regions'''
     def __init__(self, slipmap,
-                 grid_width=20, grid_height=20, thumb_size=35, C=CameraParams()):
+                 grid_width=20, grid_height=20, thumb_size=35, C=CameraParams(),
+                 camera_settings = None,
+                 image_settings = None):
         self.thumb_size = thumb_size
         self.width = grid_width * thumb_size
         self.height = grid_height * thumb_size
@@ -100,6 +103,8 @@ class Mosaic():
         self.displayed_image = None
         self.last_click_position = None
         self.c_params = C
+        self.camera_settings = camera_settings
+        self.image_settings = image_settings
         import wx
         self.image_mosaic = mp_image.MPImage(title='Mosaic', 
                                              mouse_events=True,
@@ -116,20 +121,33 @@ class Mosaic():
 
         self.slipmap.add_callback(functools.partial(self.map_callback))
 
-        self.menu = MPMenuTop([MPMenuSubMenu('View',
-                                             items=[MPMenuRadio('Sort By', 'Select sorting key',
-                                                                returnkey='setSort',
-                                                                selected=self.sort_type,
-                                                                items=['Score\tAlt+S',
-                                                                       'Compactness\tAlt+C',
-                                                                       'Distinctiveness\tAlt+D',
-                                                                       'Whiteness\tAlt+W',
-                                                                       'Time\tAlt+T']),
-                                                    MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
-                                                    MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage'),
-                                                    MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
-                                                    MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness')
-                                                    ])])
+        self.add_menus()
+
+    def add_menus(self):
+        '''add menus'''
+        menu = MPMenuTop([])
+        menu.add(MPMenuSubMenu('View',
+                               items=[MPMenuRadio('Sort By', 'Select sorting key',
+                                                  returnkey='setSort',
+                                                  selected=self.sort_type,
+                                                  items=['Score\tAlt+S',
+                                                         'Compactness\tAlt+C',
+                                                         'Distinctiveness\tAlt+D',
+                                                         'Whiteness\tAlt+W',
+                                                         'Time\tAlt+T']),
+                                      MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
+                                      MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage'),
+                                      MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
+                                      MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness')
+                                      ]))
+        if self.camera_settings:
+            menu.add(MPMenuSubMenu('Camera',
+                                   items=[MPMenuItem('Options', 'Options', 'menuCameraOptions')]))
+        if self.image_settings:
+            menu.add(MPMenuSubMenu('Image',
+                                   items=[MPMenuItem('Options', 'Options', 'menuImageOptions')]))
+
+        self.menu = menu
         self.image_mosaic.set_menu(self.menu)
 
         self.popup_menu = MPMenuSubMenu('Popup',
@@ -137,6 +155,7 @@ class Mosaic():
                                                MPMenuItem('Fetch Image', returnkey='fetchImage'),
                                                MPMenuItem('Fetch Image (full)', returnkey='fetchImageFull')])
         self.image_mosaic.set_popup_menu(self.popup_menu)
+
 
     def set_brightness(self, b):
         '''set mosaic brightness'''
@@ -329,6 +348,10 @@ class Mosaic():
                 fullres = (event.returnkey == 'fetchImageFull')
                 frame_time = cuav_util.parse_frame_time(region.filename)
                 self.image_requests[frame_time] = fullres
+        elif event.returnkey == 'menuCameraOptions':
+            WXSettings(self.camera_settings)
+        elif event.returnkey == 'menuImageOptions':
+            WXSettings(self.image_settings)
         self.redisplay_mosaic()
 
     def get_image_requests(self):
