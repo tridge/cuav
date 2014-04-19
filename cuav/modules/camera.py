@@ -120,10 +120,11 @@ class CameraModule(mp_module.MPModule):
               MPSetting('fullres', bool, False, 'Full Resolution'),
               MPSetting('framerate', int, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
 
-              MPSetting('gcs_address', str, None, 'GCS Address', tab='Comms'),
+              MPSetting('gcs_address', str, None, 'GCS Address', tab='GCS'),
               MPSetting('gcs_view_port', int, 7543, 'GCS View Port', range=(1, 30000), increment=1),
               MPSetting('gcs_slave', str, None, 'GCS Slave'),
-              MPSetting('bandwidth',  int, 40000, 'Link1 Bandwdith'),
+              
+              MPSetting('bandwidth',  int, 40000, 'Link1 Bandwdith', 'Comms'),
               MPSetting('bandwidth2', int, 2000, 'Link2 Bandwidth'),
               MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
               MPSetting('transmit', bool, True, 'Transmit Enable'),
