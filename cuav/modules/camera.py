@@ -117,6 +117,7 @@ class CameraModule(mp_module.MPModule):
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.camera_settings = MPSettings(
             [ MPSetting('depth', int, 8, 'Image Depth', choice=['8', '16'], tab='Capture'),
+              MPSetting('save_pgm', bool, True, 'Save Raw Images'),
               MPSetting('capture_brightness', int, 150, 'Capture Brightness', range=(10, 300), increment=1),
               MPSetting('gamma', int, 950, 'Capture Gamma', range=(0,1000), increment=1),
               MPSetting('roll_stabilised', bool, True, 'Roll Stabilised'),
@@ -145,8 +146,8 @@ class CameraModule(mp_module.MPModule):
               MPSetting('minscore2', int, 500, 'Min Score Link2', range=(0,1000), increment=1),
               MPSetting('packet_loss', int, 0, 'Packet Loss', range=(0,100), increment=1, tab='Debug'),             
 
-              MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1, digits=2, tab='Display'),
-              MPSetting('save_pgm', bool, True, 'Sava Raw Images')
+              MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
+                        digits=2, tab='Display')
               ],
             title='Camera Settings'
             )
