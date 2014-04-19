@@ -263,8 +263,21 @@ class Mosaic():
         image = self.images[closest]
         self.view_imagefile(image.filename)
 
+    def map_menu_callback(self, event):
+        '''called on popup menu on map'''
+        menuitem = event.menuitem
+        if menuitem.returnkey == 'showImage':
+            region = self.objkey_to_region(event.selected[0].objkey)
+            self.popup_show_image(region)
+        elif menuitem.returnkey in ['fetchImage', 'fetchImageFull']:
+            region = self.objkey_to_region(event.selected[0].objkey)
+            self.popup_fetch_image(region, menuitem.returnkey)
+
     def map_callback(self, event):
         '''called when an event happens on the slipmap'''
+        if isinstance(event, mp_slipmap.SlipMenuEvent):
+            self.map_menu_callback(event)
+            return
         if not isinstance(event, mp_slipmap.SlipMouseEvent):
             return
         if event.event.m_middleDown:
@@ -338,21 +351,31 @@ class Mosaic():
             self.brightness /= 1.25
         elif event.returnkey == 'showImage':
             region = self.pos_to_region(event.popup_pos)
-            if region is not None:
-                self.show_region(region.ridx, True)
-                if region.latlon != (None,None):
-                    self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
+            self.popup_show_image(region)
         elif event.returnkey in ['fetchImage', 'fetchImageFull']:
             region = self.pos_to_region(event.popup_pos)
-            if region is not None:
-                fullres = (event.returnkey == 'fetchImageFull')
-                frame_time = cuav_util.parse_frame_time(region.filename)
-                self.image_requests[frame_time] = fullres
+            self.popup_fetch_image(region, event.returnkey)
         elif event.returnkey == 'menuCameraSettings':
             WXSettings(self.camera_settings)
         elif event.returnkey == 'menuImageSettings':
             WXSettings(self.image_settings)
         self.redisplay_mosaic()
+
+    def popup_show_image(self, region):
+        '''handle popup menu showImage'''
+        if region is None:
+            return
+        self.show_region(region.ridx, True)
+        if region.latlon != (None,None):
+            self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
+
+    def popup_fetch_image(self, region, returnkey):
+        '''handle popup menu fetchImage'''
+        if region is None:
+            return
+        fullres = (returnkey == 'fetchImageFull')
+        frame_time = cuav_util.parse_frame_time(region.filename)
+        self.image_requests[frame_time] = fullres
 
     def get_image_requests(self):
         '''return and zero image_requests dictionary'''
@@ -390,6 +413,15 @@ class Mosaic():
         if ridx >= len(self.regions):
             return None
         return self.regions_sorted[ridx]
+
+    def objkey_to_region(self, objkey):
+        '''work out region for a map objkey'''
+        if not objkey.startswith("region "):
+            return None
+        ridx = int(objkey[7:])
+        if ridx < 0 or ridx >= len(self.regions):
+            return None
+        return self.regions[ridx]
 
     def mouse_event(self, event):
         '''called on mouse events on the mosaic'''
@@ -487,7 +519,8 @@ class Mosaic():
             if (lat,lon) != (None,None):
                 self.slipmap.add_object(mp_slipmap.SlipThumbnail("region %u" % ridx, (lat,lon),
                                                                  img=thumb,
-                                                                 layer=2, border_width=1, border_colour=(255,0,0)))
+                                                                 layer=2, border_width=1, border_colour=(255,0,0),
+                                                                 popup_menu=self.popup_menu))
 
         self.image_mosaic.set_image(self.mosaic, bgr=True)
 
