@@ -86,8 +86,14 @@ class ImageRequest:
         self.frame_time = frame_time
         self.fullres = fullres
 
-class ChangeSetting:
-    '''update a setting'''
+class ChangeCameraSetting:
+    '''update a camera setting'''
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+class ChangeImageSetting:
+    '''update a image setting'''
     def __init__(self, name, value):
         self.name = name
         self.value = value
@@ -141,8 +147,20 @@ class CameraModule(mp_module.MPModule):
 
               MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1, digits=2, tab='Display'),
               MPSetting('save_pgm', bool, True, 'Sava Raw Images')
-              ]
+              ],
+            title='Camera Settings'
             )
+
+        self.image_settings = MPSettings(
+            [ MPSetting('MinRegionArea', float, 0.15, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
+              MPSetting('MaxRegionArea', float, 2.0, range=(0,100), increment=0.1, digits=1),
+              MPSetting('MinRegionSize', float, 0.1, range=(0,100), increment=0.05, digits=2),
+              MPSetting('MaxRegionSize', float, 2, range=(0,100), increment=0.1, digits=1),
+              MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
+              MPSetting('RegionMergeSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
+              MPSetting('SaveIntermediate', bool, False)
+              ],
+            title='Image Settings')
 
         self.capture_count = 0
         self.scan_count = 0
@@ -201,7 +219,7 @@ class CameraModule(mp_module.MPModule):
 
     def cmd_camera(self, args):
         '''camera commands'''
-        usage = "usage: camera <start|stop|status|view|noview|boundary|set>"
+        usage = "usage: camera <start|stop|status|view|noview|boundary|set|image>"
         if len(args) == 0:
             print(usage)
             return
@@ -253,6 +271,8 @@ class CameraModule(mp_module.MPModule):
             self.viewing = False
         elif args[0] == "set":
             self.camera_settings.command(args[1:])
+        elif args[0] == "image":
+            self.image_settings.command(args[1:])
         elif args[0] == "boundary":
             if len(args) != 2:
                 print("boundary=%s" % self.boundary)
@@ -398,6 +418,11 @@ class CameraModule(mp_module.MPModule):
             except Queue.Empty:
                 continue
 
+            scan_parms = {}
+            for name in self.image_settings.list():
+                scan_parms[name] = self.image_settings.get(name)
+            scan_parms['SaveIntermediate'] = float(scan_parms['SaveIntermediate'])
+            
             t1 = time.time()
             im_full = numpy.zeros((960,1280,3),dtype='uint8')
             im_640 = numpy.zeros((480,640,3),dtype='uint8')
@@ -641,6 +666,7 @@ class CameraModule(mp_module.MPModule):
         ack_time = time.time()
 
         self.camera_settings.set_callback(self.camera_settings_callback)
+        self.image_settings.set_callback(self.image_settings_callback)
 
         while not self.unload_event.wait(0.02):
             if not self.viewing:
@@ -658,7 +684,8 @@ class CameraModule(mp_module.MPModule):
             if not view_window:
                 view_window = True
                 mosaic = cuav_mosaic.Mosaic(slipmap=self.mpstate.map, C=self.c_params,
-                                            camera_settings=self.camera_settings)
+                                            camera_settings=self.camera_settings,
+                                            image_settings=self.image_settings)
                 if self.boundary_polygon is not None:
                     mosaic.set_boundary(self.boundary_polygon)
                 if self.continue_mode:
@@ -823,8 +850,11 @@ class CameraModule(mp_module.MPModule):
         if isinstance(obj, ImageRequest):
             self.handle_image_request(obj, bsend)            
 
-        if isinstance(obj, ChangeSetting):
+        if isinstance(obj, ChangeCameraSetting):
             self.camera_settings.set(obj.name, obj.value)
+
+        if isinstance(obj, ChangeImageSetting):
+            self.image_settings.set(obj.name, obj.value)
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -895,8 +925,13 @@ class CameraModule(mp_module.MPModule):
             self.bsend.send(buf, priority=10000)
 
     def camera_settings_callback(self, setting):
-        '''called on a changed setting'''
-        pkt = ChangeSetting(setting.name, setting.value)
+        '''called on a changed camera setting'''
+        pkt = ChangeCameraSetting(setting.name, setting.value)
+        self.send_packet(pkt)
+
+    def image_settings_callback(self, setting):
+        '''called on a changed image setting'''
+        pkt = ChangeImageSetting(setting.name, setting.value)
         self.send_packet(pkt)
 
 def init(mpstate):
