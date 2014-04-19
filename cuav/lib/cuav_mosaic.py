@@ -142,10 +142,10 @@ class Mosaic():
                                       ]))
         if self.camera_settings:
             menu.add(MPMenuSubMenu('Camera',
-                                   items=[MPMenuItem('Options', 'Options', 'menuCameraOptions')]))
+                                   items=[MPMenuItem('Settings', 'Settings', 'menuCameraSettings')]))
         if self.image_settings:
             menu.add(MPMenuSubMenu('Image',
-                                   items=[MPMenuItem('Options', 'Options', 'menuImageOptions')]))
+                                   items=[MPMenuItem('Settings', 'Settings', 'menuImageSettings')]))
 
         self.menu = menu
         self.image_mosaic.set_menu(self.menu)
@@ -348,9 +348,9 @@ class Mosaic():
                 fullres = (event.returnkey == 'fetchImageFull')
                 frame_time = cuav_util.parse_frame_time(region.filename)
                 self.image_requests[frame_time] = fullres
-        elif event.returnkey == 'menuCameraOptions':
+        elif event.returnkey == 'menuCameraSettings':
             WXSettings(self.camera_settings)
-        elif event.returnkey == 'menuImageOptions':
+        elif event.returnkey == 'menuImageSettings':
             WXSettings(self.image_settings)
         self.redisplay_mosaic()
 

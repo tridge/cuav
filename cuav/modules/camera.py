@@ -110,35 +110,36 @@ class CameraModule(mp_module.MPModule):
 
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.camera_settings = MPSettings(
-            [ MPSetting('depth', int, 8, 'Image Depth', tab='Capture'),
-              MPSetting('capture_brightness', int, 150, 'Capture Brightness'),
-              MPSetting('gamma', int, 950, 'Capture Gamma'),
-              MPSetting('roll_stabilised', int, 1, 'Roll Stabilised'),
-              MPSetting('altitude', int, None, 'Altitude'),
-              MPSetting('filter_type', str, 'simple', 'Filter Type'),
-              MPSetting('fullres', int, 0, 'Full Resolution'),
-              MPSetting('framerate', int, 7, 'Frame Rate'),
+            [ MPSetting('depth', int, 8, 'Image Depth', choice=['8', '16'], tab='Capture'),
+              MPSetting('capture_brightness', int, 150, 'Capture Brightness', range=(10, 300), increment=1),
+              MPSetting('gamma', int, 950, 'Capture Gamma', range=(0,1000), increment=1),
+              MPSetting('roll_stabilised', bool, True, 'Roll Stabilised'),
+              MPSetting('altitude', int, 0, 'Altitude', range=(0,10000), increment=1),
+              MPSetting('filter_type', str, 'simple', 'Filter Type',
+                        choice=['simple', 'compactness']),
+              MPSetting('fullres', bool, False, 'Full Resolution'),
+              MPSetting('framerate', int, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
 
               MPSetting('gcs_address', str, None, 'GCS Address', tab='Comms'),
-              MPSetting('gcs_view_port', int, 7543, 'GCS View Port'),
+              MPSetting('gcs_view_port', int, 7543, 'GCS View Port', range=(1, 30000), increment=1),
               MPSetting('gcs_slave', str, None, 'GCS Slave'),
               MPSetting('bandwidth',  int, 40000, 'Link1 Bandwdith'),
               MPSetting('bandwidth2', int, 2000, 'Link2 Bandwidth'),
-              MPSetting('quality', int, 75, 'Compression Quality'),
-              MPSetting('transmit', int, 1, 'Transmit Enable'),
-              MPSetting('minscore', int, 75, 'Min Score Link1'),
-              MPSetting('minscore2', int, 500, 'Min Score Link2'),
-              MPSetting('send1', int, 1, 'Send on Link1'),
-              MPSetting('send2', int, 1, 'Send on Link2'),
+              MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
+              MPSetting('transmit', bool, True, 'Transmit Enable'),
+              MPSetting('send1', bool, True, 'Send on Link1'),
+              MPSetting('send2', bool, True, 'Send on Link2'),
               MPSetting('maxqueue1', int, None, 'Maximum queue Link1'),
               MPSetting('maxqueue2', int, 30, 'Maxqueue queue Link2'),
-              MPSetting('thumbsize', int, 60, 'Thumbnail Size'),
-              MPSetting('use_bsend2', int, 1, 'Enable Link2'),
+              MPSetting('thumbsize', int, 60, 'Thumbnail Size', range=(10, 200), increment=1),
+              MPSetting('use_bsend2', bool, True, 'Enable Link2'),
 
-              MPSetting('packet_loss', int, 0, 'Packet Loss', tab='Debug'),             
+              MPSetting('minscore', int, 75, 'Min Score Link1', range=(0,1000), increment=1, tab='Scoring'),
+              MPSetting('minscore2', int, 500, 'Min Score Link2', range=(0,1000), increment=1),
+              MPSetting('packet_loss', int, 0, 'Packet Loss', range=(0,100), increment=1, tab='Debug'),             
 
-              MPSetting('brightness', float, 1.0, 'Display Brightness', tab='Display'),
-              MPSetting('save_pgm', int, 1, 'Sava Raw Images')
+              MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1, digits=2, tab='Display'),
+              MPSetting('save_pgm', bool, True, 'Sava Raw Images')
               ]
             )
 
@@ -438,8 +439,11 @@ class CameraModule(mp_module.MPModule):
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
         '''add to joe.log if possible, returning a list of (lat,lon) tuples
         for the positions of the identified image regions'''
+        altitude = self.camera_settings.altitude
+        if altitude <= 0:
+            altitude = None
         return self.joelog.add_regions(frame_time, regions, pos, filename,
-                                       thumb_filename, altitude=self.camera_settings.altitude)
+                                       thumb_filename, altitude=altitude)
 
 
     def transmit_thread(self):
