@@ -450,8 +450,10 @@ def mkdir_p(dir):
 
 def frame_time(t):
     '''return a time string for a filename with 0.01 sec resolution'''
+    # round to the nearest 100th of a second
+    t += 0.005
     hundredths = int(t * 100.0) % 100
-    return "%s%02u" % (time.strftime("%Y%m%d%H%M%S", time.localtime(t)), hundredths)
+    return "%s%02uZ" % (time.strftime("%Y%m%d%H%M%S", time.gmtime(t)), hundredths)
 
 def parse_frame_time(filename):
 	'''parse a image frame time from a image filename
@@ -468,9 +470,13 @@ def parse_frame_time(filename):
 	# hundredths can be after a dash
 	if tstring[14] == '-':
 		hundredths = int(tstring[15:17])
+                z = tstring[17]
 	else:
 		hundredths = int(tstring[14:16])
+                z = tstring[16]
 	t += hundredths * 0.01
+        if z.upper() == 'Z':
+                t -= time.timezone
 	return t
 
 
