@@ -83,7 +83,8 @@ class Mosaic():
     def __init__(self, slipmap,
                  grid_width=20, grid_height=20, thumb_size=35, C=CameraParams(),
                  camera_settings = None,
-                 image_settings = None):
+                 image_settings = None,
+                 start_menu=False):
         self.thumb_size = thumb_size
         self.width = grid_width * thumb_size
         self.height = grid_height * thumb_size
@@ -105,6 +106,8 @@ class Mosaic():
         self.c_params = C
         self.camera_settings = camera_settings
         self.image_settings = image_settings
+        self.start_menu = start_menu
+        self.has_started = not start_menu
         import wx
         self.image_mosaic = mp_image.MPImage(title='Mosaic', 
                                              mouse_events=True,
@@ -126,6 +129,10 @@ class Mosaic():
     def add_menus(self):
         '''add menus'''
         menu = MPMenuTop([])
+        if self.start_menu:
+            menu.add(MPMenuSubMenu('GEOSearch',
+                                   items=[MPMenuItem('Start', 'Start', 'menuStart'),
+                                          MPMenuItem('Stop', 'Stop', 'menuStop')]))
         menu.add(MPMenuSubMenu('View',
                                items=[MPMenuRadio('Sort By', 'Select sorting key',
                                                   returnkey='setSort',
@@ -359,7 +366,15 @@ class Mosaic():
             WXSettings(self.camera_settings)
         elif event.returnkey == 'menuImageSettings':
             WXSettings(self.image_settings)
+        elif event.returnkey == 'menuStart':
+            self.has_started = True
+        elif event.returnkey == 'menuStop':
+            self.has_started = False
         self.redisplay_mosaic()
+
+    def started(self):
+        '''return if start button has been pushed'''
+        return self.has_started
 
     def popup_show_image(self, region):
         '''handle popup menu showImage'''

@@ -9,6 +9,7 @@ from cuav.lib import cuav_mosaic, mav_position, cuav_joe, cuav_region
 from cuav.camera import cam_params
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 from MAVProxy.modules.mavproxy_map import mp_image
+from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
 
 slipmap = None
 mosaic = None
@@ -79,35 +80,60 @@ def process(args):
   if opts.camera_params:
     C_params.load(opts.camera_params)
 
-  mosaic = cuav_mosaic.Mosaic(slipmap, C=C_params)
+  camera_settings = MPSettings(
+    [ MPSetting('roll_stabilised', bool, True, 'Roll Stabilised'),
+      MPSetting('altitude', int, 0, 'Altitude', range=(0,10000), increment=1),
+      MPSetting('filter_type', str, 'simple', 'Filter Type',
+                choice=['simple', 'compactness']),
+      MPSetting('fullres', bool, False, 'Full Resolution'),
+      MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
+      MPSetting('thumbsize', int, 60, 'Thumbnail Size', range=(10, 200), increment=1),
+      MPSetting('minscore', int, 75, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
+      MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
+                digits=2, tab='Display')
+      ],
+    title='Camera Settings'
+    )
+
+  image_settings = MPSettings(
+    [ MPSetting('MinRegionArea', float, 0.15, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
+      MPSetting('MaxRegionArea', float, 2.0, range=(0,100), increment=0.1, digits=1),
+      MPSetting('MinRegionSize', float, 0.1, range=(0,100), increment=0.05, digits=2),
+      MPSetting('MaxRegionSize', float, 2, range=(0,100), increment=0.1, digits=1),
+      MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
+      MPSetting('RegionMergeSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
+      MPSetting('SaveIntermediate', bool, False)
+      ],
+    title='Image Settings')
+  
+  mosaic = cuav_mosaic.Mosaic(slipmap, C=C_params,
+                              camera_settings=camera_settings,
+                              image_settings=image_settings,
+                              start_menu=True)
 
   joelog = cuav_joe.JoeLog(None)
 
   if opts.view:
     viewer = mp_image.MPImage(title='Image', can_zoom=True, can_drag=True)
 
-  scan_parms = {
-    'MinRegionArea' : opts.min_region_area,
-    'MaxRegionArea' : opts.max_region_area,
-    'MinRegionSize' : opts.min_region_size,
-    'MaxRegionSize' : opts.max_region_size,
-    'MaxRarityPct'  : opts.max_rarity_pct,
-    'RegionMergeSize' : opts.region_merge,
-    'SaveIntermediate' : float(opts.debug)
-    }
-
-  if opts.filter_type == 'compactness':
+  if camera_settings.filter_type == 'compactness':
     calculate_compactness = True
     print("Using compactness filter")
   else:
     calculate_compactness = False
 
   for f in files:
+      if not mosaic.started():
+        print("Waiting for startup")
+        while not mosaic.started():
+          mosaic.check_events()
+          time.sleep(0.01)
+
       if mpos:
         # get the position by interpolating telemetry data from the MAVLink log file
         # this assumes that the filename contains the timestamp 
         frame_time = cuav_util.parse_frame_time(f) + opts.time_offset
-        if opts.roll_stabilised:
+        if camera_settings.roll_stabilised:
           roll = 0
         else:
           roll = None
@@ -129,8 +155,8 @@ def process(args):
       # update the plane icon on the map
       if pos is not None:
         slipmap.set_position('plane', (pos.lat, pos.lon), rotation=pos.yaw)
-        if opts.altitude is not None:
-          pos.altitude = opts.altitude
+        if camera_settings.altitude > 0:
+          pos.altitude = camera_settings.altitude
 
       # check for any events from the map
       slipmap.check_events()
@@ -153,10 +179,15 @@ def process(args):
       total_time = 0
 
       t0=time.time()
-      if opts.fullres:
+      if camera_settings.fullres:
         img_scan = im_full
       else:
         img_scan = im_640
+
+      scan_parms = {}
+      for name in image_settings.list():
+        scan_parms[name] = image_settings.get(name)
+      scan_parms['SaveIntermediate'] = float(scan_parms['SaveIntermediate'])
 
       if pos is not None:
         (sw,sh) = cuav_util.image_shape(img_scan)
@@ -173,14 +204,19 @@ def process(args):
       frame_time = pos.time
 
       regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time,
-                                           min_score=opts.minscore, filter_type=opts.filter_type)
+                                           min_score=camera_settings.minscore,
+                                           filter_type=camera_settings.filter_type)
 
       scan_count += 1
 
       mosaic.add_image(pos.time, f, pos)
 
       if pos and len(regions) > 0:
-        joelog.add_regions(frame_time, regions, pos, f, width=w, height=h, altitude=opts.altitude)
+        altitude = camera_settings.altitude
+        if altitude <= 0:
+          altitude = None
+        joelog.add_regions(frame_time, regions, pos, f, width=w, height=h,
+                           altitude=altitude)
 
       region_count += len(regions)
 
@@ -225,23 +261,12 @@ def parse_args():
   parser.add_option("--mavlog", default=None, type=file_type, help="MAVLink telemetry log file")
   parser.add_option("--kmzlog", default=None, type=file_type, help="kmz file for image positions")
   parser.add_option("--triggerlog", default=None, type=file_type, help="robota trigger file for image positions")
-  parser.add_option("--minscore", default=500, type='int', help="minimum score")
-  parser.add_option("--filter-type", type='choice', default='simple', choices=['simple', 'compactness'], help="object filter type")
   parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
-  parser.add_option("--altitude", type='int', default=None, help="camera altitude above ground (meters)")
   parser.add_option("--view", action='store_true', default=False, help="show images")
   parser.add_option("--lens", default=28.0, type='float', help="lens focal length")
   parser.add_option("--sensorwidth", default=35.0, type='float', help="sensor width")
   parser.add_option("--service", default='MicrosoftSat', help="map service")
   parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
-  parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
-  parser.add_option("--fullres", action='store_true', default=False, help="scan at full resolution")
-  parser.add_option("--min-region-area", default=0.15, type='float', help="minimum region area (m^2)")
-  parser.add_option("--max-region-area", default=2.0, type='float', help="maximum region area (m^2)")
-  parser.add_option("--min-region-size", default=0.1, type='float', help="minimum region size (m)")
-  parser.add_option("--max-region-size", default=2.0, type='float', help="maximum region size (m)")
-  parser.add_option("--region-merge", default=3.0, type='float', help="region merge size (m)")
-  parser.add_option("--max-rarity-pct", default=0.02, type='float', help="maximum percentage rarity (percent)")
   parser.add_option("--debug", default=False, action='store_true', help="enable debug info")
   return parser.parse_args()
 
