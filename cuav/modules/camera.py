@@ -125,7 +125,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('filter_type', str, 'simple', 'Filter Type',
                         choice=['simple', 'compactness']),
               MPSetting('fullres', bool, False, 'Full Resolution'),
-              MPSetting('framerate', int, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
+              MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
 
               MPSetting('gcs_address', str, None, 'GCS Address', tab='GCS'),
               MPSetting('gcs_view_port', int, 7543, 'GCS View Port', range=(1, 30000), increment=1),
@@ -361,9 +361,9 @@ class CameraModule(mp_module.MPModule):
                 if last_gamma != self.camera_settings.gamma:
                     chameleon.set_gamma(h, self.camera_settings.gamma)
                     last_gamma = self.camera_settings.gamma
-                if last_framerate != self.camera_settings.framerate:
-                    chameleon.set_framerate(h, self.camera_settings.framerate)
-                    last_framerate = self.camera_settings.framerate
+                if last_framerate != int(self.camera_settings.framerate):
+                    chameleon.set_framerate(h, int(self.camera_settings.framerate))
+                    last_framerate = int(self.camera_settings.framerate)
                 frame_time, frame_counter, shutter = chameleon.capture(h, 1000, im)
                 if frame_time < last_frame_time:
                     base_time += 128
