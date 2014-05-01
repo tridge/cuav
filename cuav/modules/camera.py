@@ -13,7 +13,7 @@ from cuav.image import scanner
 from pymavlink import mavutil
 from cuav.lib import cuav_mosaic, mav_position, cuav_util, cuav_joe, block_xmit, cuav_region
 from MAVProxy.modules.lib import mp_settings
-from MAVProxy.modules.mavproxy_map import mp_image
+from MAVProxy.modules.lib import mp_image
 from cuav.camera.cam_params import CameraParams
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 

@@ -5,7 +5,7 @@ import pyexiv2, datetime
 
 from cuav.lib import cuav_util, cuav_mosaic, mav_position, cuav_joe, cuav_region
 from MAVProxy.modules.mavproxy_map import mp_slipmap
-from MAVProxy.modules.mavproxy_map import mp_image
+from MAVProxy.modules.lib import mp_image
 
 from optparse import OptionParser
 parser = OptionParser("geotag.py [options] <directory|files>")

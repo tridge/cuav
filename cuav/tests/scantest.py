@@ -6,7 +6,7 @@ from cuav.image import scanner
 from cuav.lib import cuav_util, cuav_mosaic, mav_position, cuav_joe, cuav_region
 from cuav.camera import chameleon, cam_params
 from MAVProxy.modules.mavproxy_map import mp_slipmap
-from MAVProxy.modules.mavproxy_map import mp_image
+from MAVProxy.modules.lib import mp_image
 
 from optparse import OptionParser
 parser = OptionParser("scantest.py [options] <directory>")

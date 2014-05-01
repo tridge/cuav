@@ -7,7 +7,8 @@ May 2012
 
 import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
 
-from MAVProxy.modules.mavproxy_map import mp_image, mp_slipmap
+from MAVProxy.modules.lib import mp_image
+from MAVProxy.modules.mavproxy_map import mp_slipmap
 from cuav.image import scanner
 from cuav.camera.cam_params import CameraParams
 from MAVProxy.modules.lib.mp_menu import *

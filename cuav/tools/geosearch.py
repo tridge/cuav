@@ -8,7 +8,7 @@ from cuav.image import scanner
 from cuav.lib import cuav_mosaic, mav_position, cuav_joe, cuav_region
 from cuav.camera import cam_params
 from MAVProxy.modules.mavproxy_map import mp_slipmap
-from MAVProxy.modules.mavproxy_map import mp_image
+from MAVProxy.modules.lib import mp_image
 from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
 
 slipmap = None
