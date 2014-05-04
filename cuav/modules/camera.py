@@ -47,7 +47,9 @@ class MavSocket:
         if len(self.incoming) == 0:
             return ('', 'mavlink')
         m = self.incoming.pop(0)
-        buf = bytes(m.data[:m.len])
+        data = m.data[:m.len]
+        s = ''.join([ord(x) for x in data])
+        buf = bytes(s)
         return (buf, 'mavlink')
 
 class ImagePacket:
