@@ -31,24 +31,26 @@ class MavSocket:
         self.incoming = []
 
     def sendto(self, buf, dest):
+        dbuf = [ord(x) for x in buf]
+        dbuf.extend([0]*(96-len(dbuf)))
         if len(buf) <= 16:
-            self.master.mav.data16_send(0, len(buf), buf)
+            self.master.mav.data16_send(0, len(buf), dbuf)
         elif len(buf) <= 32:
-            self.master.mav.data32_send(0, len(buf), buf)
+            self.master.mav.data32_send(0, len(buf), dbuf)
         elif len(buf) <= 64:
-            self.master.mav.data64_send(0, len(buf), buf)
+            self.master.mav.data64_send(0, len(buf), dbuf)
         elif len(buf) <= 96:
-            self.master.mav.data96_send(0, len(buf), buf)
+            self.master.mav.data96_send(0, len(buf), dbuf)
         else:
-            print("PACKET TOO LARGE %u" % len(buf))
-            raise RuntimeError('packet too large %u' % len(buf))
+            print("PACKET TOO LARGE %u" % len(dbuf))
+            raise RuntimeError('packet too large %u' % len(dbuf))
 
     def recvfrom(self, size):
         if len(self.incoming) == 0:
             return ('', 'mavlink')
         m = self.incoming.pop(0)
         data = m.data[:m.len]
-        s = ''.join([ord(x) for x in data])
+        s = ''.join([chr(x) for x in data])
         buf = bytes(s)
         return (buf, 'mavlink')
 
@@ -248,9 +250,9 @@ class CameraModule(mp_module.MPModule):
                 self.region_count, 
                 self.jpeg_size,
                 self.xmit_queue, self.xmit_queue2, self.frame_loss, self.scan_queue.qsize(), self.efficiency))
-            # print("self.bsend2 is ", self.bsend2)
+            print("self.bsend2 is ", self.bsend2)
             if self.bsend2 is not None:
-                self.bsend2.report(detailed=False)
+                self.bsend2.report(detailed=True)
         elif args[0] == "queue":
             print("scan %u  save %u  transmit %u  eff %.1f  bw %.1f  rtt %.1f" % (
                 self.scan_queue.qsize(),
@@ -633,7 +635,6 @@ class CameraModule(mp_module.MPModule):
             self.bsend2 = block_xmit.BlockSender(mss=96, sock=self.bsocket, dest_ip='mavlink',
                                                  dest_port=0, backlog=5, debug=False)
             self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
-
 
 
     def view_thread(self):
