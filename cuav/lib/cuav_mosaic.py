@@ -113,7 +113,8 @@ class Mosaic():
         self.image_mosaic = mp_image.MPImage(title='Mosaic', 
                                              mouse_events=True,
                                              key_events=True,
-                                             auto_size=True)
+                                             auto_size=False,
+                                             report_size_changes=True)
         self.slipmap = slipmap
         self.selected_region = 0
 
@@ -164,6 +165,19 @@ class Mosaic():
                                                MPMenuItem('Fetch Image (full)', returnkey='fetchImageFull')])
         self.image_mosaic.set_popup_menu(self.popup_menu)
 
+    def set_mosaic_size(self, size):
+        '''change mosaic size'''
+        (self.width, self.height) = size
+        grid_width = self.width // self.thumb_size
+        if grid_width < 1:
+            grid_width = 1
+        grid_height = self.height // self.thumb_size
+        if grid_height < 1:
+            grid_height = 1
+        ridx = self.page * self.display_regions
+        self.display_regions = grid_width * grid_height
+        self.page = ridx / self.display_regions
+        self.redisplay_mosaic()
 
     def set_brightness(self, b):
         '''set mosaic brightness'''
@@ -472,19 +486,26 @@ class Mosaic():
     def display_mosaic_region(self, ridx):
         '''display a thumbnail on the mosaic'''
         region = self.regions_sorted[ridx]
+        width = (self.width // self.thumb_size) * self.thumb_size
         page_idx = ridx - self.page * self.display_regions
         if page_idx < 0 or page_idx >= self.display_regions:
             # its not on this page
             return
-        dest_x = (page_idx * self.thumb_size) % self.width
-        dest_y = ((page_idx * self.thumb_size) / self.width) * self.thumb_size
+        dest_x = (page_idx * self.thumb_size) % width
+        dest_y = ((page_idx * self.thumb_size) / width) * self.thumb_size
 
         # overlay thumbnail on mosaic
-        cuav_util.OverlayImage(self.mosaic, region.small_thumbnail, dest_x, dest_y)
+        #print dest_x, dest_y, self.width, self.height, self.thumb_size, cuav_util.image_width(region.small_thumbnail)
+        try:
+            cuav_util.OverlayImage(self.mosaic, region.small_thumbnail, dest_x, dest_y)
+        except Exception:
+            pass
 
     def redisplay_mosaic(self):
         '''re-display whole mosaic page'''
-        self.mosaic = cv.CreateImage((self.height,self.width),8,3)
+        width = (self.width // self.thumb_size) * self.thumb_size
+        height = (self.height // self.thumb_size) * self.thumb_size
+        self.mosaic = cv.CreateImage((width,height),8,3)
         cuav_util.zero_image(self.mosaic)
         for ridx in range(len(self.regions)):
             self.display_mosaic_region(ridx)
@@ -548,12 +569,17 @@ class Mosaic():
         '''check for mouse/keyboard events'''
         if self.image_mosaic.is_alive():
             for event in self.image_mosaic.events():
-                if isinstance(event, MPMenuGeneric):
+                if isinstance(event, mp_image.MPImageNewSize):
+                    self.set_mosaic_size(event.size)
+                elif isinstance(event, MPMenuGeneric):
                     self.menu_event(event)
                 elif event.ClassName == 'wxMouseEvent':
                     self.mouse_event(event)
                 elif event.ClassName == 'wxKeyEvent':
                     self.key_event(event)
+                else:
+                    print('unknown event ', event)
+                    print(dir(event))
         if self.view_image and self.view_image.is_alive():
             for event in self.view_image.events():
                 if isinstance(event, MPMenuGeneric):
