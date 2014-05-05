@@ -144,6 +144,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('maxqueue1', int, None, 'Maximum queue Link1'),
               MPSetting('maxqueue2', int, 30, 'Maxqueue queue Link2'),
               MPSetting('thumbsize', int, 60, 'Thumbnail Size', range=(10, 200), increment=1),
+              MPSetting('mosaic_thumbsize', int, 35, 'Mosaic Thumbnail Size', range=(10, 200), increment=1),
               MPSetting('use_bsend2', bool, True, 'Enable Link2'),
 
               MPSetting('minscore', int, 75, 'Min Score Link1', range=(0,1000), increment=1, tab='Scoring'),
@@ -689,7 +690,8 @@ class CameraModule(mp_module.MPModule):
                 view_window = True
                 mosaic = cuav_mosaic.Mosaic(slipmap=self.mpstate.map, C=self.c_params,
                                             camera_settings=self.camera_settings,
-                                            image_settings=self.image_settings)
+                                            image_settings=self.image_settings,
+                                            thumb_size=self.camera_settings.mosaic_thumbsize)
                 if self.boundary_polygon is not None:
                     mosaic.set_boundary(self.boundary_polygon)
                 if self.continue_mode:
