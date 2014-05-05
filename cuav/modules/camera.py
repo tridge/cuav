@@ -782,8 +782,13 @@ class CameraModule(mp_module.MPModule):
                     mosaic.add_image(obj.frame_time, filename, obj.pos)
 
                 if obj.priority != 0:
-                    print("Downloaded image %s" % filename)
-
+                    print("Downloaded image %s (width %u)" % (filename, img.width))
+                    if img.width >= 1280:
+                        tag_color = (0,0,255)
+                    else:
+                        tag_color = (0,255,0)
+                    mosaic.tag_image(obj.frame_time, tag_color=tag_color)
+                    
                 cv.ConvertScale(display_img, display_img, scale=self.camera_settings.brightness)
                 img_window.set_image(display_img, bgr=True)
 

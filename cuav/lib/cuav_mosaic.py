@@ -26,6 +26,12 @@ class MosaicRegion:
         self.ridx = ridx
         self.score = region.score
 
+    def tag_image_available(self, color=(0,255,255)):
+        '''tag the small thumbnail image with a marker making it clear the
+        full image is available'''
+        (w,h) = cuav_util.image_shape(self.small_thumbnail)
+        cv.Rectangle(self.small_thumbnail, (w-3,0), (w-1,2), color, 2) 
+
     def __str__(self):
         position_string = ''
         if self.latlon != (None,None):
@@ -94,6 +100,7 @@ class Mosaic():
         self.display_regions = grid_width*grid_height
         self.regions = []
         self.regions_sorted = []
+        self.ridx_by_frame_time = {}
         self.page = 0
         self.sort_type = 'Time'
         self.images = []
@@ -551,6 +558,12 @@ class Mosaic():
             self.regions.append(MosaicRegion(ridx, r, filename, pos, thumbs[i], thumb, latlon=(lat,lon)))
             self.regions_sorted.append(self.regions[-1])
 
+            frame_time = cuav_util.parse_frame_time(filename)
+            if not frame_time in self.ridx_by_frame_time:
+                self.ridx_by_frame_time[frame_time] = [ridx]
+            else:
+                self.ridx_by_frame_time[frame_time].append(ridx)
+
             self.display_mosaic_region(ridx)
 
             if (lat,lon) != (None,None):
@@ -564,6 +577,13 @@ class Mosaic():
     def add_image(self, frame_time, filename, pos):
         '''add a camera image'''
         self.images.append(MosaicImage(frame_time, filename, pos))
+
+    def tag_image(self, frame_time, tag_color=(0,255,255)):
+        '''tag a mosaic image'''
+        if frame_time in self.ridx_by_frame_time:
+            for ridx in self.ridx_by_frame_time[frame_time]:
+                self.regions[ridx].tag_image_available(color=tag_color)
+                self.display_mosaic_region(ridx)
 
     def check_events(self):
         '''check for mouse/keyboard events'''
