@@ -130,6 +130,7 @@ class CameraModule(mp_module.MPModule):
                         choice=['simple', 'compactness']),
               MPSetting('fullres', bool, False, 'Full Resolution'),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
+              MPSetting('process_rate', int, 1, 'Process Rate', range=(1,50), increment=1),
 
               MPSetting('gcs_address', str, None, 'GCS Address', tab='GCS'),
               MPSetting('gcs_view_port', int, 7543, 'GCS View Port', range=(1, 30000), increment=1),
@@ -169,6 +170,7 @@ class CameraModule(mp_module.MPModule):
             title='Image Settings')
 
         self.capture_count = 0
+        self.process_counter = 0
         self.scan_count = 0
         self.error_count = 0
         self.error_msg = None
@@ -369,11 +371,18 @@ class CameraModule(mp_module.MPModule):
                 if last_framerate != int(self.camera_settings.framerate):
                     chameleon.set_framerate(h, int(self.camera_settings.framerate))
                     last_framerate = int(self.camera_settings.framerate)
+
+                # capture an image
                 frame_time, frame_counter, shutter = chameleon.capture(h, 1000, im)
                 if frame_time < last_frame_time:
                     base_time += 128
                 if last_frame_counter != 0:
                     self.frame_loss += frame_counter - (last_frame_counter+1)
+
+                # discard based on process_rate setting
+                self.process_counter = (self.process_counter + 1) % self.camera_settings.process_rate
+                if self.process_counter % self.camera_settings.process_rate != 0:
+                    continue
                 
                 gammalog.write('%f %f %f %s %u %u\n' % (frame_time,
                                                         frame_time+base_time,
