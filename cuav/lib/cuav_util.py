@@ -476,7 +476,7 @@ def parse_frame_time(filename):
                 z = tstring[16]
 	t += hundredths * 0.01
         if z.upper() == 'Z':
-                t -= time.timezone
+                t -= time.altzone
 	return t
 
 
