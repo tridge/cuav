@@ -466,7 +466,9 @@ def parse_frame_time(filename):
                         return mav_position.exif_timestamp(filename)
 		raise RuntimeError('unable to parse filename %s into time' % basename)
 	tstring = basename[i:]
-	t = time.mktime(time.strptime(tstring[:14], "%Y%m%d%H%M%S"))
+        ttuple = time.strptime(tstring[:14], "%Y%m%d%H%M%S")
+	t = time.mktime(ttuple)
+        dst = time.localtime().tm_isdst
 	# hundredths can be after a dash
 	if tstring[14] == '-':
 		hundredths = int(tstring[15:17])
@@ -476,7 +478,10 @@ def parse_frame_time(filename):
                 z = tstring[16]
 	t += hundredths * 0.01
         if z.upper() == 'Z':
-                t -= time.altzone
+                if dst > 0:
+                        t -= time.altzone
+                else:
+                        t -= time.timezone
 	return t
 
 
