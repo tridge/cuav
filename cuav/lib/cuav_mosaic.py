@@ -142,20 +142,21 @@ class Mosaic():
             menu.add(MPMenuSubMenu('GEOSearch',
                                    items=[MPMenuItem('Start', 'Start', 'menuStart'),
                                           MPMenuItem('Stop', 'Stop', 'menuStop')]))
-        menu.add(MPMenuSubMenu('View',
-                               items=[MPMenuRadio('Sort By', 'Select sorting key',
-                                                  returnkey='setSort',
-                                                  selected=self.sort_type,
-                                                  items=['Score\tAlt+S',
-                                                         'Compactness\tAlt+C',
-                                                         'Distinctiveness\tAlt+D',
-                                                         'Whiteness\tAlt+W',
-                                                         'Time\tAlt+T']),
-                                      MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
-                                      MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage'),
-                                      MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
-                                      MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness')
-                                      ]))
+        view_menu = MPMenuSubMenu('View',
+                                  items=[MPMenuRadio('Sort By', 'Select sorting key',
+                                                     returnkey='setSort',
+                                                     selected=self.sort_type,
+                                                     items=['Score\tAlt+S',
+                                                            'Compactness\tAlt+C',
+                                                            'Distinctiveness\tAlt+D',
+                                                            'Whiteness\tAlt+W',
+                                                            'Time\tAlt+T']),
+                                         MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
+                                         MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage'),
+                                         MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
+                                         MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness')
+                                         ])
+        menu.add(view_menu)
         if self.camera_settings:
             menu.add(MPMenuSubMenu('Camera',
                                    items=[MPMenuItem('Settings', 'Settings', 'menuCameraSettings')]))
@@ -169,7 +170,8 @@ class Mosaic():
         self.popup_menu = MPMenuSubMenu('Popup',
                                         items=[MPMenuItem('Show Image', returnkey='showImage'),
                                                MPMenuItem('Fetch Image', returnkey='fetchImage'),
-                                               MPMenuItem('Fetch Image (full)', returnkey='fetchImageFull')])
+                                               MPMenuItem('Fetch Image (full)', returnkey='fetchImageFull'),
+                                               view_menu])
         self.image_mosaic.set_popup_menu(self.popup_menu)
 
     def set_mosaic_size(self, size):
