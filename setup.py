@@ -1,6 +1,6 @@
 from setuptools import setup, Extension
 import numpy as np
-import platform
+import platform, os
 
 version = '1.3.1'
 
@@ -11,7 +11,10 @@ if platform.system() == 'Windows':
     jpegturbo_incpath = "c:\libjpeg-turbo-gcc\include"
     extra_compile_args=["-std=gnu99", "-O3"]
 else:
-    jpegturbo_libpath = "/opt/libjpeg-turbo/lib"
+    if os.path.exists("/opt/libjpeg-turbo/lib64/libturbojpeg.so"):
+        jpegturbo_libpath = "/opt/libjpeg-turbo/lib64"
+    else:
+        jpegturbo_libpath = "/opt/libjpeg-turbo/lib"
     jpegturbo_incpath = "/opt/libjpeg-turbo/include"
     if platform.machine().find('arm') != -1:
         extra_compile_args=["-std=gnu99", "-O3", "-mfpu=neon"]
