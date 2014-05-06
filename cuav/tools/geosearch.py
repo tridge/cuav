@@ -130,7 +130,7 @@ def process(args):
       MPSetting('MaxRegionSize', float, 2, range=(0,100), increment=0.1, digits=1),
       MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
       MPSetting('RegionMergeSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
-      MPSetting('SaveIntermediate', bool, False)
+      MPSetting('SaveIntermediate', bool, opts.debug)
       ],
     title='Image Settings')
   
