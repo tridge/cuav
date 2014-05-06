@@ -389,18 +389,18 @@ class CameraModule(mp_module.MPModule):
                 if self.process_counter % self.camera_settings.process_divider != 0:
                     continue
                 
-                gammalog.write('%f %f %f %s %u %u\n' % (frame_time,
-                                                        frame_time+base_time,
-                                                        capture_time,
-                                                        cuav_util.frame_time(frame_time+base_time),
-                                                        frame_counter,
-                                                        self.camera_settings.gamma))
-                gammalog.flush()
-
                 if self.camera_settings.use_capture_time:
                     img_time = capture_time
                 else:
                     img_time = base_time + frame_time
+
+                gammalog.write('%f %f %f %s %u %u\n' % (frame_time,
+                                                        frame_time+base_time,
+                                                        capture_time,
+                                                        cuav_util.frame_time(img_time),
+                                                        frame_counter,
+                                                        self.camera_settings.gamma))
+                gammalog.flush()
 
                 self.save_queue.put((img_time,im))
                 self.scan_queue.put((img_time,im))
