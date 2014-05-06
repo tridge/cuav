@@ -756,3 +756,33 @@ def zero_image(img):
 	'''zero an image'''
         cv.ConvertScale(img, img, scale=0)
 
+
+def set_system_clock(time_seconds):
+    '''sync system clock with GPS time
+    Thanks to tMC http://stackoverflow.com/questions/12081310/python-module-to-change-system-date-and-time
+    '''
+    import ctypes
+    import ctypes.util
+
+    # define CLOCK_REALTIME 0
+    CLOCK_REALTIME = 0
+
+    # /usr/include/time.h
+    #
+    # struct timespec
+    #  {
+    #    __time_t tv_sec;            /* Seconds.  */
+    #    long int tv_nsec;           /* Nanoseconds.  */
+    #  };
+    class timespec(ctypes.Structure):
+        _fields_ = [("tv_sec", ctypes.c_long), # hmm, is c_long right? what about 64bit time_t?
+                    ("tv_nsec", ctypes.c_long)]
+        
+    librt = ctypes.CDLL(ctypes.util.find_library("rt"))
+
+    ts = timespec()
+    ts.tv_sec = int(time_seconds)
+    ts.tv_nsec = int((time_seconds - int(time_seconds))*1e9)
+
+    # http://linux.die.net/man/3/clock_settime
+    return librt.clock_settime(CLOCK_REALTIME, ctypes.byref(ts))
