@@ -24,6 +24,29 @@ def file_list(directory, extensions):
         flist.append(os.path.join(root, f))
   return flist
 
+
+def parse_gamma_log(gammalog):
+  '''parse gamma.log to process a mapping between frame_time string and GMT time of capture'''
+  f = open(gammalog)
+  lines = f.readlines()
+  f.close()
+  ret = {}
+  for line in lines:
+    a = line.split()
+    capture_time = float(a[2])
+    tstring = a[3]
+    ret[tstring] = capture_time
+  return ret
+
+def parse_gamma_time(fname, gamma):
+  '''get GMT capture_time from filename and gamma hash'''
+  (root, ext) = os.path.splitext(os.path.basename(fname))
+  if root.lower().startswith("raw"):
+    root = root[3:]
+  if root in gamma:
+    return gamma[root]
+  return cuav_util.parse_frame_time(fname)
+
 def process(args):
   '''process a set of files'''
 
@@ -64,6 +87,11 @@ def process(args):
   else:
     mpos = None
 
+  if opts.gammalog is not None:
+    gamma = parse_gamma_log(opts.gammalog)
+  else:
+    gamma = None
+
   if opts.kmzlog:
     kmzpos = mav_position.KmlPosition(opts.kmzlog)
   else:
@@ -81,14 +109,14 @@ def process(args):
     C_params.load(opts.camera_params)
 
   camera_settings = MPSettings(
-    [ MPSetting('roll_stabilised', bool, True, 'Roll Stabilised'),
-      MPSetting('altitude', int, 0, 'Altitude', range=(0,10000), increment=1),
+    [ MPSetting('roll_stabilised', bool, opts.roll_stabilised, 'Roll Stabilised'),
+      MPSetting('altitude', int, opts.altitude, 'Altitude', range=(0,10000), increment=1),
       MPSetting('filter_type', str, 'simple', 'Filter Type',
                 choice=['simple', 'compactness']),
-      MPSetting('fullres', bool, False, 'Full Resolution'),
+      MPSetting('fullres', bool, opts.fullres, 'Full Resolution'),
       MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
-      MPSetting('thumbsize', int, 60, 'Thumbnail Size', range=(10, 200), increment=1),
-      MPSetting('minscore', int, 75, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
+      MPSetting('thumbsize', int, opts.thumbsize, 'Thumbnail Size', range=(10, 200), increment=1),
+      MPSetting('minscore', int, opts.minscore, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
       MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
                 digits=2, tab='Display')
       ],
@@ -109,7 +137,8 @@ def process(args):
   mosaic = cuav_mosaic.Mosaic(slipmap, C=C_params,
                               camera_settings=camera_settings,
                               image_settings=image_settings,
-                              start_menu=True)
+                              start_menu=True,
+                              thumb_size=opts.mosaic_thumbsize)
 
   joelog = cuav_joe.JoeLog(None)
 
@@ -132,7 +161,11 @@ def process(args):
       if mpos:
         # get the position by interpolating telemetry data from the MAVLink log file
         # this assumes that the filename contains the timestamp 
-        frame_time = cuav_util.parse_frame_time(f) + opts.time_offset
+        if gamma is not None:
+          frame_time = parse_gamma_time(f, gamma)
+        else:
+          frame_time = cuav_util.parse_frame_time(f)
+        frame_time += opts.time_offset
         if camera_settings.roll_stabilised:
           roll = 0
         else:
@@ -268,6 +301,13 @@ def parse_args():
   parser.add_option("--service", default='MicrosoftSat', help="map service")
   parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
   parser.add_option("--debug", default=False, action='store_true', help="enable debug info")
+  parser.add_option("--fullres", default=False, action='store_true', help="use full camera resolution")
+  parser.add_option("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
+  parser.add_option("--altitude", default=0, type='float', help="altitude (0 for auto)")
+  parser.add_option("--thumbsize", default=60, type='int', help="thumbnail size")
+  parser.add_option("--mosaic-thumbsize", default=35, type='int', help="mosaic thumbnail size")
+  parser.add_option("--minscore", default=700, type='int', help="minimum score")
+  parser.add_option("--gammalog", default=None, type='str', help="gamma.log from flight")
   return parser.parse_args()
 
 if __name__ == '__main__':
