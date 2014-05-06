@@ -130,7 +130,8 @@ class CameraModule(mp_module.MPModule):
                         choice=['simple', 'compactness']),
               MPSetting('fullres', bool, False, 'Full Resolution'),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
-              MPSetting('process_rate', int, 1, 'Process Rate', range=(1,50), increment=1),
+              MPSetting('process_divider', int, 1, 'Process Divider', range=(1,50), increment=1),
+              MPSetting('use_capture_time', bool, False, 'Use Capture Time'),
 
               MPSetting('gcs_address', str, None, 'GCS Address', tab='GCS'),
               MPSetting('gcs_view_port', int, 7543, 'GCS View Port', range=(1, 30000), increment=1),
@@ -150,7 +151,8 @@ class CameraModule(mp_module.MPModule):
 
               MPSetting('minscore', int, 75, 'Min Score Link1', range=(0,1000), increment=1, tab='Scoring'),
               MPSetting('minscore2', int, 500, 'Min Score Link2', range=(0,1000), increment=1),
-              MPSetting('packet_loss', int, 0, 'Packet Loss', range=(0,100), increment=1, tab='Debug'),             
+              MPSetting('packet_loss', int, 0, 'Packet Loss', range=(0,100), increment=1, tab='Misc'),             
+              MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),             
 
               MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
                         digits=2, tab='Display')
@@ -182,6 +184,7 @@ class CameraModule(mp_module.MPModule):
         self.scan_queue = Queue.Queue()
         self.transmit_queue = Queue.Queue()
         self.viewing = False
+        self.have_set_gps_time = False
         
         self.c_params = CameraParams(lens=4.0)
         self.jpeg_size = 0
@@ -357,6 +360,7 @@ class CameraModule(mp_module.MPModule):
             try:
                 if h is None:
                     h, base_time, last_frame_time = self.get_base_time()
+                    last_capture_frame_time = last_frame_time
                     # put into continuous mode
                     chameleon.trigger(h, True)
 
@@ -374,14 +378,15 @@ class CameraModule(mp_module.MPModule):
 
                 # capture an image
                 frame_time, frame_counter, shutter = chameleon.capture(h, 1000, im)
-                if frame_time < last_frame_time:
+                if frame_time < last_capture_frame_time:
                     base_time += 128
+                last_capture_frame_time = frame_time
                 if last_frame_counter != 0:
                     self.frame_loss += frame_counter - (last_frame_counter+1)
 
-                # discard based on process_rate setting
-                self.process_counter = (self.process_counter + 1) % self.camera_settings.process_rate
-                if self.process_counter % self.camera_settings.process_rate != 0:
+                # discard based on process_divider setting
+                self.process_counter = (self.process_counter + 1) % self.camera_settings.process_divider
+                if self.process_counter % self.camera_settings.process_divider != 0:
                     continue
                 
                 gammalog.write('%f %f %f %s %u %u\n' % (frame_time,
@@ -392,8 +397,13 @@ class CameraModule(mp_module.MPModule):
                                                         self.camera_settings.gamma))
                 gammalog.flush()
 
-                self.save_queue.put((base_time+frame_time,im))
-                self.scan_queue.put((base_time+frame_time,im))
+                if self.camera_settings.use_capture_time:
+                    img_time = capture_time
+                else:
+                    img_time = base_time + frame_time
+
+                self.save_queue.put((img_time,im))
+                self.scan_queue.put((img_time,im))
                 self.capture_count += 1
                 self.fps = 1.0/(frame_time - last_frame_time)
 
@@ -886,6 +896,27 @@ class CameraModule(mp_module.MPModule):
         if m.get_type() in [ 'DATA16', 'DATA32', 'DATA64', 'DATA96' ]:
             if self.bsocket is not None:
                 self.bsocket.incoming.append(m)
+        if m.get_type() == 'SYSTEM_TIME' and self.camera_settings.clock_sync and self.capture_thread_h is not None:
+            # optionally sync system clock on the capture side
+            self.sync_gps_clock(m.time_unix_usec)
+
+    def sync_gps_clock(self, time_usec):
+        '''sync system clock with GPS time'''
+        if time_usec == 0:
+            # no GPS lock
+            return
+        if os.geteuid() != 0:
+            # can only do this as root
+            return
+        time_seconds = time_usec*1.0e-6
+        if self.have_set_gps_time and abs(time_seconds - time.time()) < 10:
+            # only change a 2nd time if time is off by 10 seconds
+            return
+        t1 = time.time()
+        cuav_util.set_system_clock(time_seconds)
+        t2 = time.time()
+        print("Changed system time by %.2f seconds" % (t2-t1))
+        self.have_set_gps_time = True
 
     def check_requested_images(self, mosaic):
         '''check if the user has requested download of an image'''
