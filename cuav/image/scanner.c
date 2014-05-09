@@ -384,6 +384,12 @@ static void quantise_image(const struct bgr *in,
 	}
 }
 
+static bool is_zero_bgr(const struct bgr *v)
+{
+	return v->r == 0 && v->g == 0 && v->b == 0;
+}
+
+
 /*
   unquantise an BGR image, useful for visualising the effect of
   quantisation by restoring the original colour ranges, which makes
@@ -399,9 +405,13 @@ static void unquantise_image(const struct bgr_image *in,
 	for (y=0; y<in->height; y++) {
 		for (x=0; x<in->width; x++) {
 			const struct bgr *v = &in->data[y][x];
-			out->data[y][x].r = (v->r * bin_spacing->r) + min->r;
-			out->data[y][x].g = (v->g * bin_spacing->g) + min->g;
-			out->data[y][x].b = (v->b * bin_spacing->b) + min->b;
+			if (is_zero_bgr(v)) {
+                            out->data[y][x] = *v;
+                        } else {
+                            out->data[y][x].r = (v->r * bin_spacing->r) + min->r;
+                            out->data[y][x].g = (v->g * bin_spacing->g) + min->g;
+                            out->data[y][x].b = (v->b * bin_spacing->b) + min->b;
+                        }
 		}
 	}
 
@@ -592,11 +602,6 @@ static void colour_histogram(const struct scan_params *scan_params,
 
 #define REGION_UNKNOWN -2
 #define REGION_NONE -1
-
-static bool is_zero_bgr(const struct bgr *v)
-{
-	return v->r == 0 && v->g == 0 && v->b == 0;
-}
 
 /*
   find a region number for a pixel by looking at the surrounding pixels
