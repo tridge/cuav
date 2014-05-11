@@ -14,7 +14,7 @@
 /*
   create a matrix of any dimension. The return must be cast correctly.
 */
-void *any_matrix(uint8_t dimension, uint16_t el_size, uint16_t header_size, ...)
+void *any_matrix(uint8_t dimension, uint16_t el_size, uint32_t header_size, ...)
 {
         uint16_t dims[dimension];
 	void **mat;

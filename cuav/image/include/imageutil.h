@@ -39,7 +39,7 @@ struct bgr_image {
  */
 void *any_matrix(uint8_t dimension, 
                  uint16_t el_size, 
-                 uint16_t header_size, ...);
+                 uint32_t header_size, ...);
 
 /*
   allocate an RGM 8 bit image
