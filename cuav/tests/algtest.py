@@ -14,9 +14,9 @@ parser = OptionParser("algtest.py [options] <file>")
 
 slipmap = None
 
-def show_image(view, selected_image, im_rgb):
+def show_image(view, selected_image, im_rgb, fname):
   '''show a image view'''
-  view.set_title(selected_image)
+  view.set_title("%s %s" % (selected_image, fname))
   if selected_image == "original":
     view.set_image(im_rgb)
     return
@@ -25,10 +25,26 @@ def show_image(view, selected_image, im_rgb):
   im_rgb = cv.fromarray(im_numpy)
   view.set_image(im_rgb)
 
+def file_list(directory, extensions):
+  '''return file list for a directory'''
+  flist = []
+  for (root, dirs, files) in os.walk(directory):
+    for f in files:
+      extension = f.split('.')[-1]
+      if extension.lower() in extensions:
+        flist.append(os.path.join(root, f))
+  return flist
+
 def process(args):
 	'''process a file'''
         file_index = 0
-        fname = args[file_index]
+
+        if os.path.isdir(args[0]):
+          files = file_list(args[0], ['jpg', 'pgm', 'png'])
+        else:
+          files = args
+
+        fname = files[file_index]
 
         settings = MPSettings(
           [
@@ -54,6 +70,8 @@ def process(args):
           MPMenuItem('Thresholded Image', 'Thresholded Image', 'thresholdedImage'),
           MPMenuItem('Neighbours Image', 'Neighbours Image', 'neighboursImage'),
           MPMenuItem('Regions Image', 'Regions Image', 'regionsImage'),
+          MPMenuItem('Prune Large Image', 'Prune Large Image', 'prunelargeImage'),
+          MPMenuItem('Merged Image', 'Merged Large', 'mergedImage'),
           MPMenuItem('Pruned Image', 'Pruned Image', 'prunedImage'),
           MPMenuItem('Fit Window', 'Fit Window', 'fitWindow'),
           MPMenuItem('Full Zoom',  'Full Zoom', 'fullSize'),
@@ -92,23 +110,23 @@ def process(args):
                                                      cuav_util.image_shape(im_orig),
                                                      cuav_util.image_shape(im_orig), False)    
                 t1=time.time()
-                print("Processing took %.2f seconds" % (t1-t0))
-                show_image(view, selected_image, im_rgb)
+                print("Processing %s took %.2f seconds" % (fname, t1-t0))
+                show_image(view, selected_image, im_rgb, fname)
 
                 while last_change == settings.last_change() and dlg.is_alive():
                 	new_index = file_index
                 	for event in view.events():
                         	if isinstance(event, MPMenuItem):
                                         if event.returnkey == 'nextImage':
-                                        	new_index = (file_index + 1) % len(args)
+                                        	new_index = (file_index + 1) % len(files)
                                         elif event.returnkey == 'previousImage':
-                                        	new_index = (file_index - 1) % len(args)
+                                        	new_index = (file_index - 1) % len(files)
                                 	elif event.returnkey.endswith("Image"):
                                         	selected_image = event.returnkey[:-5]
-                                                show_image(view, selected_image, im_rgb)
+                                                show_image(view, selected_image, im_rgb, fname)
                         if new_index != file_index:
                         	file_index = new_index
-                                fname = args[file_index]
+                                fname = files[file_index]
                                 im_orig = cuav_util.LoadImage(fname)
                                 im_numpy = numpy.ascontiguousarray(cv.GetMat(im_orig))
                                 im_rgb = cv.fromarray(im_numpy)
