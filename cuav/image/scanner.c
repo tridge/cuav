@@ -56,7 +56,7 @@ static PyObject *ScannerError;
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-#define MAX_REGIONS 2000
+#define MAX_REGIONS 4000
 
 struct scan_params {
     uint16_t min_region_area;
@@ -1126,6 +1126,7 @@ scanner_scan(PyObject *self, PyObject *args)
 
         const struct bgr_image *in = allocate_bgr_image8(height, width, PyArray_DATA(img_in));
 
+
 	struct regions *regions = any_matrix(2, 
                                              sizeof(int16_t), 
                                              offsetof(struct regions, data), 
@@ -1170,7 +1171,23 @@ scanner_scan(PyObject *self, PyObject *args)
         }
 
 	prune_large_regions(&scan_params, regions);
+        if (scan_params.save_intermediate) {
+                struct bgr_image *marked;
+                marked = allocate_bgr_image8(height, width, NULL);
+                copy_bgr_image8(in, marked);
+                mark_regions(marked, regions);
+                colour_save_pnm("prunelarge.pnm", marked);
+                free(marked);
+        }
 	merge_regions(&scan_params, regions);
+        if (scan_params.save_intermediate) {
+                struct bgr_image *marked;
+                marked = allocate_bgr_image8(height, width, NULL);
+                copy_bgr_image8(in, marked);
+                mark_regions(marked, regions);
+                colour_save_pnm("merged.pnm", marked);
+                free(marked);
+        }
 	prune_small_regions(&scan_params, regions);
 
         if (scan_params.save_intermediate) {
