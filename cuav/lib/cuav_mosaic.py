@@ -6,6 +6,7 @@ May 2012
 '''
 
 import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
+import lxml.objectify, lxml.etree
 
 from MAVProxy.modules.lib import mp_image
 from MAVProxy.modules.mavproxy_map import mp_slipmap
@@ -91,7 +92,8 @@ class Mosaic():
                  grid_width=20, grid_height=20, thumb_size=35, C=CameraParams(),
                  camera_settings = None,
                  image_settings = None,
-                 start_menu=False):
+                 start_menu=False,
+                 classify=None):
         self.thumb_size = thumb_size
         self.width = grid_width * thumb_size
         self.height = grid_height * thumb_size
@@ -100,6 +102,7 @@ class Mosaic():
         self.display_regions = grid_width*grid_height
         self.regions = []
         self.regions_sorted = []
+        self.mouse_region = None
         self.ridx_by_frame_time = {}
         self.page = 0
         self.sort_type = 'Time'
@@ -115,6 +118,7 @@ class Mosaic():
         self.camera_settings = camera_settings
         self.image_settings = image_settings
         self.start_menu = start_menu
+        self.classify = classify
         self.has_started = not start_menu
         import wx
         self.image_mosaic = mp_image.MPImage(title='Mosaic', 
@@ -132,6 +136,23 @@ class Mosaic():
         self.image_requests = {}
 
         self.slipmap.add_callback(functools.partial(self.map_callback))
+
+        if classify:
+            with open(classify) as f:
+                categories = lxml.objectify.fromstring(f.read())
+                cat_names = set()
+                self.categories = []
+                try:
+                    for c in categories.category:
+                        self.categories.append((c.get('shortcut') or '', c.text))
+                        if c.text in cat_names:
+                            print 'WARNING: category name',c.text,'used more than once'
+                        else:
+                            cat_names.add(c.text)
+                except AttributeError as ex:
+                    print ex
+                    print 'failed to load any categories for classification'
+            self.region_class = lxml.objectify.E.regions()
 
         self.add_menus()
 
@@ -163,6 +184,10 @@ class Mosaic():
         if self.image_settings:
             menu.add(MPMenuSubMenu('Image',
                                    items=[MPMenuItem('Settings', 'Settings', 'menuImageSettings')]))
+
+        if self.classify:
+            menu.add(MPMenuSubMenu('Classify',
+                                   items=[MPMenuItem('{cat}\t{key}'.format(cat=cat,key=key), cat, 'classify') for (key,cat) in self.categories]))
 
         self.menu = menu
         self.image_mosaic.set_menu(self.menu)
@@ -394,7 +419,32 @@ class Mosaic():
             self.has_started = True
         elif event.returnkey == 'menuStop':
             self.has_started = False
-        self.redisplay_mosaic()
+        elif event.returnkey == 'classify':
+            r = self.mouse_region
+            if r is None:
+                return
+            filename = r.filename
+            r = r.region
+            E = lxml.objectify.E
+            self.region_class.append(
+                E.region(E.filename(filename), E.x1(r.x1), E.y1(r.y1), E.x2(r.x2), E.y2(r.y2), E.category(event.description))
+            )
+            with open('regions.xml', 'w') as f:
+                # this will become kind of inefficient;
+                # consider only writing file once at the end?
+                f.write(lxml.etree.tostring(self.region_class, pretty_print=True))
+
+            try:
+                # highlight active region
+                old_ridx = self.mouse_region.ridx
+                self.mouse_region = self.regions_sorted[old_ridx+1]
+                self.display_mosaic_region(old_ridx)
+                self.display_mosaic_region(self.mouse_region.ridx)
+                self.redisplay_mosaic()
+                self.show_region(self.mouse_region.ridx, False)
+            except IndexError as e:
+                # no more thumbnails to classify
+                self.mouse_region = None
 
     def started(self):
         '''return if start button has been pushed'''
@@ -464,13 +514,31 @@ class Mosaic():
 
     def mouse_event(self, event):
         '''called on mouse events on the mosaic'''
+        if event.X < 0 or event.Y < 0:
+            # sometimes get events when the mouse cursor is not on the mosaic
+            return
+        #print 'cuav_mosaic mouse_event',event.__dict__
+
         # work out which region they want, taking into account wrap
         region = self.pos_to_region(wx.Point(event.X, event.Y))
         if region is None:
             return
-        self.show_region(region.ridx, event.m_middleDown)
-        if region.latlon != (None,None):
-            self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
+
+        if event.m_leftDown: # TODO is this dangerous
+            self.show_region(region.ridx, event.m_middleDown)
+            if region.latlon != (None,None):
+                self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
+        else:
+            # highlight on mouseover
+            old_region = self.mouse_region
+            self.mouse_region = region
+            self.display_mosaic_region(region.ridx)
+            if old_region != None:
+                self.display_mosaic_region(old_region.ridx)
+            if not self.started():
+                # if the search is started, it'll be redisplayed anyway
+                self.redisplay_mosaic()
+
 
     def mouse_event_view(self, event):
         '''called on mouse events in View window'''
@@ -503,10 +571,16 @@ class Mosaic():
         dest_x = (page_idx * self.thumb_size) % width
         dest_y = ((page_idx * self.thumb_size) / width) * self.thumb_size
 
+        if region == self.mouse_region:
+            thumb = cv.CreateImage((self.thumb_size,self.thumb_size), 8, 3)
+            cv.ConvertScale(region.small_thumbnail, thumb, 2.0)
+        else:
+            thumb = region.small_thumbnail
+
         # overlay thumbnail on mosaic
         #print dest_x, dest_y, self.width, self.height, self.thumb_size, cuav_util.image_width(region.small_thumbnail)
         try:
-            cuav_util.OverlayImage(self.mosaic, region.small_thumbnail, dest_x, dest_y)
+            cuav_util.OverlayImage(self.mosaic, thumb, dest_x, dest_y)
         except Exception:
             pass
 

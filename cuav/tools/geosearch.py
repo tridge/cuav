@@ -138,6 +138,7 @@ def process(args):
                               camera_settings=camera_settings,
                               image_settings=image_settings,
                               start_menu=True,
+                              classify=opts.categories,
                               thumb_size=opts.mosaic_thumbsize)
 
   joelog = cuav_joe.JoeLog(None)
@@ -308,6 +309,7 @@ def parse_args():
   parser.add_option("--mosaic-thumbsize", default=35, type='int', help="mosaic thumbnail size")
   parser.add_option("--minscore", default=700, type='int', help="minimum score")
   parser.add_option("--gammalog", default=None, type='str', help="gamma.log from flight")
+  parser.add_option("--categories", default=None, type=str, help="xml file containing categories for classification")
   return parser.parse_args()
 
 if __name__ == '__main__':
