@@ -261,7 +261,7 @@ class CameraModule(mp_module.MPModule):
                 self.xmit_queue, self.xmit_queue2, self.frame_loss, self.scan_queue.qsize(), self.efficiency))
             print("self.bsend2 is ", self.bsend2)
             if self.bsend2 is not None:
-                self.bsend2.report(detailed=True)
+                self.bsend2.report(detailed=False)
         elif args[0] == "queue":
             print("scan %u  save %u  transmit %u  eff %.1f  bw %.1f  rtt %.1f" % (
                 self.scan_queue.qsize(),
