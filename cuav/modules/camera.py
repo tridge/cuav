@@ -206,7 +206,10 @@ class CameraModule(mp_module.MPModule):
         self.framerate = 0
         
         # setup directory for images
-        self.camera_dir = os.path.join(self.logdir, "camera")
+        if self.logdir is None:
+            self.camera_dir = "camera"
+        else:
+            self.camera_dir = os.path.join(self.logdir, "camera")
         cuav_util.mkdir_p(self.camera_dir)
 
         self.mpos = mav_position.MavInterpolator(backlog=5000, gps_lag=0.3)
