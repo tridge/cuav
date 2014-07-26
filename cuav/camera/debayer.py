@@ -88,6 +88,21 @@ def convert_images(args):
         (img, pgm) = debayer(f, False)
         cv.SaveImage(png, img)
 
+def file_list(directory, extensions):
+  '''return file list for a directory'''
+  flist = []
+  for (root, dirs, files) in os.walk(directory):
+    for f in files:
+      extension = f.split('.')[-1]
+      if extension.lower() in extensions:
+        flist.append(os.path.join(root, f))
+  return sorted(flist)
+
+if os.path.isdir(args[0]):
+    args = file_list(args[0], ['pgm'])
+
+print("Processing %u files" % len(args))
+
 if opts.batch:
     convert_images(args)
 else:
