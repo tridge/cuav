@@ -37,16 +37,14 @@ class MavPosition():
 class MavInterpolator():
 	'''a class to interpolate position and attitude from a
 	series of mavlink messages'''
-	def __init__(self, backlog=500, gps_lag=0.5):
+	def __init__(self, backlog=500, gps_lag=0.2):
 		self.backlog = backlog
 		self.attitude = []
-		self.gps_raw = []
-		self.gps_raw_int = []
+		self.global_position_int = []
 		self.vfr_hud = []
 		self.scaled_pressure = []
 		self.msg_map = {
-			'GPS_RAW' : self.gps_raw,
-			'GPS_RAW_INT' : self.gps_raw_int,
+			'GLOBAL_POSITION_INT' : self.global_position_int,
 			'ATTITUDE' : self.attitude,
 			'VFR_HUD' : self.vfr_hud,
 			'SCALED_PRESSURE' : self.scaled_pressure
@@ -151,10 +149,7 @@ class MavInterpolator():
 			return
 		while True:
 			try:
-				if self.mlog.mavlink10():
-					raw = 'GPS_RAW_INT'
-				else:
-					raw = 'GPS_RAW'
+                                raw = 'GLOBAL_POSITION_INT'
 				gps_raw = self._find_msg(raw, t)
 				attitude = self._find_msg('ATTITUDE', t)
 				scaled_pressure = self._find_msg('SCALED_PRESSURE', t)
@@ -207,21 +202,6 @@ class MavInterpolator():
 			ret -= 2*math.pi
 		return ret
 
-	def gps_time(self, gps_raw):
-		'''return a GPS packet timestamp in local seconds'''
-		usec = getattr(gps_raw, 'time_usec', None)
-		if usec is None:
-			usec = getattr(gps_raw, 'usec', None)
-		sec = usec*1.0e-6
-		if self.boot_offset == 0:
-			return gps_raw._timestamp
-		ret = self.boot_offset + sec
-		# limit lag to 1.5 seconds
-		if abs(ret - gps_raw._timestamp) > 1.5:
-			return gps_raw._timestamp
-		return ret
-			
-    
 	def position(self, t, max_deltat=0,roll=None, maxroll=45):
 		'''return a MavPosition estimate given a time'''
 		self.advance_log(t)
@@ -230,19 +210,13 @@ class MavInterpolator():
 
 		# extrapolate our latitude/longitude 
 		gpst = t + self.gps_lag
-		if mavutil.mavlink10():
-			gps_raw = self._find_msg('GPS_RAW_INT', gpst)
-			gps_timestamp = self.gps_time(gps_raw)
-			#print gps_raw._timestamp, gps_timestamp, gpst, t, gpst - gps_timestamp
-			(lat, lon) = cuav_util.gps_newpos(gps_raw.lat/1.0e7, gps_raw.lon/1.0e7,
-							  gps_raw.cog*0.01,
-							  (gps_raw.vel*0.01) * (gpst - gps_timestamp))
-		else:
-			gps_raw = self._find_msg('GPS_RAW', gpst)
-			gps_timestamp = self.gps_time(gps_raw)
-			(lat, lon) = cuav_util.gps_newpos(gps_raw.lat, gps_raw.lon,
-							  gps_raw.hdg,
-							  gps_raw.v * (gpst - gps_timestamp))
+                gps_raw = self._find_msg('GLOBAL_POSITION_INT', gpst)
+                gps_timestamp = gps_raw._timestamp
+                velocity = math.sqrt((gps_raw.vx*0.01)**2 + (gps_raw.vy*0.01)**2)
+                deltat = gpst - gps_timestamp
+                (lat, lon) = cuav_util.gps_newpos(gps_raw.lat/1.0e7, gps_raw.lon/1.0e7,
+                                                  gps_raw.hdg*0.01,
+                                                  velocity * (gpst - gps_timestamp))
 
 		# get altitude
 		altitude = self._altitude(scaled_pressure)
