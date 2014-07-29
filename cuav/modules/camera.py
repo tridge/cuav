@@ -777,18 +777,18 @@ class CameraModule(mp_module.MPModule):
                 self.xmit_queue = obj.xmit_queue
                 thumb_count += 1
             
-                self.console.set_status('Lost', 'Lost %u' % self.frame_loss)
-                self.console.set_status('Regions', 'Regions %u' % region_count)
-                self.console.set_status('XMITQ', 'XMITQ %.0f' % self.xmit_queue)
-                self.console.set_status('Thumbs', 'Thumbs %u' % thumb_count)
-                self.console.set_status('ThumbSize', 'ThumbSize %.0f' % (thumb_total_bytes/thumb_count))
+                self.console.set_status('Lost', 'Lost %u' % self.frame_loss, row=6)
+                self.console.set_status('Regions', 'Regions %u' % region_count, row=6)
+                self.console.set_status('XMITQ', 'XMITQ %.0f' % self.xmit_queue, row=6)
+                self.console.set_status('Thumbs', 'Thumbs %u' % thumb_count, row=7)
+                self.console.set_status('ThumbSize', 'ThumbSize %.0f' % (thumb_total_bytes/thumb_count), row=7)
 
             if isinstance(obj, ImagePacket):
                 # we have an image from the plane
                 image_total_bytes += len(buf)
 
                 self.xmit_queue = obj.xmit_queue
-                self.console.set_status('XMITQ', 'XMITQ %.0f' % self.xmit_queue)
+                self.console.set_status('XMITQ', 'XMITQ %.0f' % self.xmit_queue, row=6)
 
                 # save it to disk
                 filename = '%s/v%s.jpg' % (view_dir, cuav_util.frame_time(obj.frame_time))
@@ -818,9 +818,9 @@ class CameraModule(mp_module.MPModule):
                 image_count += 1
                 jpeg_total_bytes += len(obj.jpeg)
                 self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(obj.jpeg)
-                self.console.set_status('Images', 'Images %u' % image_count)
-                self.console.set_status('JPGSize', 'JPG Size %.0f' % (jpeg_total_bytes/image_count))
-                self.console.set_status('ImageSize', 'ImageSize %.0f' % (image_total_bytes/image_count))
+                self.console.set_status('Images', 'Images %u' % image_count, row=6)
+                self.console.set_status('JPGSize', 'JPG Size %.0f' % (jpeg_total_bytes/image_count), row=6)
+                self.console.set_status('ImageSize', 'ImageSize %.0f' % (image_total_bytes/image_count), row=7)
 
             if isinstance(obj, CommandPacket):
                 self.handle_command_packet(obj, bsend)
