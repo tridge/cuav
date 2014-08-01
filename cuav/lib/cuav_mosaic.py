@@ -377,9 +377,10 @@ class Mosaic():
         print("hiding %u regions starting at %u" % (count, first))
         for i in range(count):
             r = self.regions_sorted.pop(first)
-            self.regions_hidden.add(i+first)
+            self.regions_hidden.add(r.ridx)
             self.slipmap.hide_object("region %u" % r.ridx)
         self.redisplay_mosaic()
+        self.change_page(self.page)
 
     def unhide_all(self):
         '''unhide all pages in mosaic'''
@@ -395,7 +396,9 @@ class Mosaic():
         self.page = page
         if self.page < 0:
             self.page = 0
-        max_page = len(self.regions_sorted) / self.display_regions
+        max_page = (len(self.regions_sorted)-1) / self.display_regions
+        if max_page < 0:
+            max_page = 0
         if self.page > max_page:
             self.page = max_page
         if last_page != self.page:
@@ -533,7 +536,7 @@ class Mosaic():
         y = pos.y
         page_idx = (x/self.thumb_size) + (self.width/self.thumb_size)*(y/self.thumb_size)
         ridx = page_idx + self.page * self.display_regions
-        if ridx >= len(self.regions_sorted):
+        if ridx < 0 or ridx >= len(self.regions_sorted):
             return None
         return self.regions_sorted[ridx]
 
