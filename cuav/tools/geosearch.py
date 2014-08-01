@@ -113,7 +113,6 @@ def process(args):
       MPSetting('altitude', int, opts.altitude, 'Altitude', range=(0,10000), increment=1),
       MPSetting('filter_type', str, 'simple', 'Filter Type',
                 choice=['simple', 'compactness']),
-      MPSetting('fullres', bool, opts.fullres, 'Full Resolution'),
       MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
       MPSetting('thumbsize', int, opts.thumbsize, 'Thumbnail Size', range=(10, 200), increment=1),
       MPSetting('minscore', int, opts.minscore, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
@@ -213,10 +212,7 @@ def process(args):
       total_time = 0
 
       t0=time.time()
-      if camera_settings.fullres:
-        img_scan = im_full
-      else:
-        img_scan = im_640
+      img_scan = im_full
 
       scan_parms = {}
       for name in image_settings.list():
@@ -302,7 +298,6 @@ def parse_args():
   parser.add_option("--service", default='MicrosoftSat', help="map service")
   parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
   parser.add_option("--debug", default=False, action='store_true', help="enable debug info")
-  parser.add_option("--fullres", default=False, action='store_true', help="use full camera resolution")
   parser.add_option("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
   parser.add_option("--altitude", default=0, type='float', help="altitude (0 for auto)")
   parser.add_option("--thumbsize", default=60, type='int', help="thumbnail size")
