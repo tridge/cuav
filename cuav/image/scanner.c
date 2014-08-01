@@ -751,8 +751,13 @@ static void merge_regions(const struct scan_params *scan_params, struct regions 
                                             (b3.maxx - b3.minx) <= scan_params->max_region_size_xy &&
                                             (b3.maxy - b3.miny) <= scan_params->max_region_size_xy) {
                                             *b1 = b3;
+                                            // new size is sum of the
+                                            // two regions, not
+                                            // area. This prevents two
+                                            // single pixel regions
+                                            // appearing to be large enough
+                                            in->region_size[i] += in->region_size[j];
                                             remove_region(in, j);
-                                            in->region_size[i] = new_size;
                                             j--;
                                             found_overlapping = true;
                                         }
