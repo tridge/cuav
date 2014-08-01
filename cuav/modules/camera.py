@@ -117,6 +117,7 @@ class CameraModule(mp_module.MPModule):
         self.scan_thread2_h = None
         self.transmit_thread_h = None
         self.view_thread_h = None
+        self.flying = True
 
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.camera_settings = MPSettings(
@@ -148,6 +149,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('thumbsize', int, 60, 'Thumbnail Size', range=(10, 200), increment=1),
               MPSetting('mosaic_thumbsize', int, 35, 'Mosaic Thumbnail Size', range=(10, 200), increment=1),
               MPSetting('use_bsend2', bool, True, 'Enable Link2'),
+              MPSetting('minspeed', int, 4, 'Min vehicle speed to save images'),
 
               MPSetting('minscore', int, 75, 'Min Score Link1', range=(0,1000), increment=1, tab='Scoring'),
               MPSetting('minscore2', int, 500, 'Min Score Link2', range=(0,1000), increment=1),
@@ -431,7 +433,7 @@ class CameraModule(mp_module.MPModule):
             (frame_time,im) = self.save_queue.get()
             rawname = "raw%s" % cuav_util.frame_time(frame_time)
             frame_count += 1
-            if self.camera_settings.save_pgm != 0:
+            if self.camera_settings.save_pgm != 0 and self.flying:
                 if frame_count % self.camera_settings.save_pgm == 0:
                     chameleon.save_pgm('%s/%s.pgm' % (raw_dir, rawname), im)
 
@@ -902,6 +904,8 @@ class CameraModule(mp_module.MPModule):
         if m.get_type() == 'SYSTEM_TIME' and self.camera_settings.clock_sync and self.capture_thread_h is not None:
             # optionally sync system clock on the capture side
             self.sync_gps_clock(m.time_unix_usec)
+        if m.get_type() == 'VFR_HUD':
+            self.flying = m.airspeed > self.camera_settings.minspeed or m.groundspeed > self.camera_settings.minspeed
 
     def sync_gps_clock(self, time_usec):
         '''sync system clock with GPS time'''
