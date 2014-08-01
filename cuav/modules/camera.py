@@ -129,7 +129,6 @@ class CameraModule(mp_module.MPModule):
               MPSetting('altitude', int, 0, 'Altitude', range=(0,10000), increment=1),
               MPSetting('filter_type', str, 'simple', 'Filter Type',
                         choice=['simple', 'compactness']),
-              MPSetting('fullres', bool, False, 'Full Resolution'),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
               MPSetting('process_divider', int, 1, 'Process Divider', range=(1,50), increment=1),
               MPSetting('use_capture_time', bool, False, 'Use Capture Time'),
@@ -458,10 +457,7 @@ class CameraModule(mp_module.MPModule):
             im_640 = numpy.zeros((480,640,3),dtype='uint8')
             scanner.debayer(im, im_full)
             scanner.downsample(im_full, im_640)
-            if self.camera_settings.fullres:
-                img_scan = im_full
-            else:
-                img_scan = im_640
+            img_scan = im_full
             regions = scanner.scan(img_scan)
             if self.camera_settings.filter_type=='compactness':
                 calculate_compactness = True
