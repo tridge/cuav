@@ -404,6 +404,7 @@ class Mosaic():
 
     def re_sort(self):
         '''re sort the mosaic'''
+        print("Sorting by %s" % self.sort_type)
         sortby = self.sort_type
         if sortby == 'Score':
             self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
@@ -414,8 +415,10 @@ class Mosaic():
         elif sortby == 'Whiteness':
             self.regions_sorted.sort(key = lambda r : r.region.whiteness, reverse=True)
         elif sortby == 'Time':
-            self.regions_sorted.sort(key = lambda r : r.ridx, reverse=True)
-
+            self.regions_sorted.sort(key = lambda r : r.ridx, reverse=False)
+        else:
+            print("Unknown sort by '%s'" % sortby)
+            
     def menu_event(self, event):
         '''called on menu events on the mosaic'''
         if event.returnkey == 'setSort':
@@ -423,6 +426,7 @@ class Mosaic():
             sortby = sortby.split('\t')[0]
             self.sort_type = sortby
             self.re_sort()
+            self.redisplay_mosaic()
         elif event.returnkey == 'nextPage':
             self.change_page(self.page + 1)
         elif event.returnkey == 'previousPage':
