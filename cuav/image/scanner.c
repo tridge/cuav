@@ -739,19 +739,37 @@ static void merge_regions(const struct scan_params *scan_params, struct regions 
                 for (i=0; i<in->num_regions; i++) {
                         for (j=i+1; j<in->num_regions; j++) {
                             if (regions_overlap(scan_params, &in->bounds[i], &in->bounds[j])) {
-                                        found_overlapping = true;
-                                        struct region_bounds *b1 = &in->bounds[i];                                        
-                                        struct region_bounds *b2 = &in->bounds[j];                                        
-                                        b1->minx = MIN(b1->minx, b2->minx);
-                                        b1->maxx = MAX(b1->maxx, b2->maxx);
-                                        b1->miny = MIN(b1->miny, b2->miny);
-                                        b1->maxy = MAX(b1->maxy, b2->maxy);
-                                        remove_region(in, j);
-                                        j--;
-                                }
+                                        struct region_bounds *b1 = &in->bounds[i];
+                                        struct region_bounds *b2 = &in->bounds[j];
+                                        struct region_bounds b3 = in->bounds[i];  
+                                        b3.minx = MIN(b1->minx, b2->minx);
+                                        b3.maxx = MAX(b1->maxx, b2->maxx);
+                                        b3.miny = MIN(b1->miny, b2->miny);
+                                        b3.maxy = MAX(b1->maxy, b2->maxy);
+                                        unsigned new_size = (1+b3.maxx - b3.minx) * (1+b3.maxy - b3.miny);
+                                        if (new_size <= scan_params->max_region_area &&
+                                            (b3.maxx - b3.minx) <= scan_params->max_region_size_xy &&
+                                            (b3.maxy - b3.miny) <= scan_params->max_region_size_xy) {
+                                            *b1 = b3;
+                                            remove_region(in, j);
+                                            in->region_size[i] = new_size;
+                                            j--;
+                                            found_overlapping = true;
+                                        }
+                            }
                         }
                 }
         }
+}
+
+static bool region_too_large(const struct scan_params *scan_params, struct regions *in, unsigned i)
+{
+    if (in->region_size[i] > scan_params->max_region_area ||
+        (in->bounds[i].maxx - in->bounds[i].minx) > scan_params->max_region_size_xy ||
+        (in->bounds[i].maxy - in->bounds[i].miny) > scan_params->max_region_size_xy) {
+        return true;
+    }
+    return false;
 }
 
 /*
@@ -761,24 +779,21 @@ static void prune_large_regions(const struct scan_params *scan_params, struct re
 {
 	unsigned i;
 	for (i=0; i<in->num_regions; i++) {
-		if (in->region_size[i] > scan_params->max_region_area ||
-		    (in->bounds[i].maxx - in->bounds[i].minx) > scan_params->max_region_size_xy ||
-		    (in->bounds[i].maxy - in->bounds[i].miny) > scan_params->max_region_size_xy) {
+            if (region_too_large(scan_params, in, i)) {
 #if 0
-                        printf("prune size=%u xsize=%u ysize=%u range=(min:%u,max:%u,minxy:%u,maxxy:%u)\n",
-                               in->region_size[i], 
-                               in->bounds[i].maxx - in->bounds[i].minx,
-                               in->bounds[i].maxy - in->bounds[i].miny,
-                               scan_params->min_region_area, 
-                               scan_params->max_region_area,
-                               scan_params->min_region_size_xy, 
-                               scan_params->max_region_size_xy);
+                    printf("prune1 size=%u xsize=%u ysize=%u range=(min:%u,max:%u,minxy:%u,maxxy:%u)\n",
+                           in->region_size[i], 
+                           in->bounds[i].maxx - in->bounds[i].minx,
+                           in->bounds[i].maxy - in->bounds[i].miny,
+                           scan_params->min_region_area, 
+                           scan_params->max_region_area,
+                           scan_params->min_region_size_xy, 
+                           scan_params->max_region_size_xy);
 #endif
-                        remove_region(in, i);
-			i--;
-		}
-		    
-	}
+                    remove_region(in, i);
+                    i--;
+            }
+        }
 }
 
 /*
@@ -792,7 +807,7 @@ static void prune_small_regions(const struct scan_params *scan_params, struct re
 		    (in->bounds[i].maxx - in->bounds[i].minx) < scan_params->min_region_size_xy ||
 		    (in->bounds[i].maxy - in->bounds[i].miny) < scan_params->min_region_size_xy) {
 #if 0
-                        printf("prune size=%u xsize=%u ysize=%u range=(min:%u,max:%u,minxy:%u,maxxy:%u)\n",
+                        printf("prune2 size=%u xsize=%u ysize=%u range=(min:%u,max:%u,minxy:%u,maxxy:%u)\n",
                                in->region_size[i], 
                                in->bounds[i].maxx - in->bounds[i].minx,
                                in->bounds[i].maxy - in->bounds[i].miny,
