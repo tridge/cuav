@@ -1095,7 +1095,7 @@ static float dict_lookup(PyObject *parm_dict, const char *key, float default_val
  */
 static void scale_scan_params_user(struct scan_params *scan_params, uint32_t height, uint32_t width, PyObject *parm_dict)
 {
-    float meters_per_pixel = dict_lookup(parm_dict, "MetersPerPixel", 0.25);
+    float meters_per_pixel = dict_lookup(parm_dict, "MetersPerPixel", 0.1);
     float meters_per_pixel2 = meters_per_pixel * meters_per_pixel;
     *scan_params = scan_params_640_480;
     scan_params->min_region_area = MAX(dict_lookup(parm_dict, "MinRegionArea", 1.0) / meters_per_pixel2, 1);
