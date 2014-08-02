@@ -43,11 +43,13 @@ class MavInterpolator():
 		self.global_position_int = []
 		self.vfr_hud = []
 		self.scaled_pressure = []
+		self.terrain_report = []
 		self.msg_map = {
 			'GLOBAL_POSITION_INT' : self.global_position_int,
 			'ATTITUDE' : self.attitude,
 			'VFR_HUD' : self.vfr_hud,
-			'SCALED_PRESSURE' : self.scaled_pressure
+			'SCALED_PRESSURE' : self.scaled_pressure,
+			'TERRAIN_REPORT' : self.terrain_report
 			}
 		self.mlog = None
 		self.ground_pressure = None
@@ -133,8 +135,10 @@ class MavInterpolator():
 		if type == 'RAW_IMU':
 			self.update_usec_base(msg)
 
-	def _altitude(self, SCALED_PRESSURE):
+	def _altitude(self, SCALED_PRESSURE, TERRAIN_REPORT):
 		'''calculate barometric altitude relative to the ground'''
+                if TERRAIN_REPORT is not None:
+                        return TERRAIN_REPORT.current_height                        
 		if self.ground_pressure is None:
 			self.ground_pressure = SCALED_PRESSURE.press_abs
 		if self.ground_temperature is None:
@@ -206,8 +210,6 @@ class MavInterpolator():
 		'''return a MavPosition estimate given a time'''
 		self.advance_log(t)
 			
-		scaled_pressure = self._find_msg('SCALED_PRESSURE', t)
-
 		# extrapolate our latitude/longitude 
 		gpst = t + self.gps_lag
                 gps_raw = self._find_msg('GLOBAL_POSITION_INT', gpst)
@@ -218,8 +220,19 @@ class MavInterpolator():
                                                   gps_raw.hdg*0.01,
                                                   velocity * (gpst - gps_timestamp))
 
+		scaled_pressure = self._find_msg('SCALED_PRESSURE', t)
+                terrain_report = None
+                if len(self.terrain_report) > 0:
+                        terrain_report = self._find_msg('TERRAIN_REPORT', t)
+                        if terrain_report is not None:
+                                (tlat, tlon) = (terrain_report.lat/1.0e7, terrain_report.lon/1.0e7)
+                                # don't use it if its too far away
+                                if (cuav_util.gps_distance(lat, lon, tlat, tlon) > 150 or
+                                    abs(terrain_report._timestamp - t) > 5):
+                                        terrain_report = None
+
 		# get altitude
-		altitude = self._altitude(scaled_pressure)
+		altitude = self._altitude(scaled_pressure, terrain_report)
 
 		# and attitude
 		mavroll  = math.degrees(self.interpolate_angle('ATTITUDE', 'roll', t, max_deltat))
