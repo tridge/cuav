@@ -257,7 +257,7 @@ static void rebayer_1280_960_8(const struct bgr_image *in, struct grey_image8 *o
 }
 
 
-#define HISTOGRAM_BITS_PER_COLOR 4
+#define HISTOGRAM_BITS_PER_COLOR 3
 #define HISTOGRAM_BITS (3*HISTOGRAM_BITS_PER_COLOR)
 #define HISTOGRAM_BINS (1<<HISTOGRAM_BITS)
 
