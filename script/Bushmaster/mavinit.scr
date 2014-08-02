@@ -11,5 +11,6 @@ camera set gcs_address 192.168.16.15
 camera set minscore 999
 camera set minscore2 999
 camera set bandwidth 130000
-camera set altitude 120
+# use TERRAIN_REPORT for altitude
+camera set altitude 0
 set moddebug 2
