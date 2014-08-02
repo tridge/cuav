@@ -72,6 +72,16 @@ def process(args):
                                          follow=True,
                                          trail=mp_slipmap.SlipTrail()))
 
+  for flag in opts.flag:
+    a = flag.split(',')
+    lat = a[0]
+    lon = a[1]
+    icon = 'flag.png'
+    if len(a) > 2:
+      icon = a[2] + '.png'
+      icon = slipmap.icon(icon)
+      slipmap.add_object(mp_slipmap.SlipIcon('icon - %s' % str(flag), (float(lat),float(lon)), icon, layer=3, rotation=0, follow=False))
+
   if opts.mission:
     from pymavlink import mavwp
     wp = mavwp.MAVWPLoader()
@@ -111,6 +121,8 @@ def process(args):
   camera_settings = MPSettings(
     [ MPSetting('roll_stabilised', bool, opts.roll_stabilised, 'Roll Stabilised'),
       MPSetting('altitude', int, opts.altitude, 'Altitude', range=(0,10000), increment=1),
+      MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
+      MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
       MPSetting('filter_type', str, 'simple', 'Filter Type',
                 choice=['simple', 'compactness']),
       MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
@@ -221,9 +233,11 @@ def process(args):
 
       if pos is not None:
         (sw,sh) = cuav_util.image_shape(img_scan)
-        mpp = cuav_util.meters_per_pixel(pos, C=C_params)
-        if mpp is not None:
-          scan_parms['MetersPerPixel'] = mpp * (w/float(sw))
+        altitude = pos.altitude
+        if altitude < camera_settings.minalt:
+          altitude = camera_settings.minalt
+        scan_parms['MetersPerPixel'] = camera_settings.mpp100 * altitude / 100.0
+
         regions = scanner.scan(img_scan, scan_parms)
       else:
         regions = scanner.scan(img_scan)
@@ -291,7 +305,7 @@ def parse_args():
   parser.add_option("--mavlog", default=None, type=file_type, help="MAVLink telemetry log file")
   parser.add_option("--kmzlog", default=None, type=file_type, help="kmz file for image positions")
   parser.add_option("--triggerlog", default=None, type=file_type, help="robota trigger file for image positions")
-  parser.add_option("--time-offset", type='int', default=0, help="offset between camera and mavlink log times (seconds)")
+  parser.add_option("--time-offset", type='float', default=0, help="offset between camera and mavlink log times (seconds)")
   parser.add_option("--view", action='store_true', default=False, help="show images")
   parser.add_option("--lens", default=28.0, type='float', help="lens focal length")
   parser.add_option("--sensorwidth", default=35.0, type='float', help="sensor width")
@@ -305,6 +319,7 @@ def parse_args():
   parser.add_option("--minscore", default=700, type='int', help="minimum score")
   parser.add_option("--gammalog", default=None, type='str', help="gamma.log from flight")
   parser.add_option("--categories", default=None, type=str, help="xml file containing categories for classification")
+  parser.add_option("--flag", default=[], type='str', action='append', help="flag positions")
   return parser.parse_args()
 
 if __name__ == '__main__':
