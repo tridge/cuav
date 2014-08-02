@@ -253,14 +253,14 @@ def process(args):
 
       scan_count += 1
 
-      mosaic.add_image(pos.time, f, pos)
-
       if pos and len(regions) > 0:
         altitude = camera_settings.altitude
         if altitude <= 0:
           altitude = None
         joelog.add_regions(frame_time, regions, pos, f, width=w, height=h,
                            altitude=altitude)
+
+      mosaic.add_image(pos.time, f, pos)
 
       region_count += len(regions)
 
