@@ -218,7 +218,9 @@ class Mosaic():
 
     def set_brightness(self, b):
         '''set mosaic brightness'''
-        self.brightness = b
+        if b != self.brightness:
+            self.brightness = b
+            self.redisplay_mosaic()
 
     def show_region(self, ridx, view_the_image=False):
         '''display a region on the map'''
@@ -435,9 +437,9 @@ class Mosaic():
         elif event.returnkey == 'previousPage':
             self.change_page(self.page - 1)
         elif event.returnkey == 'increaseBrightness':
-            self.brightness *= 1.25
+            self.set_brightness(self.brightness * 1.25)
         elif event.returnkey == 'decreaseBrightness':
-            self.brightness /= 1.25
+            self.set_brightness(self.brightness / 1.25)
         elif event.returnkey == 'showImage':
             region = self.pos_to_region(event.popup_pos)
             self.popup_show_image(region)
@@ -512,10 +514,10 @@ class Mosaic():
     def menu_event_view(self, event):
         '''called on menu events on the view image'''
         if event.returnkey == 'increaseBrightness':
-            self.brightness *= 1.25
+            self.set_brightness(self.brightness * 1.25)
             self.view_image.set_brightness(self.brightness)
         elif event.returnkey == 'decreaseBrightness':
-            self.brightness /= 1.25
+            self.set_brightness(self.brightness / 1.25)
             self.view_image.set_brightness(self.brightness)
         elif event.returnkey == 'fitWindow':
             self.view_image.fit_to_window()
