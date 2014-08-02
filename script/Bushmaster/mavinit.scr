@@ -1,0 +1,15 @@
+module load sensors
+set heartbeat 2
+set streamrate -1
+set streamrate2 -1
+#camera boundary /home/tridge/project/UAV/joe/CMAC-boundary.txt
+set moddebug 1
+module load map
+module load cuav.modules.camera
+camera set use_bsend2 0
+camera set gcs_address 192.168.16.15
+camera set minscore 999
+camera set minscore2 999
+camera set bandwidth 130000
+camera set altitude 120
+set moddebug 2
