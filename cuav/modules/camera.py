@@ -131,7 +131,7 @@ class CameraModule(mp_module.MPModule):
                         choice=['simple', 'compactness']),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
               MPSetting('process_divider', int, 1, 'Process Divider', range=(1,50), increment=1),
-              MPSetting('use_capture_time', bool, False, 'Use Capture Time'),
+              MPSetting('use_capture_time', bool, True, 'Use Capture Time'),
 
               MPSetting('gcs_address', str, None, 'GCS Address', tab='GCS'),
               MPSetting('gcs_view_port', int, 7543, 'GCS View Port', range=(1, 30000), increment=1),
