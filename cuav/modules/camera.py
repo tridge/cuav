@@ -118,6 +118,7 @@ class CameraModule(mp_module.MPModule):
         self.transmit_thread_h = None
         self.view_thread_h = None
         self.flying = True
+        self.terrain_alt = None
 
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.camera_settings = MPSettings(
@@ -127,6 +128,8 @@ class CameraModule(mp_module.MPModule):
               MPSetting('gamma', int, 950, 'Capture Gamma', range=(0,1000), increment=1),
               MPSetting('roll_stabilised', bool, True, 'Roll Stabilised'),
               MPSetting('altitude', int, 0, 'Altitude', range=(0,10000), increment=1),
+              MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
+              MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
               MPSetting('filter_type', str, 'simple', 'Filter Type',
                         choice=['simple', 'compactness']),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
@@ -451,6 +454,12 @@ class CameraModule(mp_module.MPModule):
             for name in self.image_settings.list():
                 scan_parms[name] = self.image_settings.get(name)
             scan_parms['SaveIntermediate'] = float(scan_parms['SaveIntermediate'])
+
+            if self.terrain_alt is not None:
+                altitude = self.terrain_alt
+                if altitude < self.camera_settings.minalt:
+                    altitude = self.camera_settings.minalt
+                scan_parms['MetersPerPixel'] = self.camera_settings.mpp100 * altitude / 100.0
             
             t1 = time.time()
             im_full = numpy.zeros((960,1280,3),dtype='uint8')
@@ -902,6 +911,8 @@ class CameraModule(mp_module.MPModule):
             self.sync_gps_clock(m.time_unix_usec)
         if m.get_type() == 'VFR_HUD':
             self.flying = m.airspeed > self.camera_settings.minspeed or m.groundspeed > self.camera_settings.minspeed
+        if m.get_type() == "TERRAIN_REPORT":
+            self.terrain_alt = m.current_height
 
     def sync_gps_clock(self, time_usec):
         '''sync system clock with GPS time'''
