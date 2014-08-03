@@ -11,5 +11,4 @@ build/
 dist/
 MANIFEST
 deb_dist/
-ctest/
 logs/
