@@ -1,18 +1,27 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
 <Document>
   <!-- Begin Style Definitions -->
   <Style id="line1">
     <LineStyle>
-      <color>FF00FF00</color>
+      <color>FFFF8080</color>
       <width>5</width>
     </LineStyle>
+    <IconStyle><Icon></Icon></IconStyle>
   </Style>
   <Style id="line2">
     <LineStyle>
       <color>FF00FFFF</color>
       <width>5</width>
     </LineStyle>
+    <IconStyle><Icon></Icon></IconStyle>
+  </Style>
+  <Style id="line3">
+    <LineStyle>
+      <color>FF00FF00</color>
+      <width>5</width>
+    </LineStyle>
+    <IconStyle><Icon></Icon></IconStyle>
   </Style>
   <Style id="point1">
     <IconStyle><Icon>kml_ext_files/<![CDATA[kml_symbol_dot - orange@scale=3_0.png]]></Icon></IconStyle>
@@ -37,7 +46,7 @@
       <name>TST-01</name>
       <styleUrl>#point1</styleUrl>
       <Point>
-        <coordinates>151.8379376113,-26.5837620409,0</coordinates>
+        <coordinates>151.8382032904,-26.5855296256,0</coordinates>
       </Point>
     </Placemark>
     <Placemark>
@@ -61,7 +70,7 @@
       <name>Comms Hold</name>
       <styleUrl>#point2</styleUrl>
       <Point>
-        <coordinates>151.8453890000,-26.6072120000,0</coordinates>
+        <coordinates>151.8516460000,-26.6080920000,0</coordinates>
       </Point>
     </Placemark>
     <Placemark>
@@ -194,18 +203,18 @@
     </Placemark>
     <Placemark>
       <description>Waypoint</description>
-      <name>MB-04</name>
+      <name>MB-05</name>
       <styleUrl>#point4</styleUrl>
       <Point>
-        <coordinates>151.8400450000,-26.5769900000,0</coordinates>
+        <coordinates>151.8407402778,-26.5817200833,0</coordinates>
       </Point>
     </Placemark>
     <Placemark>
       <description>Waypoint</description>
-      <name>MB-05</name>
+      <name>MB-04</name>
       <styleUrl>#point4</styleUrl>
       <Point>
-        <coordinates>151.8410624807,-26.5812271666,0</coordinates>
+        <coordinates>151.8397352222,-26.5770776944,0</coordinates>
       </Point>
     </Placemark>
     <Placemark>
@@ -229,7 +238,7 @@
       <name>MB-08</name>
       <styleUrl>#point4</styleUrl>
       <Point>
-        <coordinates>151.8509739535,-26.5900093277,0</coordinates>
+        <coordinates>151.8501455817,-26.5896893428,0</coordinates>
       </Point>
     </Placemark>
     <Placemark>
@@ -237,7 +246,7 @@
       <name>MB-13</name>
       <styleUrl>#point4</styleUrl>
       <Point>
-        <coordinates>151.8344050000,-26.5875990000,0</coordinates>
+        <coordinates>151.8348293899,-26.5851387587,0</coordinates>
       </Point>
     </Placemark>
     <Placemark>
@@ -245,7 +254,7 @@
       <name>Airfield Home</name>
       <styleUrl>#point5</styleUrl>
       <Point>
-        <coordinates>151.8423250000,-26.5847810000,0</coordinates>
+        <coordinates>151.8458942647,-26.5876621644,0</coordinates>
       </Point>
     </Placemark>
   </Folder>
@@ -253,9 +262,45 @@
     <name>Line Features</name>
     <description>Line Features</description>
     <Placemark>
+      <description>Unknown Line Type</description>
+      <name>Loss Of Data Link Path to Airfield</name>
+      <styleUrl>#line1</styleUrl>
+      <MultiGeometry>
+      <Point>
+      <coordinates>151.8458942778,-26.5876621667,0</coordinates>
+      </Point>
+      <LineString>
+        <coordinates>
+          151.8516460000,-26.6080920000,0
+          151.8458942778,-26.5876621667,0
+        </coordinates>
+      </LineString>
+      </MultiGeometry>
+    </Placemark>
+    <Placemark>
+      <description>Unknown Line Type</description>
+      <name>Mission Boundary Divide</name>
+      <styleUrl>#line2</styleUrl>
+      <MultiGeometry>
+      <Point>
+      <coordinates>151.8425026348,-26.5820599087,0</coordinates>
+      </Point>
+      <LineString>
+        <coordinates>
+          151.8348293899,-26.5851387587,0
+          151.8425026348,-26.5820599087,0
+        </coordinates>
+      </LineString>
+      </MultiGeometry>
+    </Placemark>
+    <Placemark>
       <description>Route</description>
       <name>Search Area Boundary</name>
-      <styleUrl>#line1</styleUrl>
+      <styleUrl>#line3</styleUrl>
+      <MultiGeometry>
+      <Point>
+      <coordinates>151.8491210000,-26.6388280000,0</coordinates>
+      </Point>
       <LineString>
         <coordinates>
           151.8431840000,-26.6174450000,0
@@ -266,29 +311,35 @@
           151.8431840000,-26.6174450000,0
         </coordinates>
       </LineString>
+      </MultiGeometry>
     </Placemark>
     <Placemark>
       <description>Route</description>
       <name>Mission Boundary</name>
       <styleUrl>#line2</styleUrl>
+      <MultiGeometry>
+      <Point>
+      <coordinates>151.8501455817,-26.5896893428,0</coordinates>
+      </Point>
       <LineString>
         <coordinates>
           151.8373730000,-26.5695640000,0
           151.8394050000,-26.5699560000,0
           151.8411420000,-26.5768230000,0
-          151.8400450000,-26.5769900000,0
-          151.8410624807,-26.5812271666,0
+          151.8397352136,-26.5770777059,0
+          151.8407402848,-26.5817200813,0
           151.8425026348,-26.5820599087,0
           151.8493290000,-26.5791790000,0
-          151.8509739535,-26.5900093277,0
+          151.8501455817,-26.5896893428,0
           151.8631000000,-26.6095740000,0
           151.8588390000,-26.6389580000,0
           151.8472241047,-26.6449723895,0
           151.8303500000,-26.6435720000,0
-          151.8344050000,-26.5875990000,0
+          151.8348293899,-26.5851387587,0
           151.8373730000,-26.5695640000,0
         </coordinates>
       </LineString>
+      </MultiGeometry>
     </Placemark>
   </Folder>
 </Document>
