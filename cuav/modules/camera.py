@@ -119,6 +119,7 @@ class CameraModule(mp_module.MPModule):
         self.view_thread_h = None
         self.flying = True
         self.terrain_alt = None
+        self.last_camparms = None
 
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.camera_settings = MPSettings(
@@ -131,6 +132,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
               MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
               MPSetting('rotate180', bool, False, 'rotate180'),
+              MPSetting('camparms', str, None, 'camera parameters'),
               MPSetting('filter_type', str, 'simple', 'Filter Type',
                         choice=['simple', 'compactness']),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
@@ -219,13 +221,6 @@ class CameraModule(mp_module.MPModule):
 
         self.mpos = mav_position.MavInterpolator(backlog=5000, gps_lag=0.3)
         self.joelog = cuav_joe.JoeLog(os.path.join(self.camera_dir, 'joe.log'), append=self.continue_mode)
-        # load camera params
-        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', '..',
-                            'cuav', 'data', 'chameleon1_arecont0.json')
-        if os.path.exists(path):
-            self.c_params.load(path)
-        else:
-            print("Warning: %s not found" % path)
 
         self.add_command('camera', self.cmd_camera,
                          'camera control',
@@ -340,6 +335,17 @@ class CameraModule(mp_module.MPModule):
         print('base_time=%f' % base_time)
         return h, base_time, frame_time
 
+    def check_camera_parms(self):
+        '''check for change in camera parameters'''
+        if self.camera_settings.camparms is None or self.last_camparms == self.camera_settings.camparms:
+            return
+        self.last_camparms = self.camera_settings.camparms
+        if os.path.exists(self.camera_settings.camparms):
+            self.c_params.load(self.camera_settings.camparms)
+            print("Loaded %s" % self.camera_settings.camparms)
+        else:
+            print("Warning: %s not found" % self.camera_settings.camparms)
+
     def capture_thread(self):
         '''camera capture thread'''
         print("running capture_thread")
@@ -383,6 +389,8 @@ class CameraModule(mp_module.MPModule):
                 if last_framerate != int(self.camera_settings.framerate):
                     chameleon.set_framerate(h, int(self.camera_settings.framerate))
                     last_framerate = int(self.camera_settings.framerate)
+
+                self.check_camera_parms()
 
                 # capture an image
                 frame_time, frame_counter, shutter = chameleon.capture(h, 1000, im)
