@@ -123,6 +123,7 @@ def process(args):
       MPSetting('altitude', int, opts.altitude, 'Altitude', range=(0,10000), increment=1),
       MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
       MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
+      MPSetting('rotate180', bool, opts.rotate_180, 'rotate180'),
       MPSetting('filter_type', str, 'simple', 'Filter Type',
                 choice=['simple', 'compactness']),
       MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
@@ -207,7 +208,7 @@ def process(args):
       slipmap.check_events()
       mosaic.check_events()
 
-      im_orig = cuav_util.LoadImage(f)
+      im_orig = cuav_util.LoadImage(f, rotate180=camera_settings.rotate180)
       (w,h) = cuav_util.image_shape(im_orig)
 
       if not opts.camera_params:
@@ -313,6 +314,7 @@ def parse_args():
   parser.add_option("--camera-params", default=None, type=file_type, help="camera calibration json file from OpenCV")
   parser.add_option("--debug", default=False, action='store_true', help="enable debug info")
   parser.add_option("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
+  parser.add_option("--rotate-180", default=False, action='store_true', help="rotate images 180 degrees")
   parser.add_option("--altitude", default=0, type='float', help="altitude (0 for auto)")
   parser.add_option("--thumbsize", default=60, type='int', help="thumbnail size")
   parser.add_option("--mosaic-thumbsize", default=35, type='int', help="mosaic thumbnail size")

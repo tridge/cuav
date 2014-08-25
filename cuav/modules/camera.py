@@ -130,6 +130,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('altitude', int, 0, 'Altitude', range=(0,10000), increment=1),
               MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
               MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
+              MPSetting('rotate180', bool, False, 'rotate180'),
               MPSetting('filter_type', str, 'simple', 'Filter Type',
                         choice=['simple', 'compactness']),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
@@ -465,6 +466,8 @@ class CameraModule(mp_module.MPModule):
             im_full = numpy.zeros((960,1280,3),dtype='uint8')
             im_640 = numpy.zeros((480,640,3),dtype='uint8')
             scanner.debayer(im, im_full)
+            if self.camera_settings.rotate180:
+                scanner.rotate180(im_full)
             scanner.downsample(im_full, im_640)
             img_scan = im_full
             regions = scanner.scan(img_scan)
@@ -962,7 +965,7 @@ class CameraModule(mp_module.MPModule):
             print("No file: %s" % filename)
             return
         try:
-            img = cuav_util.LoadImage(filename)
+            img = cuav_util.LoadImage(filename, rotate180=self.camera_settings.rotate180)
             img = numpy.asarray(cv.GetMat(img))
         except Exception:
             return

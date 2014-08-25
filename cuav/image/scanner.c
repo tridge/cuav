@@ -1388,6 +1388,42 @@ scanner_reduce_depth(PyObject *self, PyObject *args)
 	Py_RETURN_NONE;
 }
 
+
+/*
+  rotate a 24 bit image by 180 degrees in place
+ */
+static PyObject *
+scanner_rotate_180(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img;
+	uint16_t w, h;
+
+	if (!PyArg_ParseTuple(args, "O", &img))
+		return NULL;
+
+	CHECK_CONTIGUOUS(img);
+
+	w = PyArray_DIM(img, 1);
+	h = PyArray_DIM(img, 0);
+
+	if (PyArray_STRIDE(img, 0) != w*3) {
+		PyErr_SetString(ScannerError, "input must be 24 bit");
+		return NULL;
+	}
+        struct bgr *bgr = PyArray_DATA(img);
+        uint32_t size = w*h;
+
+	Py_BEGIN_ALLOW_THREADS;
+	for (uint32_t i=0; i<size/2; i++) {
+            struct bgr tmp = bgr[i];
+            bgr[i] = bgr[size-i];
+            bgr[size-i] = tmp;
+	}
+	Py_END_ALLOW_THREADS;
+
+	Py_RETURN_NONE;
+}
+
 /*
   reduce bit depth of an image from 16 bit to 8 bit, applying gamma
  */
@@ -1597,6 +1633,7 @@ static PyMethodDef ScannerMethods[] = {
 	{"gamma_correct", scanner_gamma_correct, METH_VARARGS, "reduce greyscale, applying gamma"},
 	{"rect_extract", scanner_rect_extract, METH_VARARGS, "extract a rectange from a 24 bit BGR image"},
 	{"rect_overlay", scanner_rect_overlay, METH_VARARGS, "overlay a image with another smaller image at x,y"},
+	{"rotate180", scanner_rotate_180, METH_VARARGS, "rotate 24 bit image by 180 degrees in place"},
 	{NULL, NULL, 0, NULL}
 };
 
