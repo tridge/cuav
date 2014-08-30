@@ -128,6 +128,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('capture_brightness', int, 150, 'Capture Brightness', range=(10, 300), increment=1),
               MPSetting('gamma', int, 950, 'Capture Gamma', range=(0,1000), increment=1),
               MPSetting('roll_stabilised', bool, True, 'Roll Stabilised'),
+              MPSetting('roll_limit', float, 30, 'Roll stabilisation limit'),
               MPSetting('altitude', int, 0, 'Altitude', range=(0,10000), increment=1),
               MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
               MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
@@ -502,7 +503,7 @@ class CameraModule(mp_module.MPModule):
     def get_plane_position(self, frame_time,roll=None):
         '''get a MavPosition object for the planes position if possible'''
         try:
-            pos = self.mpos.position(frame_time, 0,roll=roll)
+            pos = self.mpos.position(frame_time, 0, roll=roll, maxroll=self.camera_settings.roll_limit)
             return pos
         except mav_position.MavInterpolatorException as e:
             print str(e)
