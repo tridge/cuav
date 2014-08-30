@@ -315,6 +315,7 @@ class CameraModule(mp_module.MPModule):
         error_count = 0
 
         print('Opening camera')
+        time.sleep(0.5)
         h = chameleon.open(1, self.camera_settings.depth, self.camera_settings.capture_brightness)
 
         print('Getting camare base_time')
@@ -332,6 +333,7 @@ class CameraModule(mp_module.MPModule):
                 error_count = 0
                 print('re-opening camera')
                 chameleon.close(h)
+                time.sleep(0.5)
                 h = chameleon.open(1, self.camera_settings.depth, self.camera_settings.capture_brightness)
         print('base_time=%f' % base_time)
         return h, base_time, frame_time
