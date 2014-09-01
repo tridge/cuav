@@ -141,7 +141,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
               MPSetting('rotate180', bool, False, 'rotate180'),
               MPSetting('camparms', str, None, 'camera parameters'),
-              MPSetting('filter_type', str, 'simple', 'Filter Type',
+              MPSetting('filter_type', str, 'compactness', 'Filter Type',
                         choice=['simple', 'compactness']),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
               MPSetting('process_divider', int, 1, 'Process Divider', range=(1,50), increment=1),
