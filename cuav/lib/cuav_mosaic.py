@@ -47,6 +47,7 @@ class MosaicImage:
         self.frame_time = frame_time
         self.filename = filename
         self.pos = pos
+        self.shape = None
 
     def __str__(self):
         return '%s %s' % (self.filename, str(self.pos))
@@ -245,11 +246,12 @@ class Mosaic():
 
     def view_imagefile(self, filename):
         '''view an image in a zoomable window'''
+        img = cuav_util.LoadImage(filename)
+        (w,h) = cuav_util.image_shape(img)
         for i in range(len(self.images)):
             if filename == self.images[i].filename:
                 self.current_view = i
-        img = cuav_util.LoadImage(filename)
-        (w,h) = cuav_util.image_shape(img)
+                self.images[i].shape = (w,h)
         for r in self.regions:
             if r.filename == filename:
                 r.region.draw_rectangle(img, colour=(255,0,0), linewidth=min(max(w/600,1),3), offset=max(w/200,1))
@@ -589,7 +591,7 @@ class Mosaic():
         if self.current_view >= len(self.images):
             return
         image = self.images[self.current_view]
-        latlon = cuav_util.gps_position_from_xy(x, y, image.pos, C=self.c_params)
+        latlon = cuav_util.gps_position_from_xy(x, y, image.pos, C=self.c_params, shape=image.shape)
         if self.last_view_latlon is None or latlon is None:
             dist = ''
         else:
@@ -709,10 +711,13 @@ class Mosaic():
 
     def tag_image(self, frame_time, tag_color=(0,255,255)):
         '''tag a mosaic image'''
+        tagged = False
         if frame_time in self.ridx_by_frame_time:
             for ridx in self.ridx_by_frame_time[frame_time]:
                 self.regions[ridx].tag_image_available(color=tag_color)
-                self.display_mosaic_region(ridx)
+                tagged = True
+        if tagged:
+            self.redisplay_mosaic()
 
     def check_events(self):
         '''check for mouse/keyboard events'''
