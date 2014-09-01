@@ -2,10 +2,9 @@
 '''camera control for ptgrey chameleon camera'''
 
 # todo:
-#    - add sending of every Nth image on link2
 #    - add ability to lower score and get past images sent
-#    - pos click on image is off by 1/2 for half images
-#    - thumbnail not refreshing when image has downloaded with dot
+#    - only send thumbs on link2 if link1 is not receiving acks for 20s
+#    - check bandwidth2 actual usage
 
 
 import time, threading, sys, os, numpy, Queue, errno, cPickle, signal, struct, fcntl, select, cStringIO
@@ -145,6 +144,7 @@ class CameraModule(mp_module.MPModule):
                         choice=['simple', 'compactness']),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
               MPSetting('process_divider', int, 1, 'Process Divider', range=(1,50), increment=1),
+              MPSetting('send2_divider', int, 1, 'Send2 Divider', range=(1,50), increment=1),
               MPSetting('use_capture_time', bool, True, 'Use Capture Time'),
 
               MPSetting('gcs_address', str, None, 'GCS Address', tab='GCS'),
@@ -164,8 +164,8 @@ class CameraModule(mp_module.MPModule):
               MPSetting('use_bsend2', bool, True, 'Enable Link2'),
               MPSetting('minspeed', int, 4, 'Min vehicle speed to save images'),
 
-              MPSetting('minscore', int, 75, 'Min Score Link1', range=(0,1000), increment=1, tab='Scoring'),
-              MPSetting('minscore2', int, 500, 'Min Score Link2', range=(0,1000), increment=1),
+              MPSetting('minscore', int, 500, 'Min Score Link1', range=(0,5000), increment=1, tab='Scoring'),
+              MPSetting('minscore2', int, 1200, 'Min Score Link2', range=(0,5000), increment=1),
               MPSetting('packet_loss', int, 0, 'Packet Loss', range=(0,100), increment=1, tab='Misc'),             
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),             
 
@@ -412,7 +412,7 @@ class CameraModule(mp_module.MPModule):
                     self.frame_loss += frame_counter - (last_frame_counter+1)
 
                 # discard based on process_divider setting
-                self.process_counter = (self.process_counter + 1) % self.camera_settings.process_divider
+                self.process_counter += 1
                 if self.process_counter % self.camera_settings.process_divider != 0:
                     continue
                 
@@ -533,6 +533,7 @@ class CameraModule(mp_module.MPModule):
     def transmit_thread(self):
         '''thread for image transmit to GCS'''
         tx_count = 0
+        reg_count = 0
         skip_count = 0
         self.start_aircraft_bsend()
 
@@ -569,6 +570,7 @@ class CameraModule(mp_module.MPModule):
             jpeg = None
 
             if len(regions) > 0:
+                reg_count += 1
                 lowscore = 0
                 highscore = 0
                 for r in regions:
@@ -595,7 +597,9 @@ class CameraModule(mp_module.MPModule):
                                         priority=1)
 
                     # also send thumbnails via 900MHz telemetry
-                    if self.camera_settings.send2 and highscore >= self.camera_settings.minscore2:
+                    if (self.camera_settings.send2 and
+                        highscore >= self.camera_settings.minscore2 and
+                        reg_count % self.camera_settings.send2_divider == 0):
                         if thumb is None or lowscore < self.camera_settings.minscore2:
                             # remove some of the regions
                             regions = cuav_region.filter_regions(im_full, regions, min_score=self.camera_settings.minscore2,
