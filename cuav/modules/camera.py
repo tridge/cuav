@@ -3,9 +3,7 @@
 
 # todo:
 #    - add ability to lower score and get past images sent
-#    - only send thumbs on link2 if link1 is not receiving acks for 20s
 #    - check bandwidth2 actual usage
-
 
 import time, threading, sys, os, numpy, Queue, errno, cPickle, signal, struct, fcntl, select, cStringIO
 try:
@@ -142,6 +140,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('camparms', str, None, 'camera parameters'),
               MPSetting('filter_type', str, 'compactness', 'Filter Type',
                         choice=['simple', 'compactness']),
+              MPSetting('blue_emphasis', bool, False, 'BlueEmphasis', 'Emphasise blue pixels'),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
               MPSetting('process_divider', int, 1, 'Process Divider', range=(1,50), increment=1),
               MPSetting('send2_divider', int, 1, 'Send2 Divider', range=(1,50), increment=1),
@@ -182,7 +181,6 @@ class CameraModule(mp_module.MPModule):
               MPSetting('MaxRegionSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
               MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
               MPSetting('RegionMergeSize', float, 1.0, range=(0,100), increment=0.1, digits=1),
-              MPSetting('BlueEmphasis', bool, False),
               MPSetting('SaveIntermediate', bool, False)
               ],
             title='Image Settings')
@@ -474,7 +472,7 @@ class CameraModule(mp_module.MPModule):
             for name in self.image_settings.list():
                 scan_parms[name] = self.image_settings.get(name)
             scan_parms['SaveIntermediate'] = float(scan_parms['SaveIntermediate'])
-            scan_parms['BlueEmphasis'] = float(scan_parms['BlueEmphasis'])
+            scan_parms['BlueEmphasis'] = float(self.camera_settings.blue_emphasis)
 
             if self.terrain_alt is not None:
                 altitude = self.terrain_alt
