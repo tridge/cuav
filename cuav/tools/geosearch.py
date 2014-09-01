@@ -136,12 +136,13 @@ def process(args):
     )
 
   image_settings = MPSettings(
-    [ MPSetting('MinRegionArea', float, 0.15, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
-      MPSetting('MaxRegionArea', float, 2.0, range=(0,100), increment=0.1, digits=1),
+    [ MPSetting('MinRegionArea', float, 0.3, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
+      MPSetting('MaxRegionArea', float, 4.0, range=(0,100), increment=0.1, digits=1),
       MPSetting('MinRegionSize', float, 0.1, range=(0,100), increment=0.05, digits=2),
-      MPSetting('MaxRegionSize', float, 2, range=(0,100), increment=0.1, digits=1),
+      MPSetting('MaxRegionSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
       MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
-      MPSetting('RegionMergeSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
+      MPSetting('RegionMergeSize', float, 1.0, range=(0,100), increment=0.1, digits=1),
+      MPSetting('BlueEmphasis', bool, opts.blue_emphasis),
       MPSetting('SaveIntermediate', bool, opts.debug)
       ],
     title='Image Settings')
@@ -157,12 +158,6 @@ def process(args):
 
   if opts.view:
     viewer = mp_image.MPImage(title='Image', can_zoom=True, can_drag=True)
-
-  if camera_settings.filter_type == 'compactness':
-    calculate_compactness = True
-    print("Using compactness filter")
-  else:
-    calculate_compactness = False
 
   for f in files:
       if not mosaic.started():
@@ -231,6 +226,7 @@ def process(args):
       for name in image_settings.list():
         scan_parms[name] = image_settings.get(name)
       scan_parms['SaveIntermediate'] = float(scan_parms['SaveIntermediate'])
+      scan_parms['BlueEmphasis'] = float(scan_parms['BlueEmphasis'])
 
       if pos is not None:
         (sw,sh) = cuav_util.image_shape(img_scan)
@@ -242,7 +238,7 @@ def process(args):
         regions = scanner.scan(img_scan, scan_parms)
       else:
         regions = scanner.scan(img_scan)
-      regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full), calculate_compactness)
+      regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full))
       count += 1
       t1=time.time()
 
@@ -321,7 +317,8 @@ def parse_args():
   parser.add_option("--minscore", default=700, type='int', help="minimum score")
   parser.add_option("--gammalog", default=None, type='str', help="gamma.log from flight")
   parser.add_option("--categories", default=None, type=str, help="xml file containing categories for classification")
-  parser.add_option("--flag", default=[], type='str', action='append', help="flag positions")
+  parser.add_option("--flag", default=[], type='str', action='append', help="flag positions"),
+  parser.add_option("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
   return parser.parse_args()
 
 if __name__ == '__main__':
