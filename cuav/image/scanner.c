@@ -752,9 +752,10 @@ static void merge_regions(const struct scan_params *scan_params, struct regions 
                                         b3.miny = MIN(b1->miny, b2->miny);
                                         b3.maxy = MAX(b1->maxy, b2->maxy);
                                         unsigned new_size = (1+b3.maxx - b3.minx) * (1+b3.maxy - b3.miny);
-                                        if (new_size <= scan_params->max_region_area &&
-                                            (b3.maxx - b3.minx) <= scan_params->max_region_size_xy &&
-                                            (b3.maxy - b3.miny) <= scan_params->max_region_size_xy) {
+                                        if ((new_size <= scan_params->max_region_area &&
+                                             (b3.maxx - b3.minx) <= scan_params->max_region_size_xy &&
+                                             (b3.maxy - b3.miny) <= scan_params->max_region_size_xy) ||
+                                            in->num_regions>20) {
                                             *b1 = b3;
                                             // new size is sum of the
                                             // two regions, not
