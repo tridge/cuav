@@ -11,7 +11,6 @@ from cuav.lib import cuav_util
 from pymavlink import mavwp, mavutil
 from MAVProxy.modules.lib import mp_util
 from MAVProxy.modules.mavproxy_map import mp_slipmap
-from cuav.camera.cam_params import CameraParams
 
 class MissionGenerator():
     '''Mission Generator Class'''
@@ -665,19 +664,10 @@ class MissionGenerator():
 
         #print strMAV
 
-    def getCameraWidth(self, alt):
+    def getCameraWidth(self, alt, mpp100):
         '''Using the camera parameters, with the width of the
         ground strip that the camera can see from a particular altitude'''
-
-        #use the camera parameters
-        c_params = CameraParams(lens=4.0)
-        # load camera params and get the width of an image on the ground
-        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'data', 'chameleon1_arecont0.json')
-        c_params.load(path)
-        aov = math.degrees(2.0*math.atan((c_params.sensorwidth/1000.0)/(2.0*c_params.lens/1000.0)))
-        groundWidth = 2.0*alt*math.tan(math.radians(aov/2))
-
-        return groundWidth
+        return 1280 * mpp100 * alt / 100.0
 
 
 if __name__ == "__main__":
@@ -690,7 +680,7 @@ if __name__ == "__main__":
     parser.add_option("--searchAreaOffset", type='int', default=150, help="distance waypoints will be placed outside search area")
     parser.add_option("--wobble", type='int', default=10, help="Make every second row slightly offset. Aids in viewing the overlaps")
     parser.add_option("--width", type='int', default=0, help="Width (m) of each scan row. 0 to use camera params")
-    parser.add_option("--overlap", type='int', default=50, help="% overlap between rows")
+    parser.add_option("--overlap", type='int', default=60, help="% overlap between rows")
     parser.add_option("--entryLane", type='string', default='EL-1,EL-2', help="csv list of waypoints before search")
     parser.add_option("--exitLane", type='string', default='EL-3,EL-4', help="csv list of waypoints after search")
     parser.add_option("--altitude", type='int', default=100, help="Altitude of waypoints")
@@ -699,6 +689,7 @@ if __name__ == "__main__":
     parser.add_option("--cmac", action='store_true', default=False, help="use CMAC WP")
     parser.add_option("--outname", default='way.txt', help="name in data dir")
     parser.add_option("--basealt", default=0, type='int', help="base altitude")
+    parser.add_option("--mpp100", default=0.098, type='float', help="camera meters per pixel at 100m")
 
     (opts, args) = parser.parse_args()
 
@@ -709,7 +700,7 @@ if __name__ == "__main__":
     groundWidth = opts.width
     #are we using the camera params to get the size of each search strip?
     if opts.width == 0:
-        groundWidth = gen.getCameraWidth(opts.altitude)
+        groundWidth = gen.getCameraWidth(opts.altitude, opts.mpp100)
     print "Strip width = " + str(groundWidth)
 
     gen.CreateSearchPattern(width = groundWidth, overlap=opts.overlap, offset=opts.searchAreaOffset, wobble=opts.wobble, alt=opts.altitude)
