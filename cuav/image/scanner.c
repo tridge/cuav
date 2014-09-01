@@ -66,6 +66,7 @@ struct scan_params {
     uint16_t histogram_count_threshold;
     uint16_t region_merge;
     bool save_intermediate;
+    bool blue_emphasis;
 };
 
 static const struct scan_params scan_params_640_480 = {
@@ -75,7 +76,8 @@ static const struct scan_params scan_params_640_480 = {
         max_region_size_xy : 30,
         histogram_count_threshold : 50,
         region_merge : 1,
-        save_intermediate : false
+        save_intermediate : false,
+        blue_emphasis : false
 };
 
 struct regions {
@@ -343,7 +345,8 @@ static void get_min_max(const struct bgr * __restrict in,
 /*
   quantise an BGR image
  */
-static void quantise_image(const struct bgr *in,
+static void quantise_image(const struct scan_params *scan_params, 
+                           const struct bgr *in,
 			   uint32_t size,
 			   struct bgr *out,
 			   const struct bgr *min, 
@@ -368,19 +371,20 @@ static void quantise_image(const struct bgr *in,
 	}
 
 	for (i=0; i<size; i++) {
-#if BLUE_SPECIAL_CASE
+            if (scan_params->blue_emphasis) {
 		if (in[i].b > in[i].r+5 && 
 		    in[i].b > in[i].g+5) {
-			// special case for blue pixels
-			out[i].b = (1<<HISTOGRAM_BITS_PER_COLOR)-1;
-			out[i].g = 0;
-			out[i].r = 0;
-                        continue;
+                    // emphasise blue pixels. This works well for
+                    // some terrain types
+                    out[i].b = (1<<HISTOGRAM_BITS_PER_COLOR)-1;
+                    out[i].g = 0;
+                    out[i].r = 0;
+                    continue;
 		}
-#endif
-                out[i].b = btab[in[i].b];
-                out[i].g = gtab[in[i].g];
-                out[i].r = rtab[in[i].r];
+            }
+            out[i].b = btab[in[i].b];
+            out[i].g = gtab[in[i].g];
+            out[i].r = rtab[in[i].r];
 	}
 }
 
@@ -567,7 +571,8 @@ static void colour_histogram(const struct scan_params *scan_params,
 #endif
 
 
-	quantise_image(&in->data[0][0], in->width*in->height, &quantised->data[0][0], &min, &bin_spacing);
+	quantise_image(scan_params, &in->data[0][0], in->width*in->height, 
+                       &quantised->data[0][0], &min, &bin_spacing);
 
         if (scan_params->save_intermediate) {
                 unquantise_image(quantised, unquantised, &min, &bin_spacing);
@@ -1105,6 +1110,7 @@ static void scale_scan_params_user(struct scan_params *scan_params, uint32_t hei
     scan_params->histogram_count_threshold = MAX(dict_lookup(parm_dict, "MaxRarityPct", 0.016) * (width*height)/100.0, 1);
     scan_params->region_merge = MAX(dict_lookup(parm_dict, "RegionMergeSize", 0.5) / meters_per_pixel, 1);
     scan_params->save_intermediate = dict_lookup(parm_dict, "SaveIntermediate", 0);
+    scan_params->blue_emphasis = dict_lookup(parm_dict, "BlueEmphasis", 0);
     if (scan_params->save_intermediate) {
         printf("mpp=%f mpp2=%f min_region_area=%u max_region_area=%u min_region_size_xy=%u max_region_size_xy=%u histogram_count_threshold=%u region_merge=%u\n",
                meters_per_pixel,
