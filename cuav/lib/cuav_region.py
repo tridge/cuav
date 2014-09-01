@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''CanberraUAV utility functions for dealing with image regions'''
 
-import numpy, sys, os, time, cuav_util, cv
+import numpy, sys, os, time, cuav_util, cv, math
 
 class Region:
 	'''a object representing a recognised region in an image'''
@@ -71,6 +71,14 @@ def array_compactness(im):
         from numpy import sqrt
         from math import exp
         (h,w) = shape(im)
+        # make sure we don't try to process really big arrays, as the CPU cost
+        # rises very rapidly
+        maxsize = 15
+        if h > maxsize or w > maxsize:
+                reduction_h = (h+(maxsize-1))//maxsize
+                reduction_w = (w+(maxsize-1))//maxsize
+                im = im[::reduction_h, ::reduction_w]
+                (h,w) = shape(im)
         (X,Y) = meshgrid(arange(w),arange(h))
         x = X.flatten()
         y = Y.flatten()
@@ -115,12 +123,33 @@ def raw_hsv_score(hsv):
 	blue_count = 0
 	red_count = 0
 	sum_v = 0
+
+        # keep range of hsv
+        h_min = 255
+        h_max = 0
+        s_min = 255
+        s_max = 0
+        v_min = 255
+        v_max = 0
+        
 	from numpy import zeros
 	scorix = zeros((height,width))
 	for x in range(width):
 		for y in range(height):
 			pix_score = 0
 			(h,s,v) = hsv[y,x]
+                        if h > h_max:
+                                h_max = h
+                        if s > s_max:
+                                s_max = s
+                        if v > v_max:
+                                v_max = v
+                        if h < h_min:
+                                h_min = h
+                        if s < s_min:
+                                s_min = s
+                        if v < v_min:
+                                v_min = v
 			sum_v += v
 			if (h < 22 or (h > 171 and h < 191)) and s > 50 and v < 150:
 				pix_score += 3
@@ -145,33 +174,47 @@ def raw_hsv_score(hsv):
 	avg_v = sum_v / (width*height)
         score = 500 * float(score) / (width*height)
 
-	return (score, scorix, blue_count, red_count, avg_v)
+	return (score, scorix, blue_count, red_count, avg_v, s_max - s_min, v_max - v_min)
+
+def log_scaling(value, scale):
+        # apply a log scaling to a value
+        if value <= math.e:
+                return scale
+        return math.log(value)*scale
 
 def hsv_score(r, hsv, use_compactness=False, use_whiteness=False):
 	'''try to score a HSV image based on how "interesting" it is for joe detection'''
-  	(score, scorix, blue_count, red_count, avg_v) = raw_hsv_score(hsv)
+  	(col_score, scorix, blue_count, red_count, avg_v, s_range, v_range) = raw_hsv_score(hsv)
 
-        r.hsv_score = score
+        r.hsv_score = col_score
 
 	if blue_count < 100 and red_count < 50 and avg_v < 150:
 		if blue_count > 1 and red_count > 1:
-			score *= 2
+			col_score *= 2
 		if blue_count > 2 and red_count > 2:
-			score *= 2
+			col_score *= 2
 		if blue_count > 4 and red_count > 4:
-			score *= 2
+			col_score *= 2
 
         scorix = (scorix>0).astype(float)
-
-	if use_compactness:
-        	score = score*r.compactness
 
         r.whiteness = image_whiteness(hsv)
 	if use_whiteness:
 		not_white = 1.0-r.whiteness
-		score = score*not_white
-        score *= (1+r.scan_score)
-        r.score = r.scan_score
+		col_score *= not_white
+        if r.compactness <= math.e:
+                scaled_compactness = 1
+        else:
+                scaled_compactness = math.log(r.compactness)
+
+        r.col_score = col_score
+        if col_score <= math.e:
+                scaled_col_score = 1
+        else:
+                scaled_col_score = math.log(col_score)
+
+        # combine all the scoring systems
+        r.score = r.scan_score*(s_range/128.0)*log_scaling(r.compactness,0.2)*log_scaling(col_score,0.3)
 
 def score_region(img, r, filter_type='simple'):
 	'''filter a list of regions using HSV values'''
