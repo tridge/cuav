@@ -21,6 +21,7 @@ parser.add_option("--condition", default=None, help='condition on mavlink log')
 parser.add_option("--speedup", type='float', default=1.0, help='playback speedup')
 parser.add_option("--loop", action='store_true', default=False, help='playback in a loop')
 parser.add_option("--jpeg", action='store_true', default=False, help='use jpegs instead of PGMs')
+parser.add_option("--HIL", action='store_true', default=False, help='send HIL_STATE messages')
 (opts, args) = parser.parse_args()
 
 from pymavlink import mavutil
@@ -47,6 +48,31 @@ def scan_image_directory(dirname):
     ret.sort(key=lambda f: f.frame_time)
     return ret
 
+def send_HIL(min, mout):
+    '''send HIL_STATE on mout based on state of min'''
+    try:
+        ATTITUDE = min.messages['ATTITUDE']
+        GLOBAL_POSITION_INT = min.messages['GLOBAL_POSITION_INT']
+        RAW_IMU = min.messages['RAW_IMU']
+    except Exception:
+        return
+    mout.mav.hil_state_send(int(time.time()*1e6),
+                            ATTITUDE.roll,
+                            ATTITUDE.pitch,
+                            ATTITUDE.yaw,
+                            ATTITUDE.rollspeed,
+                            ATTITUDE.pitchspeed,
+                            ATTITUDE.yawspeed,
+                            GLOBAL_POSITION_INT.lat,
+                            GLOBAL_POSITION_INT.lon,
+                            GLOBAL_POSITION_INT.relative_alt,
+                            GLOBAL_POSITION_INT.vx,
+                            GLOBAL_POSITION_INT.vy,
+                            GLOBAL_POSITION_INT.vz,
+                            RAW_IMU.xacc,
+                            RAW_IMU.yacc,
+                            RAW_IMU.zacc)
+
 def playback(filename, images):
     '''playback one file'''
     mlog = mavutil.mavlink_connection(filename, robust_parsing=True)
@@ -72,7 +98,10 @@ def playback(filename, images):
             continue
         if msg.get_type() == 'PARAM_VALUE':
             params.append(msg)
-        mout.write(msg.get_msgbuf())
+        if not opts.HIL:
+            mout.write(msg.get_msgbuf())
+        else:
+            send_HIL(mlog, mout)
         deltat = msg._timestamp - last_timestamp
         if len(images) == 0 or images[0].frame_time > msg._timestamp + 2:
             # run at high speed except for the portions where we have images
