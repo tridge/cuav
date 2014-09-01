@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 '''camera control for ptgrey chameleon camera'''
 
+# todo:
+#    - add sending of every Nth image on link2
+#    - add ability to lower score and get past images sent
+
+
 import time, threading, sys, os, numpy, Queue, errno, cPickle, signal, struct, fcntl, select, cStringIO
 try:
     import cv2.cv as cv
