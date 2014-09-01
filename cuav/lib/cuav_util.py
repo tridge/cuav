@@ -390,20 +390,20 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     distance = math.sqrt(xofs**2 + yofs**2)
     return gps_newpos(latitude, longitude, bearing, distance)
 
-def gps_position_from_xy(x, y, pos, C=CameraParams(), altitude=None):
+def gps_position_from_xy(x, y, pos, C=CameraParams(), altitude=None, shape=None):
     '''
     return a GPS position in an image given a MavPosition object
     and an image x,y position
     '''
     if pos is None:
             return None
-    width=C.xresolution
-    height=C.yresolution
-    # assume the image came from the same camera but may no longer be original size
-    scale_x = float(C.xresolution)/float(width)
-    scale_y = float(C.yresolution)/float(height)
-    x *= scale_x
-    y *= scale_y
+    if shape is not None:
+            (width,height) = shape
+            # assume the image came from the same camera but may no longer be original size
+            scale_x = float(C.xresolution)/float(width)
+            scale_y = float(C.yresolution)/float(height)
+            x *= scale_x
+            y *= scale_y
     if altitude is None:
 	    altitude = pos.altitude
     return pixel_coordinates(x, y, pos.lat, pos.lon, altitude,
