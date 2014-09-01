@@ -549,7 +549,11 @@ def LoadImage(filename, rotate180=False):
 	It always returns a colour image of the same size'''
 	if filename.endswith('.pgm'):
 		from ..image import scanner
-		pgm = PGM(filename)
+                try:
+                        pgm = PGM(filename)
+                except Exception as e:
+                        print('Failed to load %s: %s' % (filename, e))
+                        return None
 		im_full = numpy.zeros((960,1280,3),dtype='uint8')
 		scanner.debayer(pgm.array, im_full)
                 if rotate180:

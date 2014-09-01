@@ -784,6 +784,8 @@ class CameraModule(mp_module.MPModule):
                 thumb_filename = '%s/v%s.jpg' % (thumb_dir, cuav_util.frame_time(obj.frame_time))
                 chameleon.save_file(thumb_filename, obj.thumb)
                 composite = cv.LoadImage(thumb_filename)
+                if composite is None:
+                    continue
                 thumbs = cuav_mosaic.ExtractThumbs(composite, len(obj.regions))
 
                 # log the joe positions
@@ -817,6 +819,8 @@ class CameraModule(mp_module.MPModule):
                 filename = '%s/v%s.jpg' % (view_dir, cuav_util.frame_time(obj.frame_time))
                 chameleon.save_file(filename, obj.jpeg)
                 img = cv.LoadImage(filename)
+                if img is None:
+                    continue
                 if img.width == 1280:
                     display_img = cv.CreateImage((640, 480), 8, 3)
                     cv.Resize(img, display_img)

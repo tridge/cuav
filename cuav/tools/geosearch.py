@@ -204,6 +204,8 @@ def process(args):
       mosaic.check_events()
 
       im_orig = cuav_util.LoadImage(f, rotate180=camera_settings.rotate180)
+      if im_orig is None:
+        continue
       (w,h) = cuav_util.image_shape(im_orig)
 
       if not opts.camera_params:
