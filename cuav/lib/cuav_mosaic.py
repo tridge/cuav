@@ -590,11 +590,11 @@ class Mosaic():
             return
         image = self.images[self.current_view]
         latlon = cuav_util.gps_position_from_xy(x, y, image.pos, C=self.c_params)
-        if self.last_view_latlon is None:
+        if self.last_view_latlon is None or latlon is None:
             dist = ''
         else:
             dist = "dist %.1f" % cuav_util.gps_distance(latlon[0], latlon[1],
-                                                                self.last_view_latlon[0], self.last_view_latlon[1])
+                                                        self.last_view_latlon[0], self.last_view_latlon[1])
         print("-> %s %s %s" % (latlon, image.filename, dist))
         self.last_view_latlon = latlon
 
