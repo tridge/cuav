@@ -37,7 +37,7 @@ class CUAVModule(mp_module.MPModule):
             "SR1_POSITION"  : 4.0,
             "SR1_RAW_CTRL"  : 2.0,
             "SR1_RAW_SENS"  : 1.0,
-            "SR1_RC_CHAN"   : 1.0
+            "SR1_RC_CHAN"   : 1.0,
             "SR2_EXTRA1"    : 4.0,
             "SR2_EXTRA2"    : 4.0,
             "SR2_EXTRA3"    : 4.0,
