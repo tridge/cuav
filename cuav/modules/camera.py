@@ -169,12 +169,13 @@ class CameraModule(mp_module.MPModule):
             )
 
         self.image_settings = MPSettings(
-            [ MPSetting('MinRegionArea', float, 0.15, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
-              MPSetting('MaxRegionArea', float, 2.0, range=(0,100), increment=0.1, digits=1),
+            [ MPSetting('MinRegionArea', float, 0.3, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
+              MPSetting('MaxRegionArea', float, 4.0, range=(0,100), increment=0.1, digits=1),
               MPSetting('MinRegionSize', float, 0.1, range=(0,100), increment=0.05, digits=2),
-              MPSetting('MaxRegionSize', float, 2, range=(0,100), increment=0.1, digits=1),
+              MPSetting('MaxRegionSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
               MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
-              MPSetting('RegionMergeSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
+              MPSetting('RegionMergeSize', float, 1.0, range=(0,100), increment=0.1, digits=1),
+              MPSetting('BlueEmphasis', bool, False),
               MPSetting('SaveIntermediate', bool, False)
               ],
             title='Image Settings')
@@ -466,6 +467,7 @@ class CameraModule(mp_module.MPModule):
             for name in self.image_settings.list():
                 scan_parms[name] = self.image_settings.get(name)
             scan_parms['SaveIntermediate'] = float(scan_parms['SaveIntermediate'])
+            scan_parms['BlueEmphasis'] = float(scan_parms['BlueEmphasis'])
 
             if self.terrain_alt is not None:
                 altitude = self.terrain_alt
