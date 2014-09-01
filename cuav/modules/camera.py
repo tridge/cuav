@@ -4,6 +4,8 @@
 # todo:
 #    - add sending of every Nth image on link2
 #    - add ability to lower score and get past images sent
+#    - pos click on image is off by 1/2 for half images
+#    - thumbnail not refreshing when image has downloaded with dot
 
 
 import time, threading, sys, os, numpy, Queue, errno, cPickle, signal, struct, fcntl, select, cStringIO
