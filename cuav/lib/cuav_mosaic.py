@@ -206,6 +206,9 @@ class Mosaic():
     def set_mosaic_size(self, size):
         '''change mosaic size'''
         (self.width, self.height) = size
+        # take into account the menu
+        if self.height > 25:
+            self.height -= 25
         grid_width = self.width // self.thumb_size
         if grid_width < 1:
             grid_width = 1
