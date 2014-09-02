@@ -69,13 +69,16 @@ class ImagePacket:
 
 class ThumbPacket:
     '''a thumbnail region sent to the ground station'''
-    def __init__(self, frame_time, regions, thumb, frame_loss, xmit_queue, pos):
+    def __init__(self, frame_time, regions, thumb, frame_loss, xmit_queue, pos, highscore):
         self.frame_time = frame_time
         self.regions = regions
         self.thumb = thumb
         self.frame_loss = frame_loss
         self.xmit_queue = xmit_queue
         self.pos = pos
+        self.highscore = highscore
+        self.sent1 = False
+        self.sent2 = False
 
 class CommandPacket:
     '''a command to run on the plane'''
@@ -219,6 +222,9 @@ class CameraModule(mp_module.MPModule):
         self.bsend2 = None
         self.bsend_slave = None
         self.framerate = 0
+        self.all_thumbs = []
+        self.last_minscore = None
+        self.last_minscore2 = None
         
         # setup directory for images
         if self.logdir is None:
@@ -503,7 +509,7 @@ class CameraModule(mp_module.MPModule):
             self.scan_count += 1
 
             regions = cuav_region.filter_regions(im_full, regions,
-                                                 min_score=min(self.camera_settings.minscore,self.camera_settings.minscore2),
+                                                 min_score=min(self.camera_settings.minscorexo,self.camera_settings.minscore2),
                                                  filter_type=self.camera_settings.filter_type)
 
             self.region_count += len(regions)
@@ -529,6 +535,20 @@ class CameraModule(mp_module.MPModule):
                                        thumb_filename, altitude=altitude)
 
 
+    def add_all_thumbs(self, pkt):
+        '''add to all_thumbs list'''
+        if pkt.pos is None or pkt.pos.altitude > 20:
+            # don't save ground photos
+            return
+        all_thumbs.append(pkt)
+
+    def check_send_newscore(self, pkt):
+        '''check if requested scores have changed, and send missing thumbs if needed'''
+        if self.last_minscore is None:
+            self.last_minscore = self.camera_settings.minscore
+        if self.last_minscore2 is None:
+            self.last_minscore2 = self.camera_settings.minscore2
+
     def transmit_thread(self):
         '''thread for image transmit to GCS'''
         tx_count = 0
@@ -542,6 +562,7 @@ class CameraModule(mp_module.MPModule):
             self.check_commands(self.bsend)
             self.check_commands(self.bsend2)
             if self.transmit_queue.empty():
+                self.check_send_newscore()
                 continue
 
             (frame_time, regions, im_full, im_640) = self.transmit_queue.get()
@@ -578,41 +599,34 @@ class CameraModule(mp_module.MPModule):
                 
                 if self.camera_settings.transmit:
                     # send a region message with thumbnails to the ground station
-                    thumb = None
-                    if self.camera_settings.send1:
-                        thumb_img = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)),
-                                                                   regions,
-                                                                   thumb_size=self.camera_settings.thumbsize)
-                        thumb = scanner.jpeg_compress(numpy.ascontiguousarray(cv.GetMat(thumb_img)), self.camera_settings.quality)
-                        
-                        pkt = ThumbPacket(frame_time, regions, thumb, self.frame_loss, self.xmit_queue, pos)
-                        
-                        buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+                    thumb_img = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)),
+                                                               regions,
+                                                               thumb_size=self.camera_settings.thumbsize)
+                    thumb = scanner.jpeg_compress(numpy.ascontiguousarray(cv.GetMat(thumb_img)), self.camera_settings.quality)
+                    pkt = ThumbPacket(frame_time, regions, thumb, self.frame_loss, self.xmit_queue, pos, highscore)
+                    buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+
+                    # keep all thumbs so we can send more on score change
+                    self.add_all_thumbs(pkt)
+
+                    if self.camera_settings.send1 and highscore >= self.camera_settings.minscore:
+                        # send on primary link
                         self.bsend.set_bandwidth(self.camera_settings.bandwidth)
                         self.bsend.set_packet_loss(self.camera_settings.packet_loss)
-                        # print("sending thumb len=%u" % len(buf))
                         self.bsend.send(buf,
                                         dest=(self.camera_settings.gcs_address, self.camera_settings.gcs_view_port),
-                                        priority=1)
+                                        priority=highscore)
+                        pkt.sent1 = True
 
                     # also send thumbnails via 900MHz telemetry
                     if (self.camera_settings.send2 and
                         highscore >= self.camera_settings.minscore2 and
                         reg_count % self.camera_settings.send2_divider == 0):
-                        if thumb is None or lowscore < self.camera_settings.minscore2:
-                            # remove some of the regions
-                            regions = cuav_region.filter_regions(im_full, regions, min_score=self.camera_settings.minscore2,
-                                                                 filter_type=self.camera_settings.filter_type)
-                            thumb_img = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)),
-                                                                       regions,
-                                                                       thumb_size=self.camera_settings.thumbsize)
-                            thumb = scanner.jpeg_compress(numpy.ascontiguousarray(cv.GetMat(thumb_img)), self.camera_settings.quality)
-                            pkt = ThumbPacket(frame_time, regions, thumb, self.frame_loss, self.xmit_queue, pos)
-                            
-                            buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+                        # send on secondary link
                             self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
-                            # print("sending thumb2 len=%u" % len(buf))
+                            self.bsend2.set_packet_loss(self.camera_settings.packet_loss2)
                             self.bsend2.send(buf, priority=highscore)
+                            pkt.sent2 = True
 
             # Base how many images we send on the send queue size
             send_frequency = self.xmit_queue // 3
