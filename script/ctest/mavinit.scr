@@ -16,6 +16,7 @@ camera set blue_emphasis 1
 camera set camparms cuav/cuav/data/calibration_images_2014/ChameleonArecort/params.json
 # use TERRAIN_REPORT for altitude
 camera set altitude 0
+camera airstart
 set moddebug 2
 set distreadout 0
 set altreadout 0
