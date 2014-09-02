@@ -170,7 +170,7 @@ class Mosaic():
                                                      returnkey='setSort',
                                                      selected=self.sort_type,
                                                      items=['Score\tAlt+S',
-                                                            'ScoreReverse\tAlt+Shift+S',
+                                                            'ScoreReverse\tAlt+R',
                                                             'Compactness\tAlt+C',
                                                             'Distinctiveness\tAlt+D',
                                                             'Whiteness\tAlt+W',
