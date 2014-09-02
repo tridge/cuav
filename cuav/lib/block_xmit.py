@@ -289,6 +289,7 @@ class BlockSender:
 		self.bandwidth_used = 0.0
 		self.send_count = 0
 		self.recv_count = 0
+                self.last_receive_time = 0
 
 		# work out the overheads of the packet types
 		self.chunk_overhead = BlockSenderChunk(0,0,0,'',0,0,0).header_size
@@ -328,6 +329,11 @@ class BlockSender:
 	def get_bandwidth_used(self):
 		'''return a moving average of the actual bandwidth used'''
 		return self.bandwidth_used
+
+        def is_alive(self, timeout):
+                '''return True if link has received a packet in last timeout seconds'''
+                return time.time() - self.last_receive_time < timeout
+                
 
 	def send(self, data, dest=None, chunk_size=None, callback=None, priority=0):
 		'''send a data block
@@ -480,6 +486,7 @@ class BlockSender:
 			self._debug('_check_incoming: bad packet %s' % str(e))
 			return True
 		tnow = time.time()
+                self.last_receive_time = tnow
                 #print(obj)
 		if isinstance(obj, BlockSenderSet):
 			# we've received a set of acks for some data

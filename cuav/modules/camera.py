@@ -166,6 +166,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('minscore', int, 500, 'Min Score Link1', range=(0,5000), increment=1, tab='Scoring'),
               MPSetting('minscore2', int, 1200, 'Min Score Link2', range=(0,5000), increment=1),
               MPSetting('packet_loss', int, 0, 'Packet Loss', range=(0,100), increment=1, tab='Misc'),             
+              MPSetting('packet_loss2', int, 0, 'Link2 Packet Loss', range=(0,100), increment=1, tab='Misc'),             
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),             
 
               MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
@@ -623,6 +624,16 @@ class CameraModule(mp_module.MPModule):
             tx_count += 1
             self.send_image(im_640, frame_time, pos, 0)
 
+    def best_bsend(self):
+        '''choose the best link to use'''
+        if self.camera_settings.use_bsend2 and not self.bsend.is_alive(20) and self.bsend2 is not None:
+            self.bsend2.set_packet_loss(self.camera_settings.packet_loss2)
+            self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
+            return self.bsend2
+        self.bsend.set_packet_loss(self.camera_settings.packet_loss)
+        self.bsend.set_bandwidth(self.camera_settings.bandwidth)
+        return self.bsend
+
     def send_image(self, img, frame_time, pos, priority):
         '''send an image to the GCS'''
         jpeg = scanner.jpeg_compress(img, self.camera_settings.quality)
@@ -630,14 +641,14 @@ class CameraModule(mp_module.MPModule):
         # keep filtered image size
         self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)        
 
-        self.bsend.set_packet_loss(self.camera_settings.packet_loss)
-        self.bsend.set_bandwidth(self.camera_settings.bandwidth)
+        bsend = self.best_bsend()
+
         pkt = ImagePacket(frame_time, jpeg, self.xmit_queue, pos, priority)
         str = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
         # print("sending image len=%u" % len(str))
-        self.bsend.send(str,
-                        dest=(self.camera_settings.gcs_address, self.camera_settings.gcs_view_port),
-                        priority=priority)
+        bsend.send(str,
+                   dest=(self.camera_settings.gcs_address, self.camera_settings.gcs_view_port),
+                   priority=priority)
 
 
     def reload_mosaic(self, mosaic):
@@ -970,17 +981,7 @@ class CameraModule(mp_module.MPModule):
             buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
             self.start_gcs_bsend()
             print("Requesting image %s" % frame_time)
-            if self.camera_settings.use_bsend2:
-                if self.bsend2 is None:
-                    print("bsend2 not initialised")
-                    return
-                self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
-                self.bsend2.send(buf, priority=10000)
-            else:
-                if self.bsend is None:
-                    print("bsend not initialised")
-                    return
-                self.bsend.send(buf, priority=10000)
+            self.best_bsend().send(buf, priority=10000)
 
     def handle_image_request(self, obj, bsend):
         '''handle ImageRequest from GCS'''
@@ -1006,17 +1007,7 @@ class CameraModule(mp_module.MPModule):
         '''send a packet from GCS'''
         buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
         self.start_gcs_bsend()
-        if self.camera_settings.use_bsend2:
-            if self.bsend2 is None:
-                print("bsend2 not initialised")
-                return
-            self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
-            self.bsend2.send(buf, priority=10000)
-        else:
-            if self.bsend is None:
-                print("bsend not initialised")
-                return
-            self.bsend.send(buf, priority=10000)
+        self.best_bsend().send(buf, priority=10000)
 
     def camera_settings_callback(self, setting):
         '''called on a changed camera setting'''
