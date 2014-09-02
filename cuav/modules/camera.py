@@ -173,7 +173,8 @@ class CameraModule(mp_module.MPModule):
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),             
 
               MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
-                        digits=2, tab='Display')
+                        digits=2, tab='Display'),
+              MPSetting('debug', bool, False, 'debug enable'),             
               ],
             title='Camera Settings'
             )
@@ -220,6 +221,7 @@ class CameraModule(mp_module.MPModule):
         self.bsocket = None
         self.bsend = None
         self.bsend2 = None
+        self.bsend2_thumb_total = 0
         self.bsend_slave = None
         self.framerate = 0
         self.all_thumbs = []
@@ -509,7 +511,7 @@ class CameraModule(mp_module.MPModule):
             self.scan_count += 1
 
             regions = cuav_region.filter_regions(im_full, regions,
-                                                 min_score=min(self.camera_settings.minscorexo,self.camera_settings.minscore2),
+                                                 min_score=min(self.camera_settings.minscore,self.camera_settings.minscore2),
                                                  filter_type=self.camera_settings.filter_type)
 
             self.region_count += len(regions)
@@ -542,7 +544,7 @@ class CameraModule(mp_module.MPModule):
             return
         all_thumbs.append(pkt)
 
-    def check_send_newscore(self, pkt):
+    def check_send_newscore(self):
         '''check if requested scores have changed, and send missing thumbs if needed'''
         if self.last_minscore is None:
             self.last_minscore = self.camera_settings.minscore
@@ -626,6 +628,10 @@ class CameraModule(mp_module.MPModule):
                             self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
                             self.bsend2.set_packet_loss(self.camera_settings.packet_loss2)
                             self.bsend2.send(buf, priority=highscore)
+                            if self.camera_settings.debug:
+                                self.bsend2_thumb_total += len(buf)
+                                print("sent thumb bsend2 highscore=%u len=%u total=%u" % (
+                                    highscore, len(buf), self.bsend2_thumb_total))
                             pkt.sent2 = True
 
             # Base how many images we send on the send queue size
@@ -641,6 +647,8 @@ class CameraModule(mp_module.MPModule):
     def best_bsend(self):
         '''choose the best link to use'''
         if self.camera_settings.use_bsend2 and not self.bsend.is_alive(20) and self.bsend2 is not None:
+            if self.camera_settings.debug:
+                print("using bsend2")
             self.bsend2.set_packet_loss(self.camera_settings.packet_loss2)
             self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
             return self.bsend2
