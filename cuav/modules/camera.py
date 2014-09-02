@@ -506,7 +506,7 @@ class CameraModule(mp_module.MPModule):
                 scanner.rotate180(im_full)
             scanner.downsample(im_full, im_640)
             img_scan = im_full
-            regions = scanner.scan(img_scan)
+            regions = scanner.scan(img_scan, scan_parms)
             if self.camera_settings.filter_type=='compactness':
                 calculate_compactness = True
             else:
