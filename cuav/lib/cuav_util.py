@@ -462,9 +462,14 @@ def parse_frame_time(filename):
 	i = basename.find('201')
 	if i == -1:
                 if basename.lower().endswith('.jpg') or basename.lower().endswith('.jpeg'):
-                        from . import mav_position
-                        return mav_position.exif_timestamp(filename)
-		raise RuntimeError('unable to parse filename %s into time' % basename)
+                        try:
+                                from . import mav_position
+                                return mav_position.exif_timestamp(filename)
+                        except Exception as e:
+                                print("Failed to get EXIF timestamp: %s" % e)
+                                return 0
+		print('unable to parse filename %s into time' % basename)
+                return 0
 	tstring = basename[i:]
         ttuple = time.strptime(tstring[:14], "%Y%m%d%H%M%S")
 	t = time.mktime(ttuple)
