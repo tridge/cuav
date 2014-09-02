@@ -170,6 +170,7 @@ class Mosaic():
                                                      returnkey='setSort',
                                                      selected=self.sort_type,
                                                      items=['Score\tAlt+S',
+                                                            'ScoreReverse\tAlt+Shift+S',
                                                             'Compactness\tAlt+C',
                                                             'Distinctiveness\tAlt+D',
                                                             'Whiteness\tAlt+W',
@@ -421,6 +422,8 @@ class Mosaic():
         sortby = self.sort_type
         if sortby == 'Score':
             self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
+        elif sortby == 'ScoreReverse':
+            self.regions_sorted.sort(key = lambda r : r.score, reverse=False)
         elif sortby == 'Compactness':
             self.regions_sorted.sort(key = lambda r : r.region.compactness, reverse=True)
         elif sortby == 'Distinctiveness':
