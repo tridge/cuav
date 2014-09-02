@@ -729,7 +729,9 @@ class CameraModule(mp_module.MPModule):
     def start_aircraft_bsend(self):
         '''start bsend for aircraft side'''
         if self.bsend is None:
-            self.bsend = block_xmit.BlockSender(0, bandwidth=self.camera_settings.bandwidth, debug=False)
+            self.bsend = block_xmit.BlockSender(0, bandwidth=self.camera_settings.bandwidth, debug=False,
+                                                dest_ip=self.camera_settings.gcs_address,
+                                                dest_port=self.camera_settings.gcs_view_port)
         if self.bsend2 is None:
             self.bsocket = MavSocket(self.mpstate.mav_master[0])
             self.bsend2 = block_xmit.BlockSender(mss=96, sock=self.bsocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
