@@ -551,7 +551,7 @@ class CameraModule(mp_module.MPModule):
         if pkt.pos is None or pkt.pos.altitude > 20:
             # don't save ground photos
             return
-        all_thumbs.append(pkt)
+        self.all_thumbs.append(pkt)
 
     def check_send_newscore(self):
         '''check if requested scores have changed, and send missing thumbs if needed'''
