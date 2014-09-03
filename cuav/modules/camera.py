@@ -229,7 +229,6 @@ class CameraModule(mp_module.MPModule):
         self.bsend2_thumb_total = 0
         self.bsend_slave = None
         self.framerate = 0
-        self.all_thumbs = []
         self.last_minscore = None
         self.last_minscore2 = None
         self.last_heartbeat = time.time()
@@ -551,7 +550,6 @@ class CameraModule(mp_module.MPModule):
         if pkt.pos is None or pkt.pos.altitude > 20:
             # don't save ground photos
             return
-        self.all_thumbs.append(pkt)
 
     def check_send_newscore(self):
         '''check if requested scores have changed, and send missing thumbs if needed'''
