@@ -25,11 +25,11 @@ class MissionGenerator():
         self.exitPoints = []
         self.SearchPattern = []
         if opts.cmac:
-            self.joeDrop = (-35.362748, 149.162257, 80)
+            self.joePos = (-35.362748, 149.162257, 80)
             self.landingHeading = 353.0
             self.landingPt = (-35.362879, 149.165190)
         else:
-            self.joeDrop = (-26.624864, 151.848349, 80)
+            self.joePos = (-26.624864, 151.848349, 80)
             self.landingHeading = 349.1
             self.landingPt = (-26.583957, 151.840563)
 
@@ -506,32 +506,34 @@ class MissionGenerator():
         w = self.command(mavutil.mavlink.MAV_CMD_NAV_LOITER_UNLIM)
         MAVpointLoader.add(w, comment='loiter')
 
-        dropalt = self.joeDrop[2]
-        joe = (self.joeDrop[0], self.joeDrop[1])
+        dropalt = self.joePos[2]
+        joe = (self.joePos[0], self.joePos[1])
 
         crosswp = MAVpointLoader.count()
-        w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=60, distance=200), alt=dropalt)        
+        w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=60, distance=250), alt=dropalt)        
         MAVpointLoader.add(w, comment='cross 1')
 
-        w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=240, distance=200), alt=dropalt)        
+        w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=240, distance=250), alt=dropalt)        
         MAVpointLoader.add(w, comment='cross 2')
 
-        w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=300, distance=200), alt=dropalt)        
+        w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=300, distance=250), alt=dropalt)        
         MAVpointLoader.add(w, comment='cross 3')
 
-        w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=120, distance=200), alt=dropalt)        
+        w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=120, distance=250), alt=dropalt)        
         MAVpointLoader.add(w, comment='cross 4')
 
         w = self.jump(crosswp)
         MAVpointLoader.add(w, comment='Jump to cross')
         
-        # joe drop approach
-        w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=0, distance=300), alt=dropalt)        
+        # joe approach point
+        w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=0, distance=350), alt=dropalt)    
         MAVpointLoader.add(w, comment='Joe approach')
-        
-        w = self.waypoint(*joe, alt=dropalt)
-        MAVpointLoader.add(w, comment='Joe Drop location')
 
+        # joe location. We use a default acceptance radius of 35 meters. Will be adjusted with 'wp param'
+        # command
+        w = self.waypoint(*joe, alt=dropalt, param=[0, 35, 0, 0])  
+        MAVpointLoader.add(w, comment='Joe Location')
+        
         w = self.command(mavutil.mavlink.MAV_CMD_DO_SET_SERVO, [8, 1500, 0, 0])
         MAVpointLoader.add(w, comment='Drop bottle 1')
 
