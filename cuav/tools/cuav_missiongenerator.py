@@ -529,6 +529,9 @@ class MissionGenerator():
         w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=0, distance=350), alt=dropalt)    
         MAVpointLoader.add(w, comment='Joe approach')
 
+        w = self.command(mavutil.mavlink.MAV_CMD_DO_CHANGE_SPEED, param=[0, 20, 50, 0])
+        MAVpointLoader.add(w, comment='Change to 20 m/s')
+
         # joe location. We use a default acceptance radius of 35 meters. Will be adjusted with 'wp param'
         # command
         w = self.waypoint(*joe, alt=dropalt, param=[0, 35, 0, 0])  
@@ -542,6 +545,9 @@ class MissionGenerator():
 
         w = self.command(mavutil.mavlink.MAV_CMD_DO_SET_SERVO, [12, 1050, 0, 0])
         MAVpointLoader.add(w, comment='Drop bottle 2')
+
+        w = self.command(mavutil.mavlink.MAV_CMD_DO_CHANGE_SPEED, param=[0, 28, 50, 0])
+        MAVpointLoader.add(w, comment='Change to 28 m/s')
 
         w = self.waypoint(*cuav_util.gps_newpos(*joe, bearing=180, distance=250), alt=dropalt)        
         MAVpointLoader.add(w, comment='Joe after')
