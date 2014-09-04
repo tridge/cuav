@@ -148,7 +148,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('camparms', str, None, 'camera parameters'),
               MPSetting('filter_type', str, 'compactness', 'Filter Type',
                         choice=['simple', 'compactness']),
-              MPSetting('blue_emphasis', bool, False, 'BlueEmphasis', 'Emphasise blue pixels'),
+              MPSetting('blue_emphasis', bool, False, 'BlueEmphasis'),
               MPSetting('framerate', str, 7, 'Frame Rate', choice=['1', '3', '7', '15']),
               MPSetting('process_divider', int, 1, 'Process Divider', range=(1,50), increment=1),
               MPSetting('send2_divider', int, 1, 'Send2 Divider', range=(1,50), increment=1),
