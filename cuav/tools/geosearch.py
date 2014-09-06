@@ -86,10 +86,11 @@ def process(args):
     from pymavlink import mavwp
     wp = mavwp.MAVWPLoader()
     wp.load(opts.mission)
-    boundary = wp.polygon()
-    slipmap.add_object(mp_slipmap.SlipPolygon('mission', boundary, layer=1,
-                                              linewidth=1, colour=(255,255,255)))
-
+    plist = wp.polygon_list()
+    if len(plist) > 0:
+        for i in range(len(plist)):
+          slipmap.add_object(mp_slipmap.SlipPolygon('Mission-%s-%u' % (opts.mission,i), plist[i], layer='Mission',
+                                     linewidth=2, colour=(255,255,255)))
 
   if opts.mavlog:
     mpos = mav_position.MavInterpolator()
