@@ -601,8 +601,11 @@ class Mosaic():
         if self.last_view_latlon is None or latlon is None:
             dist = ''
         else:
-            dist = "dist %.1f" % cuav_util.gps_distance(latlon[0], latlon[1],
-                                                        self.last_view_latlon[0], self.last_view_latlon[1])
+            distance = cuav_util.gps_distance(self.last_view_latlon[0], self.last_view_latlon[1],
+                                              latlon[0], latlon[1])
+            bearing = cuav_util.gps_bearing(self.last_view_latlon[0], self.last_view_latlon[1],
+                                             latlon[0], latlon[1])
+            dist = "dist %.1f bearing %.1f" % (distance, bearing)
         print("-> %s %s %s" % (latlon, image.filename, dist))
         self.last_view_latlon = latlon
 
