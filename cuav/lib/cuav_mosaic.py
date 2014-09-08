@@ -716,7 +716,12 @@ class Mosaic():
 
     def add_image(self, frame_time, filename, pos):
         '''add a camera image'''
-        self.images.append(MosaicImage(frame_time, filename, pos))
+        idx = self.find_image_idx(filename)
+        if idx is not None:
+            self.images[idx].pos = pos
+            self.images[idx].frame_time = frame_time
+        else:
+            self.images.append(MosaicImage(frame_time, filename, pos))
 
     def tag_image(self, frame_time, tag_color=(0,255,255)):
         '''tag a mosaic image'''
