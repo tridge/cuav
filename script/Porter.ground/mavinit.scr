@@ -13,6 +13,7 @@ module load cuav.modules.cuav_check
 camera set use_bsend2 1
 camera set altitude 0
 camera set gcs_slave 192.168.16.34
+camera set aircraft_address 192.168.16.4
 set moddebug 2
 camera view
 module load output
