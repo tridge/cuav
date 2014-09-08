@@ -323,7 +323,8 @@ class CameraModule(mp_module.MPModule):
                                                                        layer=1, linewidth=2, colour=(0,0,255)))
         elif args[0] == "airstart":
             self.start_aircraft_bsend()
-            self.airstart_thread_h = self.start_thread(self.airstart_thread)
+            if self.airstart_thread_h is None:
+                self.airstart_thread_h = self.start_thread(self.airstart_thread)
         else:
             print(usage)
 
@@ -848,7 +849,9 @@ class CameraModule(mp_module.MPModule):
 
             if self.camera_settings.gcs_slave is not None:
                 if self.bsend_slave is None:
-                    self.bsend_slave = block_xmit.BlockSender(0, bandwidth=self.camera_settings.bandwidth*10, debug=False)
+                    self.bsend_slave = block_xmit.BlockSender(0, bandwidth=self.camera_settings.bandwidth*10, debug=False,
+                                                              dest_ip=self.camera_settings.gcs_slave,
+                                                              dest_port=self.camera_settings.gcs_view_port)
                 # print("send bsend_slave")
                 self.bsend_slave.send(buf, priority=1)
 
