@@ -250,7 +250,7 @@ class Mosaic():
 
     def view_imagefile(self, filename):
         '''view an image in a zoomable window'''
-        img = cuav_util.LoadImage(filename)
+        img = cuav_util.LoadImage(filename, rotate180=self.camera_settings.rotate180)
         (w,h) = cuav_util.image_shape(img)
         for i in range(len(self.images)):
             if filename == self.images[i].filename:
@@ -605,7 +605,7 @@ class Mosaic():
                                               latlon[0], latlon[1])
             bearing = cuav_util.gps_bearing(self.last_view_latlon[0], self.last_view_latlon[1],
                                              latlon[0], latlon[1])
-            dist = "dist %.1f bearing %.1f" % (distance, bearing)
+            dist = "dist %.1f bearing %.1f alt=%.1f shape=%s" % (distance, bearing, image.pos.altitude, image.shape)
         print("-> %s %s %s" % (latlon, image.filename, dist))
         self.last_view_latlon = latlon
 
