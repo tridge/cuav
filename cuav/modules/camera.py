@@ -158,6 +158,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('gcs_view_port', int, 7543, 'GCS View Port', range=(1, 30000), increment=1),
               MPSetting('gcs_slave', str, None, 'GCS Slave'),
               MPSetting('aircraft_address', str, None, 'Aircraft Address', tab='GCS'),
+              MPSetting('aircraft_port', int, 7544, 'Aircraft Port', range=(1, 30000), increment=1),
               
               MPSetting('bandwidth',  int, 40000, 'Link1 Bandwdith', 'Comms'),
               MPSetting('bandwidth2', int, 2000, 'Link2 Bandwidth'),
@@ -637,9 +638,7 @@ class CameraModule(mp_module.MPModule):
                         # send on primary link
                         self.bsend.set_bandwidth(self.camera_settings.bandwidth)
                         self.bsend.set_packet_loss(self.camera_settings.packet_loss)
-                        self.bsend.send(buf,
-                                        dest=(self.camera_settings.gcs_address, self.camera_settings.gcs_view_port),
-                                        priority=highscore)
+                        self.bsend.send(buf, priority=highscore)
                         pkt.sent1 = True
 
                     # also send thumbnails via 900MHz telemetry
@@ -690,9 +689,7 @@ class CameraModule(mp_module.MPModule):
         pkt = ImagePacket(frame_time, jpeg, self.xmit_queue, pos, priority)
         str = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
         # print("sending image len=%u" % len(str))
-        bsend.send(str,
-                   dest=(self.camera_settings.gcs_address, self.camera_settings.gcs_view_port),
-                   priority=priority)
+        bsend.send(str, priority=priority)
 
 
     def reload_mosaic(self, mosaic):
@@ -728,7 +725,7 @@ class CameraModule(mp_module.MPModule):
     def start_aircraft_bsend(self):
         '''start bsend for aircraft side'''
         if self.bsend is None:
-            self.bsend = block_xmit.BlockSender(self.camera_settings.gcs_view_port,
+            self.bsend = block_xmit.BlockSender(self.camera_settings.aircraft_port,
                                                 bandwidth=self.camera_settings.bandwidth, debug=False,
                                                 dest_ip=self.camera_settings.gcs_address,
                                                 dest_port=self.camera_settings.gcs_view_port)
@@ -744,7 +741,7 @@ class CameraModule(mp_module.MPModule):
             self.bsend = block_xmit.BlockSender(self.camera_settings.gcs_view_port,
                                                 bandwidth=self.camera_settings.bandwidth,
                                                 dest_ip=self.camera_settings.aircraft_address,
-                                                dest_port=self.camera_settings.gcs_view_port)
+                                                dest_port=self.camera_settings.aircraft_port)
 
         if self.bsend2 is None:
             self.bsocket = MavSocket(self.mpstate.mav_master[0])
@@ -838,9 +835,7 @@ class CameraModule(mp_module.MPModule):
                 if self.bsend_slave is None:
                     self.bsend_slave = block_xmit.BlockSender(0, bandwidth=self.camera_settings.bandwidth*10, debug=False)
                 # print("send bsend_slave")
-                self.bsend_slave.send(buf,
-                                      dest=(self.camera_settings.gcs_slave, self.camera_settings.gcs_view_port),
-                                      priority=1)
+                self.bsend_slave.send(buf, priority=1)
 
             if isinstance(obj, ThumbPacket):
                 # we've received a set of thumbnails from the plane for a positive hit
