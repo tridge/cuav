@@ -257,6 +257,7 @@ class BlockSender:
 			dest_port = port
 		if sock is None:
 			self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self.sock.bind((listen_ip, port))
 			self.sock.setblocking(False)
 			if port == 0:
