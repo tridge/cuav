@@ -129,6 +129,7 @@ class CameraModule(mp_module.MPModule):
         self.scan_thread2_h = None
         self.transmit_thread_h = None
         self.view_thread_h = None
+        self.airstart_thread_h = None
         self.flying = True
         self.terrain_alt = None
         self.last_camparms = None
@@ -322,6 +323,7 @@ class CameraModule(mp_module.MPModule):
                                                                        layer=1, linewidth=2, colour=(0,0,255)))
         elif args[0] == "airstart":
             self.start_aircraft_bsend()
+            self.airstart_thread_h = self.start_thread(self.airstart_thread)
         else:
             print(usage)
 
@@ -572,6 +574,19 @@ class CameraModule(mp_module.MPModule):
             self.bsend2.sendq_size() == 0):
             self.last_heartbeat2 = now
             self.send_heartbeat(self.bsend2)
+
+    def airstart_thread(self):
+        '''thread for commands in aircraft when camera not running'''
+
+        while not self.unload_event.wait(0.02):
+            if self.transmit_thread_h is not None:
+                time.sleep(1)
+                continue
+            self.bsend.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue1)
+            self.bsend2.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue2)
+            self.check_commands(self.bsend)
+            self.check_commands(self.bsend2)
+            self.send_heartbeats()
 
     def transmit_thread(self):
         '''thread for image transmit to GCS'''
