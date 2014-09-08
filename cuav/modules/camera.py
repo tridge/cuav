@@ -102,6 +102,11 @@ class HeartBeat:
     def __init__(self):
         pass
 
+class CameraMessage:
+    '''critical camera message'''
+    def __init__(self, msg):
+        self.msg = msg
+
 class ChangeCameraSetting:
     '''update a camera setting'''
     def __init__(self, name, value):
@@ -395,6 +400,8 @@ class CameraModule(mp_module.MPModule):
             mode = 'w'
         gammalog = open(os.path.join(self.camera_dir, "gamma.log"), mode=mode)
 
+        last_successful_capture = None
+
         while not self.unload_event.wait(0.02):
             if not self.running:            
                 if h is not None:
@@ -403,13 +410,19 @@ class CameraModule(mp_module.MPModule):
                 continue
 
             try:
+                if h is not None and last_successful_capture is not None and time.time() - last_successful_capture > 5:
+                    self.send_message("Closing camera")
+                    print("Closing camera")
+                    chameleon.close(h)
+                    h = None
+                    last_successful_capture = None
+
                 if h is None:
                     h, base_time, last_frame_time = self.get_base_time()
                     last_capture_frame_time = last_frame_time
                     # put into continuous mode
                     chameleon.trigger(h, True)
 
-                capture_time = time.time()
                 if self.camera_settings.depth == 16:
                     im = numpy.zeros((960,1280),dtype='uint16')
                 else:
@@ -423,6 +436,8 @@ class CameraModule(mp_module.MPModule):
 
                 self.check_camera_parms()
 
+                capture_time = time.time()
+                
                 # capture an image
                 frame_time, frame_counter, shutter = chameleon.capture(h, 1000, im)
                 if frame_time < last_capture_frame_time:
@@ -430,6 +445,10 @@ class CameraModule(mp_module.MPModule):
                 last_capture_frame_time = frame_time
                 if last_frame_counter != 0:
                     self.frame_loss += frame_counter - (last_frame_counter+1)
+
+                if last_successful_capture is None:
+                    self.send_message("Camera OK")
+                last_successful_capture = time.time()
 
                 # discard based on process_divider setting
                 self.process_counter += 1
@@ -938,6 +957,9 @@ class CameraModule(mp_module.MPModule):
             if isinstance(obj, CommandResponse):
                 print('REMOTE: %s' % obj.response)
 
+            if isinstance(obj, CameraMessage):
+                self.say(obj.msg)
+
     def start_thread(self, fn):
         '''start a thread running'''
         t = threading.Thread(target=fn)
@@ -1087,6 +1109,13 @@ class CameraModule(mp_module.MPModule):
     def send_heartbeat(self, bsend):
         '''send a heartbeat'''
         pkt = HeartBeat()
+        self.send_packet(pkt, bsend)
+
+    def send_message(self, msg, bsend=None):
+        '''send a message'''
+        if bsend is None:
+            bsend = self.best_bsend('send_message')
+        pkt = CameraMessage(msg)
         self.send_packet(pkt, bsend)
 
 def init(mpstate):
