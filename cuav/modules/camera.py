@@ -157,6 +157,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('gcs_address', str, None, 'GCS Address', tab='GCS'),
               MPSetting('gcs_view_port', int, 7543, 'GCS View Port', range=(1, 30000), increment=1),
               MPSetting('gcs_slave', str, None, 'GCS Slave'),
+              MPSetting('aircraft_address', str, None, 'Aircraft Address', tab='GCS'),
               
               MPSetting('bandwidth',  int, 40000, 'Link1 Bandwdith', 'Comms'),
               MPSetting('bandwidth2', int, 2000, 'Link2 Bandwidth'),
@@ -727,7 +728,8 @@ class CameraModule(mp_module.MPModule):
     def start_aircraft_bsend(self):
         '''start bsend for aircraft side'''
         if self.bsend is None:
-            self.bsend = block_xmit.BlockSender(0, bandwidth=self.camera_settings.bandwidth, debug=False,
+            self.bsend = block_xmit.BlockSender(self.camera_settings.gcs_view_port,
+                                                bandwidth=self.camera_settings.bandwidth, debug=False,
                                                 dest_ip=self.camera_settings.gcs_address,
                                                 dest_port=self.camera_settings.gcs_view_port)
         if self.bsend2 is None:
@@ -740,7 +742,10 @@ class CameraModule(mp_module.MPModule):
         '''start up block senders for GCS side'''
         if self.bsend is None:
             self.bsend = block_xmit.BlockSender(self.camera_settings.gcs_view_port,
-                                                bandwidth=self.camera_settings.bandwidth)
+                                                bandwidth=self.camera_settings.bandwidth,
+                                                dest_ip=self.camera_settings.aircraft_address,
+                                                dest_port=self.camera_settings.gcs_view_port)
+
         if self.bsend2 is None:
             self.bsocket = MavSocket(self.mpstate.mav_master[0])
             self.bsend2 = block_xmit.BlockSender(mss=96, sock=self.bsocket, dest_ip='mavlink',
