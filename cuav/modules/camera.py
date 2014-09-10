@@ -78,8 +78,6 @@ class ThumbPacket:
         self.xmit_queue = xmit_queue
         self.pos = pos
         self.highscore = highscore
-        self.sent1 = False
-        self.sent2 = False
 
 class CommandPacket:
     '''a command to run on the plane'''
@@ -179,7 +177,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('send1', bool, True, 'Send on Link1'),
               MPSetting('send2', bool, True, 'Send on Link2'),
               MPSetting('maxqueue1', int, None, 'Maximum queue Link1'),
-              MPSetting('maxqueue2', int, 30, 'Maxqueue queue Link2'),
+              MPSetting('maxqueue2', int, 5, 'Maxqueue queue Link2'),
               MPSetting('thumbsize', int, 60, 'Thumbnail Size', range=(10, 200), increment=1),
               MPSetting('mosaic_thumbsize', int, 35, 'Mosaic Thumbnail Size', range=(10, 200), increment=1),
               MPSetting('use_bsend2', bool, True, 'Enable Link2'),
@@ -715,7 +713,6 @@ class CameraModule(mp_module.MPModule):
                                 self.bsend2_thumb_total += len(buf)
                                 print("sent thumb bsend2 highscore=%u len=%u total=%u" % (
                                     highscore, len(buf), self.bsend2_thumb_total))
-                            pkt.sent2 = True
 
             # Base how many images we send on the send queue size
             send_frequency = self.xmit_queue // 3
