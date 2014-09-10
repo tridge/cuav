@@ -468,7 +468,7 @@ class BlockSender:
                 if self.rtt_offset + tnow < obj.timestamp:
                         # the two clocks are not in sync. Use the negative round trip time to adjust
                         self.rtt_offset = obj.timestamp - tnow
-                        print("rtt_offset=%.3f" % (self.rtt_offset))
+                        self._debug("rtt_offset=%.3f" % self.rtt_offset)
                 self.rtt_estimate = min(self.rtt_max, 0.95 * self.rtt_estimate + 0.05 * (self.rtt_offset + tnow - obj.timestamp))
 
 	def _check_incoming(self):
