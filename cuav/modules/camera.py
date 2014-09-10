@@ -223,6 +223,7 @@ class CameraModule(mp_module.MPModule):
         self.xmit_queue = 0
         self.xmit_queue2 = 0
         self.efficiency = 1.0
+        self.efficiency2 = 1.0
 
         self.last_watch = 0
         self.frame_loss = 0
@@ -230,7 +231,9 @@ class CameraModule(mp_module.MPModule):
         self.boundary_polygon = None
 
         self.bandwidth_used = 0
+        self.bandwidth_used2 = 0
         self.rtt_estimate = 0
+        self.rtt_estimate2 = 0
         self.bsocket = None
         self.bsend = None
         self.bsend2 = None
@@ -283,23 +286,27 @@ class CameraModule(mp_module.MPModule):
             self.running = False
             print("stopped camera capture")
         elif args[0] == "status":
-            print("Cap imgs:%u err:%u scan:%u fr:%.3f regions:%u jsize:%.0f xmitq:%u/%u lst:%u sq:%.1f eff:%.2f" % (
+            print("Cap imgs:%u err:%u scan:%u fr:%.3f regions:%u jsize:%.0f xmitq:%u/%u lst:%u sq:%.1f eff:%.2f/%.2f" % (
                 self.capture_count, self.error_count, self.scan_count, 
                 self.framerate,
                 self.region_count, 
                 self.jpeg_size,
-                self.xmit_queue, self.xmit_queue2, self.frame_loss, self.scan_queue.qsize(), self.efficiency))
+                self.xmit_queue, self.xmit_queue2, self.frame_loss, self.scan_queue.qsize(),
+                self.efficiency, self.efficiency2))
             print("self.bsend2 is ", self.bsend2)
             if self.bsend2 is not None:
                 self.bsend2.report(detailed=False)
         elif args[0] == "queue":
-            print("scan %u  save %u  transmit %u  eff %.1f  bw %.1f  rtt %.1f" % (
+            print("scan %u  save %u  transmit %u  eff %.1f/%.1f  bw %.1f/%.1f  rtt %.1f/%.1f" % (
                 self.scan_queue.qsize(),
                 self.save_queue.qsize(),
                 self.transmit_queue.qsize(),
                 self.efficiency,
+                self.efficiency2,
                 self.bandwidth_used,
-                self.rtt_estimate))
+                self.bandwidth_used2,
+                self.rtt_estimate,
+                self.rtt_estimate2))
         elif args[0] == "view":
             if self.mpstate.map is None:
                 print("Please load map module first")
@@ -646,6 +653,10 @@ class CameraModule(mp_module.MPModule):
             self.efficiency = self.bsend.get_efficiency()
             self.bandwidth_used = self.bsend.get_bandwidth_used()
             self.rtt_estimate = self.bsend.get_rtt_estimate()
+            if self.bsend2 is not None:
+                self.efficiency2 = self.bsend2.get_efficiency()
+                self.rtt_estimate2 = self.bsend2.get_rtt_estimate()
+                self.bandwidth_used2 = self.bsend2.get_bandwidth_used()
 
             jpeg = None
 

@@ -385,7 +385,7 @@ class BlockSender:
 	def _debug(self, s):
 		'''internal debug function'''
 		if self.enable_debug:
-			print(s)
+			print('%.3f %s' % (time.time(), s))
 		pass
 
 	def _send_object(self, obj, type, dest):
@@ -636,15 +636,14 @@ class BlockSender:
 
 		tnow = time.time()
 		deltat = tnow - self.last_send_time
-		bytes_to_send = int(self.bandwidth * deltat)
-		if bytes_to_send <= 0:
+		bytes_to_send = int(self.bandwidth * deltat + self.bonus_bytes)
+
+                # don't try and send till we have a reasonable amount we can send. On higher bandwidth links
+                # this makes sending more efficient by using bigger chunks
+                if bytes_to_send <= self.bandwidth/10:
 			return
 		bytes_sent = 0
 		chunks_sent = 0
-
-		# we can get bonus bytes to send from the previous tick, due to the granularity of
-		# the chunk size
-		bytes_to_send += min(self.bonus_bytes, self.chunk_size)
 
 		count = len(self.outgoing)
 		if max_queue is not None:
@@ -682,6 +681,9 @@ class BlockSender:
 					# this would take us over our bandwidth limit
 					break
 
+                                if self.enable_debug:
+                                        self._debug('send chunk len=%u dt=%.3f bts=%u bsent=%u bonus=%u' % (
+                                                chunk.packed_size, deltat, bytes_to_send, bytes_sent, self.bonus_bytes))
 				try:
 					self._send_object(chunk, PKT_CHUNK, blk.dest)
 				except Exception as e:
@@ -699,10 +701,13 @@ class BlockSender:
 					# don't send more than self.backlog per tick
 					break
 
+                # adjust bonus, but don't allow it to get too far ahead
 		self.bonus_bytes = bytes_to_send - bytes_sent
+                self.bonus_bytes = min(self.bonus_bytes, self.bandwidth/2)
+                
+                self.last_send_time = tnow
 		if bytes_sent != 0:
 			self.bandwidth_used = 0.99 * self.bandwidth_used + 0.01 * (bytes_sent/deltat)
-			self.last_send_time = tnow
 
 
 	def tick(self, packet_count=None, send_acks=True, send_outgoing=True, max_queue=None):
