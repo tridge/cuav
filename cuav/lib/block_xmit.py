@@ -373,7 +373,7 @@ class BlockSender:
 				if self.outgoing[i-1].priority >= priority:
                                         #print("Inserted blk %u len=%u %s" % (i, len(self.outgoing), newblk))
 					self.outgoing.insert(i, newblk)
-					return
+					return newblk.blockid
                         #print("Inserted blk %u len=%u %s" % (0, len(self.outgoing), newblk))
 			self.outgoing.insert(0, newblk)
 			return newblk.blockid
