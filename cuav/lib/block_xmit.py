@@ -281,6 +281,7 @@ class BlockSender:
 		self.enable_debug = debug
 		self.backlog = backlog
 		self.rtt_estimate = rtt
+		self.rtt_offset = 0
 		self.rtt_max = 5
 		self.rtt_multiplier = 3.0
 		self.mss = mss
@@ -448,6 +449,14 @@ class BlockSender:
 		#print("_complete_send: efficiency=%.2f sends=%u recvs=%u" % (efficiency, self.send_count, self.recv_count))
 		self.efficiency = 0.95 * self.efficiency + 0.05 * efficiency
 
+        def _update_rtt(self, obj, tnow):
+                '''update rtt estimate from a received packet'''
+                if self.rtt_offset + tnow < obj.timestamp:
+                        # the two clocks are not in sync. Use the negative round trip time to adjust
+                        self.rtt_offset = obj.timestamp - tnow
+                        print("rtt_offset=%.3f" % (self.rtt_offset))
+                self.rtt_estimate = min(self.rtt_max, 0.95 * self.rtt_estimate + 0.05 * (self.rtt_offset + tnow - obj.timestamp))
+
 	def _check_incoming(self):
 		'''check for incoming data or acks. Return True if a packet was received'''
 		try:
@@ -492,12 +501,12 @@ class BlockSender:
 		if isinstance(obj, BlockSenderSet):
 			# we've received a set of acks for some data
 			# find the corresponding outgoing block
-			self.rtt_estimate = min(self.rtt_max, 0.95 * self.rtt_estimate + 0.05 * (tnow - obj.timestamp))
+                        self._update_rtt(obj, tnow)
 			for i in range(len(self.outgoing)):
 				out = self.outgoing[i]
 				if out.blockid == obj.id:
 					if self.enable_debug:
-						self._debug("ack %s %f" % (str(out.acks), tnow - obj.timestamp))
+						self._debug("ack %s %f" % (str(out.acks), self.rtt_offset + tnow - obj.timestamp))
 					out.acks.update(obj)
 					if out.acks.complete():
 						if self.enable_debug:
@@ -512,7 +521,7 @@ class BlockSender:
 			# a full block has been received
 			if self.enable_debug:
 				self._debug("full ack for blockid %u" % obj.blockid)
-			self.rtt_estimate = min(self.rtt_max, 0.95 * self.rtt_estimate + 0.05 * (tnow - obj.timestamp))
+                        self._update_rtt(obj, tnow)
 			for i in range(len(self.outgoing)):
 				out = self.outgoing[i]
 				if out.blockid == obj.blockid:
