@@ -6,6 +6,7 @@
 #    - check bandwidth2 actual usage
 
 import time, threading, sys, os, numpy, Queue, errno, cPickle, signal, struct, fcntl, select, cStringIO
+import functools
 try:
     import cv2.cv as cv
 except ImportError:
@@ -118,6 +119,11 @@ class ChangeImageSetting:
     def __init__(self, name, value):
         self.name = name
         self.value = value
+
+class BlockCancel:
+    '''cancel object for callback on send1 complete'''
+    def __init__(self, blockid):
+        self.blockid = blockid
         
 
 class CameraModule(mp_module.MPModule):
@@ -615,6 +621,14 @@ class CameraModule(mp_module.MPModule):
             self.check_commands(self.bsend2)
             self.send_heartbeats()
 
+    def send_complete(self, blk_cancel):
+        '''called on complete of a send on first link'''
+        if blk_cancel.blockid is None or self.bsend2 is None:
+            # not sent on link2
+            return
+        # cancel link2 send of this block
+        self.bsend2.cancel(blk_cancel.blockid)
+
     def transmit_thread(self):
         '''thread for image transmit to GCS'''
         tx_count = 0
@@ -680,11 +694,13 @@ class CameraModule(mp_module.MPModule):
                     # keep all thumbs so we can send more on score change
                     self.add_all_thumbs(pkt)
 
+                    blk_cancel = BlockCancel(None)
+
                     if self.camera_settings.send1 and highscore >= self.camera_settings.minscore:
                         # send on primary link
                         self.bsend.set_bandwidth(self.camera_settings.bandwidth)
                         self.bsend.set_packet_loss(self.camera_settings.packet_loss)
-                        self.bsend.send(buf, priority=highscore)
+                        self.bsend.send(buf, priority=highscore, callback=functools.partial(self.send_complete, blk_cancel))
                         pkt.sent1 = True
 
                     # also send thumbnails via 900MHz telemetry
@@ -694,7 +710,7 @@ class CameraModule(mp_module.MPModule):
                         # send on secondary link
                             self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
                             self.bsend2.set_packet_loss(self.camera_settings.packet_loss2)
-                            self.bsend2.send(buf, priority=highscore)
+                            blk_cancel.blockid = self.bsend2.send(buf, priority=highscore)
                             if self.camera_settings.debug:
                                 self.bsend2_thumb_total += len(buf)
                                 print("sent thumb bsend2 highscore=%u len=%u total=%u" % (

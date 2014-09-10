@@ -345,6 +345,8 @@ class BlockSender:
 		callback:   optional callback function on completion of send (default None)
 		priority:   optional priority for sending this packet. Higher priority packets
 		            are sent first (default 0)
+
+                returns blockid for sent block, which may be passed to cancel()
 		'''
 		if not chunk_size:
 			chunk_size = self.chunk_size
@@ -374,10 +376,22 @@ class BlockSender:
 					return
                         #print("Inserted blk %u len=%u %s" % (0, len(self.outgoing), newblk))
 			self.outgoing.insert(0, newblk)
-			return
+			return newblk.blockid
 		# otherwise append to the outgoing list
                 #print("Appended blk len=%u %s" % (len(self.outgoing), newblk))
 		self.outgoing.append(newblk)
+                return newblk.blockid
+
+        def cancel(self, blockid):
+		'''cancel send of a block
+
+		blockid:    id of block returned from send()
+		'''
+                for i in range(len(self.outgoing)):
+                        if self.outgoing[i].blockid == blockid:
+                                self.outgoing.pop(i)
+                                self._debug('Cancelled block %u' % blockid)
+                                return
 
 	def _crc(self, buffer):
 		'''produce a 32 bit unsigned crc for a buffer'''
