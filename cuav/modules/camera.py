@@ -722,7 +722,7 @@ class CameraModule(mp_module.MPModule):
                 skip_count += 1
                 continue
             tx_count += 1
-            self.send_image(im_640, frame_time, pos, 0)
+            self.send_image(im_640, frame_time, pos, 0, bsend=self.bsend)
 
     def best_bsend(self, who):
         '''choose the best link to use'''
@@ -736,14 +736,15 @@ class CameraModule(mp_module.MPModule):
         self.bsend.set_bandwidth(self.camera_settings.bandwidth)
         return self.bsend
 
-    def send_image(self, img, frame_time, pos, priority):
+    def send_image(self, img, frame_time, pos, priority, bsend=None):
         '''send an image to the GCS'''
         jpeg = scanner.jpeg_compress(img, self.camera_settings.quality)
 
         # keep filtered image size
         self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)        
 
-        bsend = self.best_bsend('send_image')
+        if bsend is None:
+            bsend = self.best_bsend('send_image')
 
         pkt = ImagePacket(frame_time, jpeg, self.xmit_queue, pos, priority)
         str = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
