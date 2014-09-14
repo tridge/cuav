@@ -5,7 +5,7 @@ set -e
 host=$1
 
 pushd mavlink
-git push $host
+git push HEAD:master $host
 ssh $host "cd mavlink/pymavlink && git reset --hard && rm -rf build && MAVLINK_DIALECT=ardupilotmega python setup.py clean build install"
 popd
 
