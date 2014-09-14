@@ -143,6 +143,10 @@ class CameraModule(mp_module.MPModule):
         self.terrain_alt = None
         self.last_camparms = None
 
+        # prevent loopback of messages
+        for mtype in ['DATA16', 'DATA32', 'DATA64', 'DATA96']:
+            self.module('link').no_fwd_types.add(mtype)
+
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.camera_settings = MPSettings(
             [ MPSetting('depth', int, 8, 'Image Depth', choice=['8', '16'], tab='Capture'),
