@@ -1,4 +1,4 @@
 #!/bin/bash
 rdate 192.168.16.15
 
-mavproxy.py --master /dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0 --baudrate 115200 --aircraft Porter --out 192.168.16.15:2626
+mavproxy.py --master /dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A1011RO6-if00-port0 --rtscts --baudrate 115200 --aircraft Porter --out 192.168.16.15:2626
