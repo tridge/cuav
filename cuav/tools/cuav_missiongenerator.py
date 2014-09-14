@@ -37,6 +37,17 @@ class MissionGenerator():
         self.airportHeight = 100
         self.MAVpointLoader = None            
 
+    def parsePlacemark(self, point):
+        '''parse a Placemark XML object'''
+        name = self.getElement(point.getElementsByTagName('name')[0])
+        pt = point.getElementsByTagName('Point')
+        coords = pt[0].getElementsByTagName('coordinates')[0]
+        ctext = self.getElement(coords)
+        (lon, lat, alt) = ctext.split(',')
+        lat = float(lat)
+        lon = float(lon)
+        return (name, lat, lon)
+
     def Process(self, searchMask="SA-", missionBoundaryMask="MB-"):
         '''Processes the imported xml file for points'''
         
@@ -45,13 +56,13 @@ class MissionGenerator():
         #get a list of all points in the kml file:
         airf = self.dom.getElementsByTagName('Placemark')
         for point in airf:
-            if self.getElement(point.getElementsByTagName('name')[0]) == "Airfield Home":
-                self.airfieldHome = (float(self.getElement(point.getElementsByTagName('latitude')[0])), float(self.getElement(point.getElementsByTagName('longitude')[0])))
-                #print "Airfield Home = " + str(self.airfieldHome)
-            if searchMask in self.getElement(point.getElementsByTagName('name')[0]):
-                self.searchArea.append((float(self.getElement(point.getElementsByTagName('latitude')[0])), float(self.getElement(point.getElementsByTagName('longitude')[0]))))
-            if missionBoundaryMask in self.getElement(point.getElementsByTagName('name')[0]):
-                self.missionBounds.append((float(self.getElement(point.getElementsByTagName('latitude')[0])), float(self.getElement(point.getElementsByTagName('longitude')[0]))))
+            (name, lat, lon) = self.parsePlacemark(point)
+            if name == "Airfield Home":
+                self.airfieldHome = (lat, lon)
+            if name.startswith(searchMask):
+                self.searchArea.append((lat, lon))
+            if name.startswith(missionBoundaryMask):
+                self.missionBounds.append((lat, lon))
 
         #print "Search Area = " + str(self.searchArea)
         #print "Mission Boundary = " + str(self.missionBounds)
@@ -90,13 +101,15 @@ class MissionGenerator():
 
         airf = self.dom.getElementsByTagName('Placemark')
         for point in airf:
-            if self.getElement(point.getElementsByTagName('name')[0]) in listentry:
-                self.entryPoints.append((float(self.getElement(point.getElementsByTagName('latitude')[0])), float(self.getElement(point.getElementsByTagName('longitude')[0])), alt))
+            (name, lat, lon) = self.parsePlacemark(point)
+            if name in listentry:
+                self.entryPoints.append((lat, lon, alt))
                 print "Entry - " + str(self.entryPoints[-1])
 
         for point in airf:
-            if self.getElement(point.getElementsByTagName('name')[0]) in listexit:
-                self.exitPoints.append((float(self.getElement(point.getElementsByTagName('latitude')[0])), float(self.getElement(point.getElementsByTagName('longitude')[0])), alt))
+            (name, lat, lon) = self.parsePlacemark(point)
+            if name in listexit:
+                self.exitPoints.append((lat, lon, alt))
                 print "Exit - " + str(self.exitPoints[-1])
 
     def CreateSearchPattern(self, width=50.0, overlap=10.0, offset=10, wobble=10, alt=100):
@@ -635,15 +648,15 @@ if __name__ == "__main__":
 
     from optparse import OptionParser
     parser = OptionParser("mp_missiongenerator.py [options]")
-    parser.add_option("--file", type='string', default='..//data//OBC Waypoints.kml', help="input file")
+    parser.add_option("--file", type='string', default='..//data//OBC Waypoints 2014.kml', help="input file")
     parser.add_option("--searchAreaMask", type='string', default='SA-', help="name mask of search area waypoints")
     parser.add_option("--missionBoundaryMask", type='string', default='MB-', help="name mask of mission boundary waypoints")
     parser.add_option("--searchAreaOffset", type='int', default=150, help="distance waypoints will be placed outside search area")
     parser.add_option("--wobble", type='int', default=10, help="Make every second row slightly offset. Aids in viewing the overlaps")
     parser.add_option("--width", type='int', default=0, help="Width (m) of each scan row. 0 to use camera params")
     parser.add_option("--overlap", type='int', default=60, help="% overlap between rows")
-    parser.add_option("--entryLane", type='string', default='EL-1,EL-2', help="csv list of waypoints before search")
-    parser.add_option("--exitLane", type='string', default='EL-3,EL-4', help="csv list of waypoints after search")
+    parser.add_option("--entryLane", type='string', default='EL-01,EL-02', help="csv list of waypoints before search")
+    parser.add_option("--exitLane", type='string', default='EL-03,EL-04', help="csv list of waypoints after search")
     parser.add_option("--altitude", type='int', default=100, help="Altitude of waypoints")
     parser.add_option("--loiterInSearchArea", type='int', default=1, help="1 if UAV loiters in search area at end of search. 0 if it goes home")
     parser.add_option("--sutton", action='store_true', default=False, help="use sutton WP")
@@ -680,8 +693,3 @@ if __name__ == "__main__":
 
     #and to google earth
     gen.ExportSearchPattern()
-
-
-
-
-
