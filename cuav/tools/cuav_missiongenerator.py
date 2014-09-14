@@ -547,16 +547,16 @@ class MissionGenerator():
 
         # joe location. We use a default acceptance radius of 35 meters. Will be adjusted with 'wp param'
         # command
-        w = self.waypoint(*joe, alt=dropalt, param=[0, 35, 0, 0])  
+        w = self.waypoint(*joe, alt=dropalt, param=[0, 70, 0, 0])  
         MAVpointLoader.add(w, comment='Joe Location')
         
         w = self.command(mavutil.mavlink.MAV_CMD_DO_SET_SERVO, [8, 1500, 0, 0])
         MAVpointLoader.add(w, comment='Drop bottle 1')
 
-        w = self.command(mavutil.mavlink.MAV_CMD_CONDITION_DELAY, [1.5, 0, 0, 0])
+        w = self.command(mavutil.mavlink.MAV_CMD_CONDITION_DELAY, [2.0, 0, 0, 0])
         MAVpointLoader.add(w, comment='Drop delay')
 
-        w = self.command(mavutil.mavlink.MAV_CMD_DO_SET_SERVO, [12, 1050, 0, 0])
+        w = self.command(mavutil.mavlink.MAV_CMD_DO_SET_SERVO, [6, 1050, 0, 0])
         MAVpointLoader.add(w, comment='Drop bottle 2')
 
         w = self.command(mavutil.mavlink.MAV_CMD_DO_CHANGE_SPEED, param=[0, 28, 50, 0])
