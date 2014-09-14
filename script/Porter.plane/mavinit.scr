@@ -16,6 +16,7 @@ camera set camparms cuav/cuav/data/calibration_images_2014/ChameleonArecort/para
 # use TERRAIN_REPORT for altitude
 camera set altitude 0
 camera airstart
+camera start
 set distreadout 0
 set altreadout 0
 set moddebug 2
