@@ -37,3 +37,4 @@ module load speech
 @alias add hold2 servo set 6 1480
 @alias add odroidpower relay set 0
 @alias add ekf param set AHRS_EKF_USE
+@alias add gbottle graph SERVO_OUTPUT_RAW.servo6_raw SERVO_OUTPUT_RAW.servo8_raw
