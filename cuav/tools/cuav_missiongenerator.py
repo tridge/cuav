@@ -100,17 +100,19 @@ class MissionGenerator():
         self.airfieldHome = (self.airfieldHome[0], self.airfieldHome[1], alt)
 
         airf = self.dom.getElementsByTagName('Placemark')
-        for point in airf:
-            (name, lat, lon) = self.parsePlacemark(point)
-            if name in listentry:
-                self.entryPoints.append((lat, lon, alt))
-                print "Entry - " + str(self.entryPoints[-1])
+        for entPoint in listentry:
+            for point in airf:
+                (name, lat, lon) = self.parsePlacemark(point)
+                if name == entPoint:
+                    self.entryPoints.append((lat, lon, alt))
+                    print "Entry - " + str(self.entryPoints[-1])
 
-        for point in airf:
-            (name, lat, lon) = self.parsePlacemark(point)
-            if name in listexit:
-                self.exitPoints.append((lat, lon, alt))
-                print "Exit - " + str(self.exitPoints[-1])
+        for exPoint in listexit:
+            for point in airf:
+                (name, lat, lon) = self.parsePlacemark(point)
+                if name == exPoint:
+                    self.exitPoints.append((lat, lon, alt))
+                    print "Exit - " + str(self.exitPoints[-1])
 
     def CreateSearchPattern(self, width=50.0, overlap=10.0, offset=10, wobble=10, alt=100):
         '''Generate the waypoints for the search pattern, using alternating strips
@@ -494,8 +496,8 @@ class MissionGenerator():
         w = self.waypoint(self.landingPt[0], self.landingPt[1], 0, cmd=mavutil.mavlink.MAV_CMD_NAV_LAND)
         MAVpointLoader.add(w, comment='Landing')
 
-        # comms Failure. Loiter at EL-1 for 2 minutes then fly to airfield home and loiter
-        point = self.entryPoints[0]
+        # comms Failure. Loiter at EL-4 for 2 minutes then fly to airfield home and loiter
+        point = self.exitPoints[1]
         w = self.waypoint(point[0], point[1], self.airportHeight)
         MAVpointLoader.add(w, comment='Comms Failure')
 
