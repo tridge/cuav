@@ -158,7 +158,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('altitude', int, 0, 'Altitude', range=(0,10000), increment=1),
               MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
               MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
-              MPSetting('rotate180', bool, False, 'rotate180'),
+              MPSetting('rotate180', bool, False, 'rotate180', tab='Capture2'),
               MPSetting('camparms', str, None, 'camera parameters'),
               MPSetting('filter_type', str, 'compactness', 'Filter Type',
                         choice=['simple', 'compactness']),
