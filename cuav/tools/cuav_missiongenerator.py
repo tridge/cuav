@@ -31,7 +31,7 @@ class MissionGenerator():
         else:
             self.joePos = (-26.624864, 151.848349, 80)
             self.landingHeading = 349.1
-            self.landingPt = (-26.583957, 151.840563)
+            self.landingPt = (-26.585107, 151.840798)
 
         # height to loiter at airfield home
         self.airportHeight = 100
