@@ -9,7 +9,7 @@ camera set send2_divider 5
 camera set gcs_address 192.168.16.15
 camera set minscore 5000
 camera set minscore2 5000
-camera set send2 0
+camera set send2 1
 camera set bandwidth 130000
 camera set blue_emphasis 1
 camera set camparms cuav/cuav/data/calibration_images_2014/ChameleonArecort/params.json
