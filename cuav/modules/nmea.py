@@ -59,8 +59,8 @@ class NMEAModule(mp_module.MPModule):
                     self.serial = serial.Serial(self.port, self.baudrate, self.data, self.parity, self.stop)
                 except serial.SerialException as se:
                     print("Failed to open output port %s:%s" % (self.port, se.message))
-        else:
-            self.serial = open(self.port, mode='w')
+            else:
+                self.serial = open(self.port, mode='w')
             
 
     def format_date(self, utc_sec):
@@ -136,8 +136,9 @@ class NMEAModule(mp_module.MPModule):
             rmc = self.format_rmc(utc_sec, fix_status, lat, lon, knots, course)
 
             self.output_time = now_time
-            # print gga+'\r'
-            # print rmc+'\r'
+            #print(gga+'\r')
+            #print(rmc+'\r')
+            #print(self.serial)
             if self.serial is not None:
                 self.serial.write(gga + '\r\n')
                 self.serial.write(rmc + '\r\n')
