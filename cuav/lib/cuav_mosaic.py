@@ -6,7 +6,6 @@ May 2012
 '''
 
 import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
-import lxml.objectify, lxml.etree
 
 from MAVProxy.modules.lib import mp_image
 from MAVProxy.modules.mavproxy_map import mp_slipmap
@@ -140,6 +139,7 @@ class Mosaic():
         self.slipmap.add_callback(functools.partial(self.map_callback))
 
         if classify:
+            import lxml.objectify, lxml.etree
             with open(classify) as f:
                 categories = lxml.objectify.fromstring(f.read())
                 cat_names = set()
@@ -475,6 +475,7 @@ class Mosaic():
                 return
             filename = r.filename
             r = r.region
+            import lxml.objectify, lxml.etree
             E = lxml.objectify.E
             self.region_class.append(
                 E.region(E.filename(filename), E.x1(r.x1), E.y1(r.y1), E.x2(r.x2), E.y2(r.y2), E.category(event.description))
