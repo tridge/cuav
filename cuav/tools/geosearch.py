@@ -320,7 +320,8 @@ def parse_args():
   parser.add_option("--minscore", default=700, type='int', help="minimum score")
   parser.add_option("--gammalog", default=None, type='str', help="gamma.log from flight")
   parser.add_option("--categories", default=None, type=str, help="xml file containing categories for classification")
-  parser.add_option("--flag", default=[], type='str', action='append', help="flag positions"),
+  if 1 != len(sys.argv):
+    parser.add_option("--flag", default=[], type='str', action='append', help="flag positions"),
   parser.add_option("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
   return parser.parse_args()
 
