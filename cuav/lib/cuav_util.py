@@ -23,8 +23,9 @@ class PGM(object):
 		if fmt.strip() != 'P5':
 			raise PGMError('Expected P5 image in %s' % filename)
 		dims = f.readline()
-		if dims.strip() != '1280 960':
-			raise PGMError('Expected 1280x960 image in %s' % filename)
+                dims = dims.split(' ')
+                width = int(dims[0])
+                height = int(dims[1])
 		line = f.readline()
 		self.comment = None
 		if line[0] == '#':
@@ -40,17 +41,17 @@ class PGM(object):
 		ofs = f.tell()
 		if self.eightbit:
 			rawdata = numpy.fromfile(f, dtype='uint8')
-			rawdata = numpy.reshape(rawdata, (960,1280))
-			self.img = cv.CreateImageHeader((1280, 960), 8, 1)
+			rawdata = numpy.reshape(rawdata, (height,width))
+			self.img = cv.CreateImageHeader((width, height), 8, 1)
 		else:
 			rawdata = numpy.fromfile(f, dtype='uint16')
 			rawdata = rawdata.byteswap(True)
-			rawdata = numpy.reshape(rawdata, (960,1280))
-			self.img = cv.CreateImageHeader((1280, 960), 8, 1)
+			rawdata = numpy.reshape(rawdata, (height, width))
+			self.img = cv.CreateImageHeader((width, height), 16, 1)
 		f.close()
 		self.rawdata = rawdata
 		self.array = self.rawdata.byteswap(True)
-		cv.SetData(self.img, self.array.tostring(), self.array.dtype.itemsize*1*1280)
+		cv.SetData(self.img, self.array.tostring(), self.array.dtype.itemsize*width)
 
 def key_menu(i, n, image, filename, pgm=None):
     '''simple keyboard menu'''
