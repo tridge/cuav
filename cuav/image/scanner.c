@@ -1065,6 +1065,85 @@ scanner_rebayer(PyObject *self, PyObject *args)
 	Py_RETURN_NONE;
 }
 
+
+/*
+  convert a 16 bit thermal image to a colour image
+ */
+static PyObject *
+scanner_thermal_convert(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+        unsigned short clip_high, clip_low;
+        float blue_threshold, green_threshold;
+
+	if (!PyArg_ParseTuple(args, "OOHff", 
+                              &img_in, &img_out, 
+                              &clip_high,
+                              &blue_threshold, &green_threshold))
+		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
+
+        uint16_t height = PyArray_DIM(img_in, 0);
+        uint16_t width  = PyArray_DIM(img_in, 1);
+	if (PyArray_STRIDE(img_in, 0) != 2*width) {
+		PyErr_SetString(ScannerError, "input must be 16 bit");
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 1) != width ||
+	    PyArray_DIM(img_out, 0) != height ||
+	    PyArray_STRIDE(img_out, 0) != 3*width) {
+		PyErr_SetString(ScannerError, "output must be same shape as input and 24 bit");
+		return NULL;
+	}
+
+        const uint16_t *data = PyArray_DATA(img_in);
+        struct bgr *rgb = PyArray_DATA(img_out);
+        uint16_t mask = 0, minv = 0xFFFF, maxv = 0;
+	Py_BEGIN_ALLOW_THREADS;
+
+	for (uint32_t i=0; i<width*height; i++) {
+            uint16_t value = data[i];
+            if (__BYTE_ORDER == __LITTLE_ENDIAN) {
+                swab(&value, &value, 2);
+            }
+            value >>= 2;
+            mask |= value;
+            if (value > maxv) maxv = value;
+            if (value < minv) minv = value;
+        }
+
+        clip_low = minv + (clip_high-minv)/10;
+
+	for (uint32_t i=0; i<width*height; i++) {
+            uint16_t value = data[i];
+            if (__BYTE_ORDER == __LITTLE_ENDIAN) {
+                swab(&value, &value, 2);
+            }
+            value >>= 2;
+            uint8_t map_value(float v, const float threshold) {
+                if (v > threshold) {
+                    float p = 1.0 - (v - threshold) / (1.0 - threshold);
+                    return 255*p;
+                }
+                float p = 1.0 - (threshold - v) / threshold;
+                return 255*p;	    
+            }
+            float v = 0;
+            if (value >= clip_high) {
+                v = 1.0;
+            } else if (value > clip_low) {
+                v = (value - clip_low) / (float)(clip_high - clip_low);
+            }
+            rgb[i].r = v*255;
+            rgb[i].b = map_value(v, blue_threshold);
+            rgb[i].g = map_value(v, green_threshold);
+	}
+	Py_END_ALLOW_THREADS;
+	Py_RETURN_NONE;
+}
+
 /*
   scale the scan parameters for the image being scanned
  */
@@ -1641,6 +1720,7 @@ static PyMethodDef ScannerMethods[] = {
 	{"rect_extract", scanner_rect_extract, METH_VARARGS, "extract a rectange from a 24 bit BGR image"},
 	{"rect_overlay", scanner_rect_overlay, METH_VARARGS, "overlay a image with another smaller image at x,y"},
 	{"rotate180", scanner_rotate_180, METH_VARARGS, "rotate 24 bit image by 180 degrees in place"},
+	{"thermal_convert", scanner_thermal_convert, METH_VARARGS, "convert 16 bit thermal image to colour"},
 	{NULL, NULL, 0, NULL}
 };
 
