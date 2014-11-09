@@ -132,4 +132,4 @@ while True:
             elif event.ClassName == 'wxMouseEvent':
                 (x,y) = (event.X, event.Y)
                 show_value(x,y)
-    time.sleep(0.1)
+    time.sleep(0.02)
