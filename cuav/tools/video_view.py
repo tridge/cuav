@@ -26,6 +26,7 @@ vidcap = cv2.VideoCapture(args[0])
 
 fps = vidcap.get(cv.CV_CAP_PROP_FPS)
 print('Video at %.3f fps processing at %.3f fps' % (fps, opts.rate))
+frame_count = vidcap.get(cv.CV_CAP_PROP_FRAME_COUNT)
 if fps < opts.rate:
     opts.rate = fps
 
@@ -46,8 +47,11 @@ while True:
     for event in view_image.events():
         pass
     t += delta_t
+    if t > frame_count/fps:
+        break
     ret = vidcap.set(cv.CV_CAP_PROP_POS_MSEC, t*1000)
     time.sleep(0.05)
-    print("t=%.2f" % t)
+    print("t=%.2f/%.0f" % (t, frame_count/fps))
 
 view_image.terminate()
+time.sleep(0.1)
