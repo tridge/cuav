@@ -7,15 +7,8 @@ version = '1.3.3'
 ext_modules = []
 
 if platform.system() == 'Windows':
-    jpegturbo_libpath = "c:\libjpeg-turbo-gcc\lib"
-    jpegturbo_incpath = "c:\libjpeg-turbo-gcc\include"
     extra_compile_args=["-std=gnu99", "-O3"]
 else:
-    if os.path.exists("/opt/libjpeg-turbo/lib64/libturbojpeg.so"):
-        jpegturbo_libpath = "/opt/libjpeg-turbo/lib64"
-    else:
-        jpegturbo_libpath = "/opt/libjpeg-turbo/lib"
-    jpegturbo_incpath = "/opt/libjpeg-turbo/include"
     if platform.machine().find('arm') != -1:
         extra_compile_args=["-std=gnu99", "-O3", "-mfpu=neon"]
     else:
@@ -32,8 +25,7 @@ else:
  
 scanner = Extension('cuav.image.scanner',
                     sources = ['cuav/image/scanner.c', 'cuav/image/imageutil.c'],
-                    libraries = ['turbojpeg'],
-                    library_dirs = [jpegturbo_libpath],
+                    libraries = ['jpeg'],
                     extra_compile_args=extra_compile_args)
 #                    extra_compile_args=extra_compile_args + ['-O0'])
 ext_modules.append(scanner)
@@ -58,7 +50,6 @@ setup (name = 'cuav',
                     ],
        license='GPLv3',
        include_dirs = [np.get_include(),
-                       jpegturbo_incpath,
                        'cuav/camera/include'],
        packages = ['cuav', 'cuav.lib', 'cuav.image', 'cuav.camera', 'cuav.uav', 'cuav.modules'],
        scripts = [ 'cuav/tools/geosearch.py', 'cuav/tools/geotag.py',

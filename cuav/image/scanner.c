@@ -29,14 +29,7 @@
 #include <arm_neon.h>
 #endif
 
-/*
-  this uses libjpeg-turbo from http://libjpeg-turbo.virtualgl.org/
-  You need to build it with
-     ./configure --prefix=/opt/libjpeg-turbo --with-jpeg8
- */
-#define JPEG_LIB_VERSION 80
 #include <jpeglib.h>
-#include <turbojpeg.h>
 
 #ifndef Py_RETURN_NONE
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
@@ -1358,19 +1351,41 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
 	const uint16_t w = PyArray_DIM(img_in, 1);
 	const uint16_t h = PyArray_DIM(img_in, 0);
 	const struct bgr *bgr_in = PyArray_DATA(img_in);
-	tjhandle handle=NULL;
-	const int subsamp = TJSAMP_422;
-	unsigned long jpegSize = tjBufSize(w, h, subsamp);
-	unsigned char *jpegBuf = tjAlloc(jpegSize);
+        struct jpeg_compress_struct cinfo;
+        struct jpeg_error_mgr jerr;
+        unsigned char *dest = NULL;
+        unsigned long dest_size = 0;
 
 	Py_BEGIN_ALLOW_THREADS;
-	handle=tjInitCompress();
-	tjCompress2(handle, (unsigned char *)&bgr_in[0], w, 0, h, TJPF_BGR, &jpegBuf,
-		    &jpegSize, subsamp, quality, 0);
+
+        cinfo.err = jpeg_std_error(&jerr);
+        jpeg_create_compress(&cinfo);
+
+        jpeg_mem_dest(&cinfo, &dest, &dest_size);
+
+        cinfo.image_width = w;
+        cinfo.image_height = h;
+        cinfo.input_components = 3;
+        cinfo.in_color_space = JCS_RGB;
+
+        jpeg_set_defaults(&cinfo);
+
+        jpeg_set_quality(&cinfo, quality, TRUE);
+
+        jpeg_start_compress(&cinfo, TRUE);
+
+        while (cinfo.next_scanline < cinfo.image_height) {
+            JSAMPROW row_pointer = (JSAMPROW)&bgr_in[cinfo.next_scanline * w];
+            jpeg_write_scanlines(&cinfo, &row_pointer, 1);
+        }
+
+        jpeg_finish_compress(&cinfo);
+
 	Py_END_ALLOW_THREADS;
 
-	PyObject *ret = PyString_FromStringAndSize((const char *)jpegBuf, jpegSize);
-	tjFree(jpegBuf);
+	PyObject *ret = PyString_FromStringAndSize((const char *)dest, dest_size);
+        jpeg_destroy_compress(&cinfo);
+        free(dest);
 
 	return ret;
 }
