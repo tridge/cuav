@@ -1,39 +1,40 @@
-debayer: 2677.8 fps
-debayer_full: 529.4 fps
-debayer_cv_full: 1347.2 fps
-RGB2HSV_full: 90.7 fps
-RGB2HSV_640: 362.6 fps
-rect_extract: 68725.3 fps
-SubImage: 2687.5 fps
-downsample: 730.3 fps
-scan: 318.7 fps
-jpeg full quality 30: 153.6 fps  99488 bytes
-jpeg full quality 40: 144.0 fps  131725 bytes
-jpeg full quality 50: 133.7 fps  164189 bytes
-jpeg full quality 60: 124.0 fps  200547 bytes
-jpeg full quality 70: 110.5 fps  257939 bytes
-jpeg full quality 80: 94.6 fps  365157 bytes
-jpeg full quality 90: 67.3 fps  641580 bytes
-jpeg full quality 95: 52.1 fps  982652 bytes
-EncodeImage full quality 30: 143.5 fps  89452 bytes
-EncodeImage full quality 40: 136.9 fps  117397 bytes
-EncodeImage full quality 50: 127.8 fps  145765 bytes
-EncodeImage full quality 60: 119.6 fps  177494 bytes
-EncodeImage full quality 70: 108.4 fps  225802 bytes
-EncodeImage full quality 80: 95.0 fps  308355 bytes
-EncodeImage full quality 90: 74.7 fps  512034 bytes
-EncodeImage full quality 95: 61.1 fps  766684 bytes
-jpeg 640 quality 30: 713.0 fps  16354 bytes
-jpeg 640 quality 40: 660.2 fps  21613 bytes
-jpeg 640 quality 50: 613.4 fps  27261 bytes
-jpeg 640 quality 60: 570.7 fps  33943 bytes
-jpeg 640 quality 70: 516.7 fps  44550 bytes
-jpeg 640 quality 80: 451.6 fps  62991 bytes
-jpeg 640 quality 90: 334.8 fps  116587 bytes
-jpeg 640 quality 95: 236.4 fps  195916 bytes
-thumb 10 quality 85: 52083.7 fps  761 bytes
-thumb 20 quality 85: 43365.4 fps  847 bytes
-thumb 40 quality 85: 29993.6 fps  1149 bytes
-thumb 60 quality 85: 19279.7 fps  1911 bytes
-thumb 80 quality 85: 13367.4 fps  2762 bytes
-thumb 100 quality 85: 8103.7 fps  4114 bytes
+debayer: 792.6 fps
+debayer_full: 144.0 fps
+debayer_cv_full: 1307.5 fps
+RGB2HSV_full: 167.8 fps
+RGB2HSV_640: 378.3 fps
+rect_extract: 23456.8 fps
+SubImage: 30608.7 fps
+downsample: 176.6 fps
+scan: 102.8 fps
+scan_full: 20.5 fps
+jpeg full quality 30: 64.1 fps  74132 bytes
+jpeg full quality 40: 59.0 fps  99422 bytes
+jpeg full quality 50: 54.6 fps  125759 bytes
+jpeg full quality 60: 50.4 fps  155615 bytes
+jpeg full quality 70: 45.0 fps  201577 bytes
+jpeg full quality 80: 38.6 fps  278983 bytes
+jpeg full quality 90: 29.3 fps  474062 bytes
+jpeg full quality 95: 23.4 fps  720708 bytes
+EncodeImage full quality 30: 50.0 fps  89452 bytes
+EncodeImage full quality 40: 46.3 fps  117397 bytes
+EncodeImage full quality 50: 43.4 fps  145765 bytes
+EncodeImage full quality 60: 40.5 fps  177494 bytes
+EncodeImage full quality 70: 37.2 fps  225802 bytes
+EncodeImage full quality 80: 32.4 fps  308355 bytes
+EncodeImage full quality 90: 25.4 fps  512034 bytes
+EncodeImage full quality 95: 20.9 fps  766684 bytes
+jpeg 640 quality 30: 272.9 fps  11784 bytes
+jpeg 640 quality 40: 260.3 fps  15652 bytes
+jpeg 640 quality 50: 241.6 fps  19930 bytes
+jpeg 640 quality 60: 227.4 fps  24982 bytes
+jpeg 640 quality 70: 205.1 fps  33397 bytes
+jpeg 640 quality 80: 179.0 fps  47880 bytes
+jpeg 640 quality 90: 140.0 fps  85380 bytes
+jpeg 640 quality 95: 103.6 fps  141336 bytes
+thumb 10 quality 85: 17646.1 fps  741 bytes
+thumb 20 quality 85: 15005.9 fps  799 bytes
+thumb 40 quality 85: 10644.9 fps  1017 bytes
+thumb 60 quality 85: 7040.3 fps  1551 bytes
+thumb 80 quality 85: 5226.5 fps  2142 bytes
+thumb 100 quality 85: 3264.1 fps  3095 bytes
