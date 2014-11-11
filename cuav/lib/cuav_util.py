@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''common CanberraUAV utility functions'''
 
-import numpy, cv, math, sys, os, time, rotmat, cStringIO, cPickle, struct
+import numpy, cv, math, sys, os, time, rotmat, cStringIO, cPickle, struct, calendar
 
 from cuav.camera.cam_params import CameraParams
 
@@ -473,21 +473,18 @@ def parse_frame_time(filename):
                 return 0
 	tstring = basename[i:]
         ttuple = time.strptime(tstring[:14], "%Y%m%d%H%M%S")
-	t = time.mktime(ttuple)
-        dst = time.localtime().tm_isdst
-	# hundredths can be after a dash
 	if tstring[14] == '-':
 		hundredths = int(tstring[15:17])
                 z = tstring[17]
 	else:
 		hundredths = int(tstring[14:16])
                 z = tstring[16]
+        is_gmt = (z.upper() == 'Z')
+        if is_gmt:
+                t = calendar.timegm(ttuple)
+        else:
+                t = time.mktime(ttuple)
 	t += hundredths * 0.01
-        if z.upper() == 'Z':
-                if dst > 0:
-                        t -= time.altzone
-                else:
-                        t -= time.timezone
 	return t
 
 
