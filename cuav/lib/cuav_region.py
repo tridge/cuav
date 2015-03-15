@@ -97,7 +97,7 @@ def array_compactness(im):
         P = P - outer(wmean,wmean);
 
         det = abs(linalg.det(P))
-        if (det <= 0):
+        if (det == 0):
                 return 0.0
         v = linalg.eigvalsh(P)
         v = abs(v)
