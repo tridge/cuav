@@ -565,6 +565,7 @@ class Mosaic():
 
     def mouse_event(self, event):
         '''called on mouse events on the mosaic'''
+        import wx
         if event.X < 0 or event.Y < 0:
             # sometimes get events when the mouse cursor is not on the mosaic
             return
