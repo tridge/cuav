@@ -12,6 +12,8 @@ from MAVProxy.modules.lib.mp_menu import *
 
 from optparse import OptionParser
 parser = OptionParser("thermal_view.py [options] <filename>")
+parser.add_option("--width", type='int', default=640, help="image width")
+parser.add_option("--height", type='int', default=480, help="image height")
 (opts, args) = parser.parse_args()
 
 if len(args) < 1:
@@ -26,8 +28,8 @@ def show_mask(raw):
     minv = 65536
     maxv = 0
     raw = raw.byteswap(False)
-    for x in range(640):
-        for y in range(480):
+    for x in range(opts.width):
+        for y in range(opts.height):
             v = raw[y][x]
             minv = min(v, minv)
             maxv = max(v, maxv)
@@ -39,18 +41,18 @@ def convert_image(filename, threshold, blue_threshold, green_threshold):
     '''convert a file'''
     global raw_image
     pgm = cuav_util.PGM(filename)
-    im_640 = numpy.zeros((480,640,3),dtype='uint8')
+    im2 = numpy.zeros((opts.height,opts.width,3),dtype='uint8')
     raw_image = pgm.array
     show_mask(raw_image)
-    scanner.thermal_convert(pgm.array, im_640, threshold, blue_threshold, green_threshold)
+    scanner.thermal_convert(pgm.array, im2, threshold, blue_threshold, green_threshold)
 
-    color_img = cv.CreateImageHeader((640, 480), 8, 3)
-    cv.SetData(color_img, im_640)
+    color_img = cv.CreateImageHeader((opts.width, opts.height), 8, 3)
+    cv.SetData(color_img, im2)
     return color_img
 
 view_image = mp_image.MPImage(title='ThermalView',
-                              width=640,
-                              height=480,
+                              width=opts.width,
+                              height=opts.height,
                               mouse_events=True,
                               key_events=True,
                               can_zoom=True,
