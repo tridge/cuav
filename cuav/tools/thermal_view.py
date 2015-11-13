@@ -14,6 +14,7 @@ from optparse import OptionParser
 parser = OptionParser("thermal_view.py [options] <filename>")
 parser.add_option("--width", type='int', default=640, help="image width")
 parser.add_option("--height", type='int', default=480, help="image height")
+parser.add_option("--threshold", type='int', default=6100, help="color threshold")
 (opts, args) = parser.parse_args()
 
 if len(args) < 1:
@@ -68,7 +69,7 @@ view_image.set_menu(menu)
 
 
 settings = MPSettings(
-    [ MPSetting('threshold', int, 6100, 'High Threshold', tab='Settings', range=(0,65535)),
+    [ MPSetting('threshold', int, opts.threshold, 'High Threshold', tab='Settings', range=(0,65535)),
       MPSetting('blue_threshold', float, 0.75, 'Blue Threshold', range=(0,1)),
       MPSetting('green_threshold', float, 0.4, 'Green Threshold', range=(0,1))])
 
