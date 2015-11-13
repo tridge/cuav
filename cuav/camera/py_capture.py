@@ -19,6 +19,7 @@ parser.add_option("--quality", type='int', default=95, help="compression quality
 parser.add_option("--brightness", type='int', default=100, help="auto-exposure brightness")
 parser.add_option("--trigger", action='store_true', default=False, help="use triggering")
 parser.add_option("--framerate", type='int', default=0, help="capture framerate Hz")
+parser.add_option("--reduction", type='int', default=0, help="frame reduction factor")
 (opts, args) = parser.parse_args()
 
 class capture_state():
@@ -156,7 +157,8 @@ def run_capture():
     if opts.compress or opts.scan:
       state.bayer_queue.put((base_time+frame_time, im))
     if opts.save and not opts.compress:
-      state.save_queue.put((base_time+frame_time, im, False))
+      if opts.reduction == 0 or num_captured % opts.reduction == 0:
+        state.save_queue.put((base_time+frame_time, im, False))
 
     print("Captured %s shutter=%f tdelta=%f(%.2f) ft=%f loss=%u qsave=%u qbayer=%u qcompress=%u scan=%u" % (
         cuav_util.frame_time(base_time+frame_time),
