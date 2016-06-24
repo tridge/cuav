@@ -793,6 +793,8 @@ class CameraModule(mp_module.MPModule):
                                                 bandwidth=self.camera_settings.bandwidth, debug=False,
                                                 dest_ip=self.camera_settings.gcs_address,
                                                 dest_port=self.camera_settings.gcs_view_port)
+            # send an initial packet to open the link
+            self.send_packet(CommandPacket(''), bsend=self.bsend)
         if self.bsend2 is None:
             self.bsocket = MavSocket(self.mpstate.mav_master[0])
             self.bsend2 = block_xmit.BlockSender(mss=96, sock=self.bsocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
@@ -806,6 +808,8 @@ class CameraModule(mp_module.MPModule):
                                                 bandwidth=self.camera_settings.bandwidth,
                                                 dest_ip=self.camera_settings.aircraft_address,
                                                 dest_port=self.camera_settings.aircraft_port)
+            # send an initial packet to open the link
+            self.send_packet(CommandPacket(''), bsend=self.bsend)
 
         if self.bsend2 is None:
             self.bsocket = MavSocket(self.mpstate.mav_master[0])
