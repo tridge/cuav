@@ -730,6 +730,8 @@ class CameraModule(mp_module.MPModule):
 
     def best_bsend(self, who):
         '''choose the best link to use'''
+        if self.bsend is None and self.bsend2 is None:
+            return None
         if self.camera_settings.use_bsend2 and not self.bsend.is_alive(20) and self.bsend2 is not None:
             if self.camera_settings.debug:
                 print("using bsend2 for %s" % who)
@@ -1148,6 +1150,8 @@ class CameraModule(mp_module.MPModule):
         '''send a message'''
         if bsend is None:
             bsend = self.best_bsend('send_message')
+            if bsend is None:
+                return
         pkt = CameraMessage(msg)
         self.send_packet(pkt, bsend)
 

@@ -20,6 +20,7 @@ parser.add_option("--brightness", type='int', default=100, help="auto-exposure b
 parser.add_option("--trigger", action='store_true', default=False, help="use triggering")
 parser.add_option("--framerate", type='int', default=0, help="capture framerate Hz")
 parser.add_option("--reduction", type='int', default=0, help="frame reduction factor")
+parser.add_option("--make-fake", default=None, help="create fake_chameleon.pgm")
 (opts, args) = parser.parse_args()
 
 class capture_state():
@@ -69,6 +70,8 @@ def get_base_time():
         print('re-opening camera')
         chameleon.close(h)
         h = chameleon.open(not opts.mono, opts.depth, opts.brightness)
+        if opts.framerate != 0:
+          chameleon.set_framerate(h, opts.framerate)
   return h, base_time, frame_time
 
 
@@ -78,6 +81,7 @@ def save_thread():
     os.mkdir('tmp')
   except Exception:
     pass
+  last_filename = None
   while True:
     frame_time, im, is_jpeg = state.save_queue.get()
     if is_jpeg:
@@ -86,6 +90,18 @@ def save_thread():
     else:
       filename = 'tmp/i%s.pgm' % cuav_util.frame_time(frame_time)
       chameleon.save_pgm(filename, im)
+    if opts.make_fake is not None:
+      try:
+        os.unlink(opts.make_fake)
+      except OSError:
+        pass
+      os.symlink(filename, opts.make_fake)
+      if last_filename is not None:
+        try:
+          os.unlink(last_filename)
+        except OSError:
+          pass
+      last_filename = filename
 
 def bayer_thread():
   '''thread for debayering images'''
