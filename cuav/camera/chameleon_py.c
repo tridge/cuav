@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include "include/chameleon.h"
 #include "include/chameleon_util.h"
+#include <sched.h>
 
 static PyObject *ChameleonError;
 
@@ -42,6 +43,12 @@ chameleon_open(PyObject *self, PyObject *args)
 
 	colour = PyObject_IsTrue(colour_obj);
 
+         // try to make the capture thread realtime
+        struct sched_param p;
+        memset(&p, 0, sizeof(p));
+        p.sched_priority = SCHED_FIFO;
+        sched_setscheduler(0, SCHED_FIFO, &p);
+        
 	int i = 0;
 	for (i = 0; i < NUM_CAMERA_HANDLES; ++i) {
 		if (cameras[i] == NULL) {
