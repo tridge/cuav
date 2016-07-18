@@ -177,6 +177,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('bandwidth',  int, 40000, 'Link1 Bandwdith', 'Comms'),
               MPSetting('bandwidth2', int, 2000, 'Link2 Bandwidth'),
               MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
+              MPSetting('qualitysend', int, 90, 'Compression Quality for send', range=(1,100), increment=1),
               MPSetting('transmit', bool, True, 'Transmit Enable'),
               MPSetting('send1', bool, True, 'Send on Link1'),
               MPSetting('send2', bool, True, 'Send on Link2'),
@@ -744,7 +745,7 @@ class CameraModule(mp_module.MPModule):
 
     def send_image(self, img, frame_time, pos, priority, bsend=None):
         '''send an image to the GCS'''
-        jpeg = scanner.jpeg_compress(img, self.camera_settings.quality)
+        jpeg = scanner.jpeg_compress(img, self.camera_settings.qualitysend)
 
         # keep filtered image size
         self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)        
