@@ -1113,7 +1113,7 @@ class CameraModule(mp_module.MPModule):
             print("No file: %s" % filename)
             return
         try:
-            img = cuav_util.LoadImage(filename, rotate180=self.camera_settings.rotate180)
+            img = cuav_util.LoadImage(filename, rotate180=self.camera_settings.rotate180, RGB=True)
             img = numpy.asarray(cv.GetMat(img))
         except Exception:
             return
