@@ -224,6 +224,57 @@ static void colour_convert(const struct grey_image8 *in, struct bgr_image *out)
 
 
 /*
+  convert a 8 bit colour chameleon image to 8 bit colour at full
+  resolution. No smoothing is done
+
+  This algorithm emphasises speed over colour accuracy
+
+  Output is RGB not BGR
+ */
+static void colour_convert_RGB(const struct grey_image8 *in, struct bgr_image *out)
+{
+	unsigned x, y;
+	/*
+	  layout in the input image is in blocks of 4 values. The top
+	  left corner of the image looks like this
+             G B G B
+	     R G R G
+	     G B G B
+	     R G R G
+	 */
+	for (y=1; y<out->height-2; y += 2) {
+		for (x=1; x<out->width-2; x += 2) {
+			out->data[y+0][x+0].g = in->data[y][x];
+			out->data[y+0][x+0].r = ((uint16_t)in->data[y-1][x+0] + (uint16_t)in->data[y+1][x+0]) >> 1;
+			out->data[y+0][x+0].b = ((uint16_t)in->data[y+0][x-1] + (uint16_t)in->data[y+0][x+1]) >> 1;
+
+			out->data[y+0][x+1].g = ((uint16_t)in->data[y+0][x+0] + (uint16_t)in->data[y-1][x+1] +
+						 (uint16_t)in->data[y+0][x+2] + (uint16_t)in->data[y+1][x+1]) >> 2;
+			out->data[y+0][x+1].r = ((uint16_t)in->data[y-1][x+0] + (uint16_t)in->data[y-1][x+2] +
+						 (uint16_t)in->data[y+1][x+0] + (uint16_t)in->data[y+1][x+2]) >> 2;
+			out->data[y+0][x+1].b = in->data[y+0][x+1];
+
+			out->data[y+1][x+0].g = ((uint16_t)in->data[y+0][x+0] + (uint16_t)in->data[y+1][x-1] +
+						 (uint16_t)in->data[y+1][x+1] + (uint16_t)in->data[y+2][x+0]) >> 2;
+			out->data[y+1][x+0].r = in->data[y+1][x+0];
+			out->data[y+1][x+0].b = ((uint16_t)in->data[y+0][x-1] + (uint16_t)in->data[y+0][x+1] +
+						 (uint16_t)in->data[y+2][x-1] + (uint16_t)in->data[y+2][x+1]) >> 2;
+
+			out->data[y+1][x+1].g = in->data[y+1][x+1];
+			out->data[y+1][x+1].r = ((uint16_t)in->data[y+1][x+0] + (uint16_t)in->data[y+1][x+2]) >> 1;
+			out->data[y+1][x+1].b = ((uint16_t)in->data[y+0][x+1] + (uint16_t)in->data[y+2][x+1]) >> 1;
+		}
+		out->data[y+0][0] = out->data[y+0][1];
+		out->data[y+1][0] = out->data[y+1][1];
+		out->data[y+0][out->width-1] = out->data[y+0][out->width-2];
+		out->data[y+1][out->width-1] = out->data[y+1][out->width-2];
+	}
+	memcpy(out->data[0], out->data[1], out->width*3);
+	memcpy(out->data[out->height-1], out->data[out->height-2], out->width*3);
+}
+
+
+/*
   convert a 24 bit BGR colour image to 8 bit bayer grid
 
   this is used by the fake chameleon code
@@ -1017,6 +1068,48 @@ scanner_debayer(PyObject *self, PyObject *args)
 
 
 /*
+  debayer a image to a 24 bit image of the same size
+ */
+static PyObject *
+scanner_debayer_RGB(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+
+	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
+
+        uint16_t height = PyArray_DIM(img_in, 0);
+        uint16_t width  = PyArray_DIM(img_in, 1);
+	if (PyArray_DIM(img_out, 1) != width ||
+	    PyArray_DIM(img_out, 0) != height ||
+	    PyArray_STRIDE(img_out, 0) != 3*width) {
+		PyErr_SetString(ScannerError, "output must be same shape as input and 24 bit");
+		return NULL;
+	}
+	bool eightbit = PyArray_STRIDE(img_in, 0) == PyArray_DIM(img_in, 1);
+        if (!eightbit) {
+		PyErr_SetString(ScannerError, "input must be 8 bit");
+		return NULL;
+        }
+	const struct grey_image8 *in8 = allocate_grey_image8(height, width, PyArray_DATA(img_in));
+        struct bgr_image *out = allocate_bgr_image8(height, width, PyArray_DATA(img_out));
+
+	Py_BEGIN_ALLOW_THREADS;
+        colour_convert_RGB(in8, out);
+	Py_END_ALLOW_THREADS;
+
+        memcpy(PyArray_DATA(img_out), &out->data[0][0], height*width*sizeof(out->data[0][0]));
+        free(out);
+        free((void*)in8);
+
+	Py_RETURN_NONE;
+}
+
+
+/*
   rebayer a 1280x960 image from 1280x960 24 bit colour image
  */
 static PyObject *
@@ -1726,6 +1819,7 @@ scanner_rect_overlay(PyObject *self, PyObject *args)
 static PyMethodDef ScannerMethods[] = {
 	{"debayer_half", scanner_debayer_half, METH_VARARGS, "simple debayer of image to half size 24 bit"},
 	{"debayer", scanner_debayer, METH_VARARGS, "debayer of image to full size 24 bit image"},
+	{"debayer_RGB", scanner_debayer_RGB, METH_VARARGS, "debayer of image to full size 24 bit image (RGB)"},
 	{"rebayer", scanner_rebayer, METH_VARARGS, "rebayer of image"},
 	{"scan", scanner_scan, METH_VARARGS, "histogram scan a colour image"},
 	{"jpeg_compress", scanner_jpeg_compress, METH_VARARGS, "compress a colour image to a jpeg image as a python string"},

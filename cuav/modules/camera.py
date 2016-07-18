@@ -540,7 +540,7 @@ class CameraModule(mp_module.MPModule):
             t1 = time.time()
             im_full = numpy.zeros((960,1280,3),dtype='uint8')
             im_640 = numpy.zeros((480,640,3),dtype='uint8')
-            scanner.debayer(im, im_full)
+            scanner.debayer_RGB(im, im_full)
             if self.camera_settings.rotate180:
                 scanner.rotate180(im_full)
             scanner.downsample(im_full, im_640)
