@@ -49,14 +49,22 @@ def capture(h, timeout, img):
         timeout -= int(due*1000)
     # wait for a new image to appear
     while True:
-        filename = os.path.realpath(fake)
+        try:
+            filename = os.path.realpath(fake)
+        except Exception:
+            filename = fake
+            pass
         if filename != fake:
             break
     frame_time = cuav_util.parse_frame_time(filename)
     while (frame_time == last_frame_time or frame_time == 0) and timeout > 0:
         timeout -= 10
         time.sleep(0.01)
-        filename = os.path.realpath(fake)
+        try:
+            filename = os.path.realpath(fake)
+        except Exception:
+            filename = fake
+            pass
         if filename == fake:
             continue
         frame_time = cuav_util.parse_frame_time(filename)
