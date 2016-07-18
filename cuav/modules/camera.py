@@ -260,7 +260,7 @@ class CameraModule(mp_module.MPModule):
             self.camera_dir = os.path.join(self.logdir, "camera")
         cuav_util.mkdir_p(self.camera_dir)
 
-        self.mpos = mav_position.MavInterpolator(backlog=5000, gps_lag=0.3)
+        self.mpos = mav_position.MavInterpolator(backlog=5000, gps_lag=0.0)
         self.joelog = cuav_joe.JoeLog(os.path.join(self.camera_dir, 'joe.log'), append=self.continue_mode)
 
         self.add_command('camera', self.cmd_camera,

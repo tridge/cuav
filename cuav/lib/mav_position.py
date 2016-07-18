@@ -37,7 +37,7 @@ class MavPosition():
 class MavInterpolator():
 	'''a class to interpolate position and attitude from a
 	series of mavlink messages'''
-	def __init__(self, backlog=500, gps_lag=0.2):
+	def __init__(self, backlog=500, gps_lag=0):
 		self.backlog = backlog
 		self.attitude = []
 		self.global_position_int = []
