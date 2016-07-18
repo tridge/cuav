@@ -153,7 +153,8 @@ def run_capture():
   frame_loss = 0
   num_captured = 0
   last_frame_counter = 0
-
+  error_count = 0
+  
   print('Starting main capture loop')
 
   while True:
@@ -164,6 +165,17 @@ def run_capture():
       frame_time, frame_counter, shutter = chameleon.capture(h, 1000, im)
     except chameleon.error:
       print('failed to capture')
+      error_count += 1
+      if error_count > 3:
+        error_count = 0
+        print('re-opening camera')
+        chameleon.close(h)
+        h = chameleon.open(not opts.mono, opts.depth, opts.brightness)
+        if opts.framerate != 0:
+          chameleon.set_framerate(h, opts.framerate)
+        if not opts.trigger:
+          print('Starting continuous trigger')
+          chameleon.trigger(h, True)
       continue
     if frame_time < last_frame_time:
       base_time += 128
@@ -188,6 +200,7 @@ def run_capture():
         state.compress_queue.qsize(),
         state.scan_queue.qsize()))
 
+    error_count = 0
     last_frame_time = frame_time
     last_frame_counter = frame_counter
     num_captured += 1
