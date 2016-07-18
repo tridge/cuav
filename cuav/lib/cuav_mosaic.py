@@ -278,7 +278,7 @@ class Mosaic():
             self.view_image.set_menu(self.view_menu)
             self.view_image.set_popup_menu(vmenu)
         self.view_filename = filename
-        self.view_image.set_image(img, bgr=False)
+        self.view_image.set_image(img, bgr=True)
         self.view_image.set_title('View: ' + os.path.basename(filename))
 
     def find_image_idx(self, filename):
