@@ -6,11 +6,13 @@ Andrew Tridgell
 
 from MAVProxy.modules.lib import mp_module
 from pymavlink import mavutil
-import time
+import time, math
 
 class CUAVModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(CUAVModule, self).__init__(mpstate, "CUAV", "CUAV checks")
+        self.console.set_status('RPM', 'RPM: --', row=8, fg='black')
+        self.console.set_status('RFind', 'RFind: --', row=8, fg='black')
         self.console.set_status('Button', 'Button: --', row=8, fg='black')
         self.rate_period = mavutil.periodic_event(1.0/15)
         self.button_remaining = None
@@ -104,6 +106,14 @@ class CUAVModule(mp_module.MPModule):
             self.button_change = m
             self.button_change_recv_time = time.time()
             self.update_button_display()
+
+        if m.get_type() == "RPM":
+            self.console.set_status('RPM', 'RPM: %u' % m.rpm1, row=8)
+
+        if m.get_type() == "RANGEFINDER" and 'ATTITUDE' in self.master.messages:
+            a = self.master.messages['ATTITUDE']
+            dist = m.distance * math.cos(a.roll) * math.cos(a.pitch)
+            self.console.set_status('RFind', 'RFind: %u' % dist, row=8)
 
         if m.get_type() == "VFR_HUD":
             flying = False
