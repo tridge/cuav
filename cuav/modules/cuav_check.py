@@ -14,6 +14,7 @@ class CUAVModule(mp_module.MPModule):
         self.console.set_status('RPM', 'RPM: --', row=8, fg='black')
         self.console.set_status('RFind', 'RFind: --', row=8, fg='black')
         self.console.set_status('Button', 'Button: --', row=8, fg='black')
+        self.console.set_status('ICE', 'ICE: --', row=8, fg='black')
         self.rate_period = mavutil.periodic_event(1.0/15)
         self.button_remaining = None
         self.button_change = None
@@ -109,6 +110,15 @@ class CUAVModule(mp_module.MPModule):
 
         if m.get_type() == "RPM":
             self.console.set_status('RPM', 'RPM: %u' % m.rpm1, row=8)
+
+        if m.get_type() == "RC_CHANNELS":
+            v = m.chan7_raw
+            if v <= 1300:
+                self.console.set_status('ICE', 'ICE: OFF', row=8, fg='red')
+            elif v >= 1700:
+                self.console.set_status('ICE', 'ICE: ON', row=8, fg='blue')
+            else:
+                self.console.set_status('ICE', 'ICE: AUTO', row=8, fg='green')
 
         if m.get_type() == "RANGEFINDER" and 'ATTITUDE' in self.master.messages:
             a = self.master.messages['ATTITUDE']
