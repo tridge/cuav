@@ -21,6 +21,7 @@ class CUAVModule(mp_module.MPModule):
         self.last_button_update = time.time()
         self.button_change_recv_time = 0
         self.button_announce_time = 0
+        self.last_rpm_update = 0
 
     def check_parms(self, parms, set=False):
         '''check parameter settings'''
@@ -70,16 +71,21 @@ class CUAVModule(mp_module.MPModule):
 
     def idle_task(self):
         '''run periodic tasks'''
-        if time.time() - self.last_button_update > 0.5:
-            self.last_button_update = time.time()
+        now = time.time()
+        if now - self.last_button_update > 0.5:
+            self.last_button_update = now
             self.update_button_display()
+        if self.last_rpm_update != 0 and now - self.last_rpm_update > 2:
+            self.console.set_status('RPM', 'RPM: --', row=8, fg='red')
+            self.last_rpm_update = 0
 
     def update_button_display(self):
         '''update the Button display on console'''
         if self.button_change is None:
             return
+        now = time.time()
         time_since_change = (self.button_change.time_boot_ms - self.button_change.last_change_ms) * 0.001
-        time_since_change += time.time() - self.button_change_recv_time
+        time_since_change += now - self.button_change_recv_time
         if time_since_change > 60:
             color = 'black'
             self.button_remaining = 0
@@ -88,16 +94,17 @@ class CUAVModule(mp_module.MPModule):
             self.button_remaining = 60 - time_since_change
         remaining = int(self.button_remaining)
         self.console.set_status('Button', 'Button: %u' % remaining, row=8, fg=color)
-        if remaining > 0 and time.time() - self.button_announce_time > 60:
+        if remaining > 0 and now - self.button_announce_time > 60:
                 self.say("Button pressed")
-                self.button_announce_time = time.time()
+                self.button_announce_time = now
                 return
-        if time.time() - self.button_announce_time >= 10 and remaining % 10 == 0 and time_since_change < 65:
+        if now - self.button_announce_time >= 10 and remaining % 10 == 0 and time_since_change < 65:
             self.say("%u seconds" % remaining)
-            self.button_announce_time = time.time()
+            self.button_announce_time = now
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
+        now = time.time()
         if m.get_type() == "BUTTON_CHANGE":
             if self.button_change is not None:
                 if (m.time_boot_ms < self.button_change.time_boot_ms and
@@ -105,11 +112,12 @@ class CUAVModule(mp_module.MPModule):
                     # discard repeated packet from another link if older by less than 30s
                     return
             self.button_change = m
-            self.button_change_recv_time = time.time()
+            self.button_change_recv_time = now
             self.update_button_display()
 
         if m.get_type() == "RPM":
             self.console.set_status('RPM', 'RPM: %u' % m.rpm1, row=8)
+            self.last_rpm_update = now
 
         if m.get_type() == "RC_CHANNELS":
             v = m.chan7_raw
