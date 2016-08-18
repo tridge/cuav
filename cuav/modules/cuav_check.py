@@ -39,33 +39,33 @@ class CUAVModule(mp_module.MPModule):
     def check_rates(self):
         '''check stream rates'''
         parms = {
-            "SR1_EXTRA1"    : 3.0,
+            "SR1_EXTRA1"    : 2.0,
             "SR1_EXTRA2"    : 2.0,
             "SR1_EXTRA3"    : 2.0,
             "SR1_EXT_STAT"  : 2.0,
             "SR1_PARAMS"    : 10.0,
-            "SR1_POSITION"  : 4.0,
+            "SR1_POSITION"  : 2.0,
             "SR1_RAW_CTRL"  : 2.0,
             "SR1_RAW_SENS"  : 1.0,
             "SR1_RC_CHAN"   : 1.0,
-            "SR2_EXTRA1"    : 4.0,
-            "SR2_EXTRA2"    : 4.0,
-            "SR2_EXTRA3"    : 4.0,
-            "SR2_EXT_STAT"  : 4.0,
+            "SR2_EXTRA1"    : 2.0,
+            "SR2_EXTRA2"    : 2.0,
+            "SR2_EXTRA3"    : 2.0,
+            "SR2_EXT_STAT"  : 2.0,
             "SR2_PARAMS"    : 10.0,
-            "SR2_POSITION"  : 4.0,
-            "SR2_RAW_CTRL"  : 4.0,
-            "SR2_RAW_SENS"  : 4.0,
-            "SR2_RC_CHAN"   : 4.0,
-            "SR3_EXTRA1"    : 4.0,
-            "SR3_EXTRA2"    : 4.0,
-            "SR3_EXTRA3"    : 4.0,
-            "SR3_EXT_STAT"  : 4.0,
+            "SR2_POSITION"  : 2.0,
+            "SR2_RAW_CTRL"  : 1.0,
+            "SR2_RAW_SENS"  : 1.0,
+            "SR2_RC_CHAN"   : 1.0,
+            "SR3_EXTRA1"    : 2.0,
+            "SR3_EXTRA2"    : 2.0,
+            "SR3_EXTRA3"    : 2.0,
+            "SR3_EXT_STAT"  : 2.0,
             "SR3_PARAMS"    : 10.0,
-            "SR3_POSITION"  : 4.0,
-            "SR3_RAW_CTRL"  : 4.0,
-            "SR3_RAW_SENS"  : 4.0,
-            "SR3_RC_CHAN"   : 4.0
+            "SR3_POSITION"  : 2.0,
+            "SR3_RAW_CTRL"  : 2.0,
+            "SR3_RAW_SENS"  : 1.0,
+            "SR3_RC_CHAN"   : 1.0
             }
         self.check_parms(parms, True)
 
@@ -137,9 +137,9 @@ class CUAVModule(mp_module.MPModule):
             flying = False
             if self.status.flightmode == "AUTO" or m.airspeed > 20 or m.groundspeed > 10:
                 flying = True
-            if flying and self.settings.mavfwd != 0:
-                print("Disabling mavfwd for flight")
-                self.settings.mavfwd = 0
+            #if flying and self.settings.mavfwd != 0:
+            #    print("Disabling mavfwd for flight")
+            #    self.settings.mavfwd = 0
 
         if self.rate_period.trigger():
             self.check_rates()
