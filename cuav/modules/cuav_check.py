@@ -66,7 +66,9 @@ class CUAVModule(mp_module.MPModule):
             "SR3_POSITION"  : 2.0,
             "SR3_RAW_CTRL"  : 2.0,
             "SR3_RAW_SENS"  : 1.0,
-            "SR3_RC_CHAN"   : 1.0
+            "SR3_RC_CHAN"   : 1.0,
+            "FS_GCS_ENABLE" : 0,
+            "FS_GCS_ENABL"  : 0,
             }
         self.check_parms(parms, True)
 
