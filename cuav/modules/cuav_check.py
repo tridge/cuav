@@ -22,6 +22,7 @@ class CUAVModule(mp_module.MPModule):
         self.button_change_recv_time = 0
         self.button_announce_time = 0
         self.last_rpm_update = 0
+        self.last_rpm_value = None
 
     def check_parms(self, parms, set=False):
         '''check parameter settings'''
@@ -75,9 +76,11 @@ class CUAVModule(mp_module.MPModule):
         if now - self.last_button_update > 0.5:
             self.last_button_update = now
             self.update_button_display()
-        if self.last_rpm_update != 0 and now - self.last_rpm_update > 2:
+        if self.last_rpm_update != 0 and now - self.last_rpm_update > 4:
             self.console.set_status('RPM', 'RPM: --', row=8, fg='red')
+            self.say("Engine stopped")
             self.last_rpm_update = 0
+            self.last_rpm_value = None
 
     def update_button_display(self):
         '''update the Button display on console'''
@@ -118,6 +121,10 @@ class CUAVModule(mp_module.MPModule):
         if m.get_type() == "RPM":
             self.console.set_status('RPM', 'RPM: %u' % m.rpm1, row=8)
             self.last_rpm_update = now
+            if m.rpm1 > 50:
+                if self.last_rpm_value is None:
+                    self.say("Engine started")
+                self.last_rpm_value = m.rpm1
 
         if m.get_type() == "RC_CHANNELS":
             v = m.chan7_raw
