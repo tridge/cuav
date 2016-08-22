@@ -129,7 +129,10 @@ class CUAVModule(mp_module.MPModule):
                 self.last_rpm_value = m.rpm1
 
         if m.get_type() == "RC_CHANNELS":
-            v = m.chan7_raw
+            v = self.mav_param.get('ICE_START_CHAN', None)
+            if v is None:
+                return
+            v = getattr(m, 'chan%u_raw' % v)
             if v <= 1300:
                 self.console.set_status('ICE', 'ICE: OFF', row=8, fg='red')
             elif v >= 1700:
