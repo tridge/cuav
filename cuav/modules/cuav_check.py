@@ -140,7 +140,7 @@ class CUAVModule(mp_module.MPModule):
         if m.get_type() == "RANGEFINDER" and 'ATTITUDE' in self.master.messages:
             a = self.master.messages['ATTITUDE']
             dist = m.distance * math.cos(a.roll) * math.cos(a.pitch)
-            self.console.set_status('RFind', 'RFind: %u' % dist, row=8)
+            self.console.set_status('RFind', 'RFind: %.1fm %uft' % (dist, dist*3.28084), row=8)
 
         if m.get_type() == "VFR_HUD":
             flying = False
