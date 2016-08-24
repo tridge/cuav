@@ -21,6 +21,7 @@ class CUAVCompanionModule(mp_module.MPModule):
         self.led_force = None
         self.led_send_time = 0
         self.button_change_time = 0
+        self.last_attitude_ms = 0
         self.add_command('cuavled', self.cmd_cuavled, "cuav led command", ['<red|green|flash|off|refresh>'])
 
     def cmd_cuavled(self, args):
@@ -62,6 +63,11 @@ class CUAVCompanionModule(mp_module.MPModule):
         self.led_send_time = time.time()
         self.set_relay(0, state[0])
         self.set_relay(1, state[1])
+        if state == LED_FLASH:
+            # also play warning tune
+            self.master.mav.play_tune_send(self.settings.target_system,
+                                           self.settings.target_component,
+                                           'AAAAAA')
 
     def idle_task(self):
         '''run periodic tasks'''
@@ -70,8 +76,8 @@ class CUAVCompanionModule(mp_module.MPModule):
     def update_led_state(self):
         '''update LED state'''
         if self.led_force is not None:
-            return
-        if self.master.motors_armed():
+            led_state = self.led_force
+        elif self.master.motors_armed():
             led_state = LED_RED
         elif time.time() - self.button_change_time < 60:
             led_state = LED_FLASH
@@ -94,6 +100,10 @@ class CUAVCompanionModule(mp_module.MPModule):
             self.ack_wait -= 1
             if self.ack_wait == 0:
                 print("LEDs updated: %s" % self.led_state[2])
+        if m.get_type() == 'ATTITUDE':
+            if m.time_boot_ms < self.last_attitude_ms:
+                self.led_state = None
+            self.last_attitude_ms = m.time_boot_ms
 
 def init(mpstate):
     '''initialise module'''
