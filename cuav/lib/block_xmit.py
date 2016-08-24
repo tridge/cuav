@@ -614,10 +614,10 @@ class BlockSender:
                 complete = "0"
                 if len(self.incoming) > 0:
                         complete = "%u/%u" % (len(self.incoming[0].acks.chunks), self.incoming[0].acks.num_chunks)
-                        print("total_acked=%u total_chunks=%u eff=%.2f rtt=%.1f bw=%.2f qsize=%u in=%u/%s" % (
-                                total_acked, total_chunks, self.get_efficiency(), self.get_rtt_estimate(),
-                                self.get_bandwidth_used(),
-                                self.sendq_size(), len(self.incoming), complete))
+                print("total_acked=%u total_chunks=%u eff=%.2f rtt=%.1f bw=%.2f qsize=%u in=%u/%s" % (
+                        total_acked, total_chunks, self.get_efficiency(), self.get_rtt_estimate(),
+                        self.get_bandwidth_used(),
+                        self.sendq_size(), len(self.incoming), complete))
 
 	def sendq_size(self):
 		'''return number of uncompleted blocks in the send queue'''

@@ -169,13 +169,17 @@ class CameraModule(mp_module.MPModule):
               MPSetting('use_capture_time', bool, True, 'Use Capture Time'),
 
               MPSetting('gcs_address', str, None, 'GCS Address', tab='GCS'),
+              MPSetting('gcs_address2', str, None, 'GCS Address2', tab='GCS'),
               MPSetting('gcs_view_port', int, 7543, 'GCS View Port', range=(1, 30000), increment=1),
+              MPSetting('gcs_view_port2', int, 7543, 'GCS View Port', range=(1, 30000), increment=1),
               MPSetting('gcs_slave', str, None, 'GCS Slave'),
               MPSetting('aircraft_address', str, None, 'Aircraft Address', tab='GCS'),
+              MPSetting('aircraft_address2', str, None, 'Aircraft Address2', tab='GCS'),
               MPSetting('aircraft_port', int, 7544, 'Aircraft Port', range=(1, 30000), increment=1),
+              MPSetting('aircraft_port2', int, 7544, 'Aircraft Port', range=(1, 30000), increment=1),
               
               MPSetting('bandwidth',  int, 40000, 'Link1 Bandwdith', 'Comms'),
-              MPSetting('bandwidth2', int, 2000, 'Link2 Bandwidth'),
+              MPSetting('bandwidth2', int, 40000, 'Link2 Bandwidth'),
               MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
               MPSetting('qualitysend', int, 90, 'Compression Quality for send', range=(1,100), increment=1),
               MPSetting('transmit', bool, True, 'Transmit Enable'),
@@ -189,7 +193,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('minspeed', int, 4, 'Min vehicle speed to save images'),
 
               MPSetting('minscore', int, 500, 'Min Score Link1', range=(0,5000), increment=1, tab='Scoring'),
-              MPSetting('minscore2', int, 1200, 'Min Score Link2', range=(0,5000), increment=1),
+              MPSetting('minscore2', int, 500, 'Min Score Link2', range=(0,5000), increment=1),
               MPSetting('packet_loss', int, 0, 'Packet Loss', range=(0,100), increment=1, tab='Misc'),             
               MPSetting('packet_loss2', int, 0, 'Link2 Packet Loss', range=(0,100), increment=1, tab='Misc'),             
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),             
@@ -270,6 +274,8 @@ class CameraModule(mp_module.MPModule):
                           'set (CAMERASETTING)'])
         self.add_completion_function('(CAMERASETTING)', self.settings.completion)
         self.add_command('remote', self.cmd_remote, "remote command", ['(COMMAND)'])
+        self.add_command('remote1', self.cmd_remote1, "remote command on bsend1", ['(COMMAND)'])
+        self.add_command('remote2', self.cmd_remote2, "remote command on bsend2", ['(COMMAND)'])
         self.add_completion_function('(CAMERASETTING)', self.camera_settings.completion)
         print("camera initialised")
 
@@ -302,6 +308,9 @@ class CameraModule(mp_module.MPModule):
                 self.jpeg_size,
                 self.xmit_queue, self.xmit_queue2, self.frame_loss, self.scan_queue.qsize(),
                 self.efficiency, self.efficiency2))
+            print("self.bsend is ", self.bsend)
+            if self.bsend is not None:
+                self.bsend.report(detailed=False)
             print("self.bsend2 is ", self.bsend2)
             if self.bsend2 is not None:
                 self.bsend2.report(detailed=False)
@@ -355,6 +364,18 @@ class CameraModule(mp_module.MPModule):
         cmd = " ".join(args)
         pkt = CommandPacket(cmd)
         self.send_packet(pkt)
+
+    def cmd_remote1(self, args):
+        '''camera commands'''
+        cmd = " ".join(args)
+        pkt = CommandPacket(cmd)
+        self.send_packet(pkt, self.bsend)
+
+    def cmd_remote2(self, args):
+        '''camera commands'''
+        cmd = " ".join(args)
+        pkt = CommandPacket(cmd)
+        self.send_packet(pkt, self.bsend2)
 
     def get_base_time(self):
         '''we need to get a baseline time from the camera. To do that we trigger
@@ -635,8 +656,10 @@ class CameraModule(mp_module.MPModule):
     def transmit_thread(self):
         '''thread for image transmit to GCS'''
         tx_count = 0
+        tx_count2 = 0
         reg_count = 0
         skip_count = 0
+        skip_count2 = 0
         self.start_aircraft_bsend()
 
         while not self.unload_event.wait(0.02):
@@ -720,14 +743,24 @@ class CameraModule(mp_module.MPModule):
                                     highscore, len(buf), self.bsend2_thumb_total))
 
             # Base how many images we send on the send queue size
-            send_frequency = self.xmit_queue // 3
-            if self.camera_settings.gcs_address is None:
-                continue
-            if send_frequency != 0 and (tx_count+skip_count) % send_frequency != 0:
-                skip_count += 1
-                continue
-            tx_count += 1
-            self.send_image(im_640, frame_time, pos, 0, bsend=self.bsend)
+            if self.bsend.is_alive(10):
+                send_frequency = self.xmit_queue // 3
+                if self.camera_settings.gcs_address is None:
+                    continue
+                if send_frequency != 0 and (tx_count+skip_count) % send_frequency != 0:
+                    skip_count += 1
+                    continue
+                tx_count += 1
+                self.send_image(im_640, frame_time, pos, 0, bsend=self.bsend)
+            else:
+                send_frequency = self.xmit_queue2 // 3
+                if self.camera_settings.gcs_address2 is None:
+                    continue
+                if send_frequency != 0 and (tx_count2+skip_count2) % send_frequency != 0:
+                    skip_count2 += 1
+                    continue
+                tx_count2 += 1
+                self.send_image(im_640, frame_time, pos, 0, bsend=self.bsend2)
 
     def best_bsend(self, who):
         '''choose the best link to use'''
@@ -796,29 +829,42 @@ class CameraModule(mp_module.MPModule):
                                                 bandwidth=self.camera_settings.bandwidth, debug=False,
                                                 dest_ip=self.camera_settings.gcs_address,
                                                 dest_port=self.camera_settings.gcs_view_port)
-            # send an initial packet to open the link
-            self.send_packet(CommandPacket(''), bsend=self.bsend)
         if self.bsend2 is None:
-            self.bsocket = MavSocket(self.mpstate.mav_master[0])
-            self.bsend2 = block_xmit.BlockSender(mss=96, sock=self.bsocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
-            self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
+            self.bsend2 = block_xmit.BlockSender(self.camera_settings.aircraft_port2,
+                                                 bandwidth=self.camera_settings.bandwidth2, debug=False,
+                                                 dest_ip=self.camera_settings.gcs_address2,
+                                                 dest_port=self.camera_settings.gcs_view_port2)
+
+        # send an initial packet to open the link
+        if self.bsend:
+            self.send_packet(CommandPacket(''), bsend=self.bsend)
+        if self.bsend2:
+            self.send_packet(CommandPacket(''), bsend=self.bsend2)
         self.send_heartbeats()
 
     def start_gcs_bsend(self):
         '''start up block senders for GCS side'''
+        started_bsend = False
+        started_bsend2 = False
         if self.bsend is None:
             self.bsend = block_xmit.BlockSender(self.camera_settings.gcs_view_port,
                                                 bandwidth=self.camera_settings.bandwidth,
                                                 dest_ip=self.camera_settings.aircraft_address,
                                                 dest_port=self.camera_settings.aircraft_port)
-            # send an initial packet to open the link
-            self.send_packet(CommandPacket(''), bsend=self.bsend)
+            started_bsend = True
 
         if self.bsend2 is None:
-            self.bsocket = MavSocket(self.mpstate.mav_master[0])
-            self.bsend2 = block_xmit.BlockSender(mss=96, sock=self.bsocket, dest_ip='mavlink',
-                                                 dest_port=0, backlog=5, debug=False)
-            self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
+            self.bsend2 = block_xmit.BlockSender(self.camera_settings.gcs_view_port2,
+                                                 bandwidth=self.camera_settings.bandwidth2,
+                                                 dest_ip=self.camera_settings.aircraft_address2,
+                                                 dest_port=self.camera_settings.aircraft_port2)
+            started_bsend2 = True
+
+        # send an initial packet to open the link
+        if self.bsend and started_bsend:
+            self.send_packet(CommandPacket(''), bsend=self.bsend)
+        if self.bsend2 and started_bsend2:
+            self.send_packet(CommandPacket(''), bsend=self.bsend2)
 
 
     def view_thread(self):
