@@ -18,8 +18,34 @@ class CUAVCompanionModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(CUAVCompanionModule, self).__init__(mpstate, "CUAV", "CUAV companion")
         self.led_state = LED_OFF
+        self.led_force = None
         self.led_send_time = 0
         self.button_change_time = 0
+        self.add_command('cuavled', self.cmd_cuavled, "cuav led command", ['<red|green|flash|off|refresh>'])
+
+    def cmd_cuavled(self, args):
+        '''handle cuavled commands'''
+        usage = "usage: cuavled red|green|flash|off|refresh"
+        if len(args) == 0:
+            print(usage)
+            return
+        if args[0] == 'red':
+            self.force_leds(LED_RED)
+        elif args[0] == 'green':
+            self.force_leds(LED_GREEN)
+        elif args[0] == 'flash':
+            self.force_leds(LED_FLASH)
+        elif args[0] == 'off':
+            self.force_leds(LED_OFF)
+        elif args[0] == 'refresh':
+            self.led_force = None
+            self.led_state = None
+            self.update_led_state()
+            
+    def force_leds(self, state):
+        self.led_force = state
+        self.set_leds(state)
+            
 
     def set_relay(self, relaynum, value):
         self.master.mav.command_long_send(self.target_system,
@@ -43,6 +69,8 @@ class CUAVCompanionModule(mp_module.MPModule):
 
     def update_led_state(self):
         '''update LED state'''
+        if self.led_force is not None:
+            return
         if self.master.motors_armed():
             led_state = LED_RED
         elif time.time() - self.button_change_time < 60:
