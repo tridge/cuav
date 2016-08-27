@@ -1,0 +1,19 @@
+module load cuav.modules.camera
+module load cuav.modules.cuav_companion
+
+camera set gcs_address 52.63.21.140
+camera set aircraft_address 52.63.21.140
+camera set gcs_view_port 7543
+camera set aircraft_port 7544
+
+camera set gcs_address2 103.22.144.67
+camera set aircraft_address2 103.22.144.67
+camera set gcs_view_port2 10407
+camera set aircraft_port2 10408
+
+camera set save_pgm 1
+camera set roll_stabilised 0
+camera set camparms cuav/cuav/data/calibration_images_2014/ChameleonArecort/params.json
+set streamrate 2
+set numcells 6
+camera start
