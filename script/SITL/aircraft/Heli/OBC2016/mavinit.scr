@@ -1,0 +1,13 @@
+# remove 127.0.0.1 outputs
+output remove 0
+output remove 0
+set heartbeat 0
+
+# redirect serial packets arriving from the retrieval aircraft
+output sysid 2 103.22.144.67:10405
+
+module load cuav.modules.cuav_companion
+
+output add udpout:52.63.21.140:10403
+output add udpout:103.22.144.67:10403
+set streamrate -1
