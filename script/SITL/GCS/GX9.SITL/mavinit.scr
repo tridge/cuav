@@ -1,0 +1,21 @@
+set streamrate -1
+set streamrate2 -1
+
+# use these without steves box
+#link add udpout:52.63.21.140:10404
+#link add udpout:103.22.144.67:10404
+
+# use these for plane input from steves box
+#link add udp:0.0.0.0:14450
+#link add udp:0.0.0.0:14451
+
+output add 192.168.1.22:14452
+output add 192.168.1.23:14452
+
+module load cuav.modules.cuav_check
+set dist_unit nm
+set height_unit feet
+set speed_unit knots
+set numcells 3
+set battwarn 10000
+set speech_voice en-us+f4
