@@ -1,0 +1,30 @@
+set streamrate -1
+
+# remove 127.0.0.1 outputs
+output remove 0
+output remove 0
+set heartbeat 0
+
+output add udpout:52.63.21.140:10401
+output add udpout:103.22.144.67:10401
+
+output sysid 1 127.0.0.1:14800
+
+module load cuav.modules.camera
+module load cuav.modules.cuav_companion
+
+camera set gcs_address 52.63.21.140
+camera set aircraft_address 52.63.21.140
+camera set gcs_view_port 7543
+camera set aircraft_port 7544
+
+camera set gcs_address2 103.22.144.67
+camera set aircraft_address2 103.22.144.67
+camera set gcs_view_port2 10407
+camera set aircraft_port2 10408
+
+camera set save_pgm 1
+camera set roll_stabilised 0
+camera set camparms /home/tridge/project/UAV/cuav/cuav/data/calibration_images_2014/ChameleonArecort/params.json
+camera start
+rc 7 1500
