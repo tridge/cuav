@@ -40,3 +40,5 @@ set numcells 6
 #set speech 0
 module load sensors
 speed
+
+@alias add joemovedalby wp movemulti 11 10 24
