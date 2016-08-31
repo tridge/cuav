@@ -162,6 +162,10 @@ class CUAVModule(mp_module.MPModule):
             #    print("Disabling mavfwd for flight")
             #    self.settings.mavfwd = 0
 
+        if m.get_type() == 'NAMED_VALUE_FLOAT' and m.name == 'BAT3VOLT':
+            self.console.set_status('BAT3', 'Bat3: %.2f' % m.value, row=8)
+            
+
         if self.rate_period.trigger():
             self.check_rates()
 
