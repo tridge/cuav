@@ -1029,7 +1029,11 @@ class CameraModule(mp_module.MPModule):
                 image_count += 1
                 jpeg_total_bytes += len(obj.jpeg)
                 self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(obj.jpeg)
-                self.console.set_status('Images', 'Images %u' % image_count, row=6)
+                if self.camera_settings.save_pgm:
+                    color = 'black'
+                else:
+                    color = 'red'
+                self.console.set_status('Images', 'Images %u' % image_count, row=6, fg=color)
                 self.console.set_status('JPGSize', 'JPG Size %.0f' % (jpeg_total_bytes/image_count), row=6)
                 self.console.set_status('ImageSize', 'ImageSize %.0f' % (image_total_bytes/image_count), row=7)
 
