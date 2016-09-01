@@ -7,6 +7,7 @@ Andrew Tridgell
 from MAVProxy.modules.lib import mp_module
 from pymavlink import mavutil
 import time, math
+from MAVProxy.modules.lib import mp_settings
 
 class CUAVModule(mp_module.MPModule):
     def __init__(self, mpstate):
@@ -23,6 +24,26 @@ class CUAVModule(mp_module.MPModule):
         self.button_announce_time = 0
         self.last_rpm_update = 0
         self.last_rpm_value = None
+        self.last_rpm_announce = 0
+        from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
+        self.cuav_settings = MPSettings(
+            [ MPSetting('rpm_threshold', int, 6000, 'RPM Threshold') ])
+        self.add_completion_function('(CUAVCHECKSETTING)', self.cuav_settings.completion)
+        self.add_command('cuavcheck', self.cmd_cuavcheck,
+                         'cuav check control',
+                         ['set (CUAVCHECKSETTING)'])
+
+    def cmd_cuavcheck(self, args):
+        '''handle cuavcheck commands'''
+        usage = 'Usage: cuavcheck <set>'
+        if len(args) == 0:
+            print(usage)
+            return
+        if args[0] == "set":
+            self.cuav_settings.command(args[1:])
+        else:
+            print(usage)
+            return            
 
     def check_parms(self, parms, set=False):
         '''check parameter settings'''
@@ -116,6 +137,16 @@ class CUAVModule(mp_module.MPModule):
             self.say("%u seconds" % remaining)
             self.button_announce_time = now
 
+    def rpm_check(self, m):
+        '''check for correct RPM range'''
+        thr = self.master.field('VFR_HUD', 'throttle', 0)
+        if thr >= 100 and m.rpm1 < self.cuav_settings.rpm_threshold:
+            self.console.set_status('RPM', 'RPM: %u' % m.rpm1, row=8, fg='red')
+            now = time.time()
+            if now - self.last_rpm_announce > 20:
+                self.say("RPM warning")
+                self.last_rpm_announce = now
+
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
         now = time.time()
@@ -136,6 +167,7 @@ class CUAVModule(mp_module.MPModule):
                 if self.last_rpm_value is None:
                     self.say("Engine started")
                 self.last_rpm_value = m.rpm1
+                self.rpm_check(m)
 
         if m.get_type() == "RC_CHANNELS":
             v = self.mav_param.get('ICE_START_CHAN', None)
