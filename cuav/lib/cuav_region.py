@@ -262,4 +262,13 @@ def filter_boundary(regions, boundary, pos=None):
               r.score = 0
             ret.append(r)
         return ret
+
+def filter_radius(regions, latlon, radius):
+	'''filter a list of regions using a search boundary'''
+        ret = []
+        for r in regions:
+            if r.latlon is None or cuav_util.gps_distance(latlon[0], latlon[1], r.latlon[0], r.latlon[1]) > radius:
+              r.score = 0
+            ret.append(r)
+        return ret
     

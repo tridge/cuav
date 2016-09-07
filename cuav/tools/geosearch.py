@@ -119,6 +119,11 @@ def process(args):
   if opts.camera_params:
     C_params.load(opts.camera_params)
 
+  if opts.target:
+    target = opts.target.split(',')
+  else:
+    target = [0,0,0]
+    
   camera_settings = MPSettings(
     [ MPSetting('roll_stabilised', bool, opts.roll_stabilised, 'Roll Stabilised'),
       MPSetting('altitude', int, opts.altitude, 'Altitude', range=(0,10000), increment=1),
@@ -127,6 +132,9 @@ def process(args):
       MPSetting('rotate180', bool, opts.rotate_180, 'rotate180'),
       MPSetting('filter_type', str, 'simple', 'Filter Type',
                 choice=['simple', 'compactness']),
+      MPSetting('target_lattitude', float, float(target[0]), 'target latitude', increment=1.0e-7),
+      MPSetting('target_longitude', float, float(target[1]), 'target longitude', increment=1.0e-7),
+      MPSetting('target_radius', float, float(target[2]), 'target radius', increment=1),
       MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
       MPSetting('thumbsize', int, opts.thumbsize, 'Thumbnail Size', range=(10, 200), increment=1),
       MPSetting('minscore', int, opts.minscore, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
@@ -247,6 +255,15 @@ def process(args):
 
       frame_time = pos.time
 
+      if pos:
+        for r in regions:
+          r.latlon = cuav_util.gps_position_from_image_region(r, pos, w, h, altitude=altitude)
+
+        if camera_settings.target_radius > 0 and pos is not None:
+          regions = cuav_region.filter_radius(regions, (camera_settings.target_lattitude,
+                                                        camera_settings.target_longitude),
+                                              camera_settings.target_radius)
+
       regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time,
                                            min_score=camera_settings.minscore,
                                            filter_type=camera_settings.filter_type)
@@ -319,6 +336,7 @@ def parse_args():
   parser.add_option("--mosaic-thumbsize", default=35, type='int', help="mosaic thumbnail size")
   parser.add_option("--minscore", default=700, type='int', help="minimum score")
   parser.add_option("--gammalog", default=None, type='str', help="gamma.log from flight")
+  parser.add_option("--target", default=None, type='str', help="lat,lon,radius target")
   parser.add_option("--categories", default=None, type=str, help="xml file containing categories for classification")
   if 1 != len(sys.argv):
     parser.add_option("--flag", default=[], type='str', action='append', help="flag positions"),

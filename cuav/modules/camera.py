@@ -167,6 +167,9 @@ class CameraModule(mp_module.MPModule):
               MPSetting('process_divider', int, 1, 'Process Divider', range=(1,50), increment=1),
               MPSetting('send2_divider', int, 1, 'Send2 Divider', range=(1,50), increment=1),
               MPSetting('use_capture_time', bool, True, 'Use Capture Time'),
+              MPSetting('target_lattitude', float, 0, 'target latitude'),
+              MPSetting('target_longitude', float, 0, 'target longitude'),
+              MPSetting('target_radius', float, 0, 'target radius'),
 
               MPSetting('gcs_address', str, None, 'GCS Address', tab='GCS'),
               MPSetting('gcs_address2', str, None, 'GCS Address2', tab='GCS'),
@@ -681,6 +684,13 @@ class CameraModule(mp_module.MPModule):
 
             # this adds the latlon field to the regions
             self.log_joe_position(pos, frame_time, regions)
+
+            # filter out any regions outside the target radius
+            if self.camera_settings.target_radius > 0 and pos is not None:
+                regions = cuav_region.filter_radius(regions,
+                                                    (self.camera_settings.target_lattitude,
+                                                     self.camera_settings.target_longitude),
+                                                    self.camera_settings.target_radius)
 
             # filter out any regions outside the boundary
             if self.boundary_polygon:
