@@ -107,11 +107,17 @@ static double end_timer()
 #endif // SHOW_TIMING
 
 
+static unsigned scanner_count;
+
 /*
   save a bgr image as a P6 pnm file
  */
 static bool colour_save_pnm(const char *filename, const struct bgr_image *image)
 {
+    char fname2[100];
+    snprintf(fname2, sizeof(fname2), "%u_%s", scanner_count, filename);
+    filename = fname2;
+    
 	int fd;
 	fd = open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666);
 	if (fd == -1) return false;
@@ -576,6 +582,8 @@ static void colour_histogram(const struct scan_params *scan_params,
         neighbours = allocate_bgr_image8(in->height, in->width, NULL);
 
         if (scan_params->save_intermediate) {
+            colour_save_pnm("1original.pnm", in);
+        
                 unquantised = allocate_bgr_image8(in->height, in->width, NULL);
                 qsaved = allocate_bgr_image8(in->height, in->width, NULL);
         }
@@ -587,7 +595,9 @@ static void colour_histogram(const struct scan_params *scan_params,
 #endif
 
 #if 0
-        printf("red %u %u  green %u %u  blue %u %u\n",
+        printf("sc=%u blue_emphasis=%d red %u %u  green %u %u  blue %u %u\n",
+               scanner_count,
+               (int)scan_params->blue_emphasis,
                min.r, max.r,
                min.g, max.g,
                min.b, max.b);
@@ -620,7 +630,7 @@ static void colour_histogram(const struct scan_params *scan_params,
 
         if (scan_params->save_intermediate) {
                 unquantise_image(quantised, unquantised, &min, &bin_spacing);
-                colour_save_pnm("unquantised.pnm", unquantised);
+                colour_save_pnm("1unquantised.pnm", unquantised);
         }
 
 	build_histogram(&quantised->data[0][0], in->width*in->height, histogram);
@@ -629,7 +639,7 @@ static void colour_histogram(const struct scan_params *scan_params,
                 copy_bgr_image8(quantised, qsaved);
                 histogram_threshold(quantised, histogram, scan_params->histogram_count_threshold);
                 unquantise_image(quantised, unquantised, &min, &bin_spacing);
-                colour_save_pnm("thresholded.pnm", unquantised);
+                colour_save_pnm("2thresholded.pnm", unquantised);
                 copy_bgr_image8(qsaved, quantised);
         }
 
@@ -639,7 +649,7 @@ static void colour_histogram(const struct scan_params *scan_params,
 
         if (scan_params->save_intermediate) {
                 unquantise_image(neighbours, unquantised, &min, &bin_spacing);
-                colour_save_pnm("neighbours.pnm", unquantised);
+                colour_save_pnm("3neighbours.pnm", unquantised);
                 free(unquantised);
                 free(qsaved);
         }
@@ -1303,6 +1313,8 @@ scanner_scan(PyObject *self, PyObject *args)
 #if SHOW_TIMING
         start_timer();
 #endif
+
+        scanner_count++;
         
 	if (!PyArg_ParseTuple(args, "O|O", &img_in, &parm_dict))
 		return NULL;
@@ -1358,7 +1370,7 @@ scanner_scan(PyObject *self, PyObject *args)
                 marked = allocate_bgr_image8(height, width, NULL);
                 copy_bgr_image8(in, marked);
                 mark_regions(marked, regions);
-                colour_save_pnm("regions.pnm", marked);
+                colour_save_pnm("4regions.pnm", marked);
                 free(marked);
         }
 
@@ -1368,7 +1380,7 @@ scanner_scan(PyObject *self, PyObject *args)
                 marked = allocate_bgr_image8(height, width, NULL);
                 copy_bgr_image8(in, marked);
                 mark_regions(marked, regions);
-                colour_save_pnm("prunelarge.pnm", marked);
+                colour_save_pnm("5prunelarge.pnm", marked);
                 free(marked);
         }
 	merge_regions(&scan_params, regions);
@@ -1377,7 +1389,7 @@ scanner_scan(PyObject *self, PyObject *args)
                 marked = allocate_bgr_image8(height, width, NULL);
                 copy_bgr_image8(in, marked);
                 mark_regions(marked, regions);
-                colour_save_pnm("merged.pnm", marked);
+                colour_save_pnm("6merged.pnm", marked);
                 free(marked);
         }
 	prune_small_regions(&scan_params, regions);
@@ -1387,7 +1399,7 @@ scanner_scan(PyObject *self, PyObject *args)
                 marked = allocate_bgr_image8(height, width, NULL);
                 copy_bgr_image8(in, marked);
                 mark_regions(marked, regions);
-                colour_save_pnm("pruned.pnm", marked);
+                colour_save_pnm("7pruned.pnm", marked);
                 free(marked);
         }
 
