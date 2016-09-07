@@ -239,11 +239,13 @@ class Mosaic():
         self.selected_region = ridx
         if region.score is None:
             region.score = 0
-        region_text = "Selected region %u score=%u/%u/%.2f %s\n%s\n%s" % (ridx, region.score,
-                                                                          region.region.scan_score,
-                                                                          region.region.compactness,
-                                                                          region.region.center(),
-                                                                          str(region.latlon), os.path.basename(region.filename))
+        region_text = "Selected region %u score=%u/%u/%.2f %s\n%s alt=%u yaw=%d\n%s" % (ridx, region.score,
+                                                                                        region.region.scan_score,
+                                                                                        region.region.compactness,
+                                                                                        region.region.center(),
+                                                                                        str(region.latlon),
+                                                                                        region.pos.altitude, region.pos.yaw,
+                                                                                        os.path.basename(region.filename))
         self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
         if view_the_image and os.path.exists(region.filename):
             self.view_imagefile(region.filename)
