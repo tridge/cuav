@@ -1459,7 +1459,7 @@ scanner_jpeg_compress(PyObject *self, PyObject *args)
         cinfo.image_width = w;
         cinfo.image_height = h;
         cinfo.input_components = 3;
-        cinfo.in_color_space = JCS_RGB;
+        cinfo.in_color_space = JCS_EXT_BGR;
 
         jpeg_set_defaults(&cinfo);
 
