@@ -130,7 +130,7 @@ def process(args):
       MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
       MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
       MPSetting('rotate180', bool, opts.rotate_180, 'rotate180'),
-      MPSetting('filter_type', str, 'simple', 'Filter Type',
+      MPSetting('filter_type', str, 'compactness', 'Filter Type',
                 choice=['simple', 'compactness']),
       MPSetting('target_lattitude', float, float(target[0]), 'target latitude', increment=1.0e-7),
       MPSetting('target_longitude', float, float(target[1]), 'target longitude', increment=1.0e-7),
@@ -139,15 +139,15 @@ def process(args):
       MPSetting('thumbsize', int, opts.thumbsize, 'Thumbnail Size', range=(10, 200), increment=1),
       MPSetting('minscore', int, opts.minscore, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
       MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
-                digits=2, tab='Display')
+                digits=2, tab='Display'),      
       ],
     title='Camera Settings'
     )
 
   image_settings = MPSettings(
-    [ MPSetting('MinRegionArea', float, 0.3, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
+    [ MPSetting('MinRegionArea', float, 0.1, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
       MPSetting('MaxRegionArea', float, 4.0, range=(0,100), increment=0.1, digits=1),
-      MPSetting('MinRegionSize', float, 0.1, range=(0,100), increment=0.05, digits=2),
+      MPSetting('MinRegionSize', float, 0.07, range=(0,100), increment=0.05, digits=2),
       MPSetting('MaxRegionSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
       MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
       MPSetting('RegionMergeSize', float, 1.0, range=(0,100), increment=0.1, digits=1),
@@ -334,7 +334,7 @@ def parse_args():
   parser.add_option("--altitude", default=0, type='float', help="altitude (0 for auto)")
   parser.add_option("--thumbsize", default=60, type='int', help="thumbnail size")
   parser.add_option("--mosaic-thumbsize", default=35, type='int', help="mosaic thumbnail size")
-  parser.add_option("--minscore", default=700, type='int', help="minimum score")
+  parser.add_option("--minscore", default=100, type='int', help="minimum score")
   parser.add_option("--gammalog", default=None, type='str', help="gamma.log from flight")
   parser.add_option("--target", default=None, type='str', help="lat,lon,radius target")
   parser.add_option("--categories", default=None, type=str, help="xml file containing categories for classification")
