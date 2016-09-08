@@ -153,11 +153,12 @@ class CameraModule(mp_module.MPModule):
               MPSetting('save_pgm', bool, True, 'Save Raw Images'),
               MPSetting('capture_brightness', int, 150, 'Capture Brightness', range=(10, 300), increment=1),
               MPSetting('gamma', int, 950, 'Capture Gamma', range=(0,1000), increment=1),
-              MPSetting('roll_stabilised', bool, True, 'Roll Stabilised'),
+              MPSetting('roll_stabilised', bool, False, 'Roll Stabilised'),
               MPSetting('roll_limit', float, 30, 'Roll stabilisation limit'),
               MPSetting('altitude', int, 0, 'Altitude', range=(0,10000), increment=1),
               MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
               MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
+
               MPSetting('rotate180', bool, False, 'rotate180', tab='Capture2'),
               MPSetting('camparms', str, None, 'camera parameters'),
               MPSetting('filter_type', str, 'compactness', 'Filter Type',
@@ -183,7 +184,7 @@ class CameraModule(mp_module.MPModule):
               
               MPSetting('bandwidth',  int, 40000, 'Link1 Bandwdith', 'Comms'),
               MPSetting('bandwidth2', int, 40000, 'Link2 Bandwidth'),
-              MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
+              MPSetting('quality', int, 85, 'Compression Quality', range=(1,100), increment=1),
               MPSetting('qualitysend', int, 90, 'Compression Quality for send', range=(1,100), increment=1),
               MPSetting('transmit', bool, True, 'Transmit Enable'),
               MPSetting('send1', bool, True, 'Send on Link1'),
@@ -195,8 +196,8 @@ class CameraModule(mp_module.MPModule):
               MPSetting('use_bsend2', bool, True, 'Enable Link2'),
               MPSetting('minspeed', int, 4, 'Min vehicle speed to save images'),
 
-              MPSetting('minscore', int, 500, 'Min Score Link1', range=(0,5000), increment=1, tab='Scoring'),
-              MPSetting('minscore2', int, 500, 'Min Score Link2', range=(0,5000), increment=1),
+              MPSetting('minscore', int, 100, 'Min Score Link1', range=(0,5000), increment=1, tab='Scoring'),
+              MPSetting('minscore2', int, 100, 'Min Score Link2', range=(0,5000), increment=1),
               MPSetting('packet_loss', int, 0, 'Packet Loss', range=(0,100), increment=1, tab='Misc'),             
               MPSetting('packet_loss2', int, 0, 'Link2 Packet Loss', range=(0,100), increment=1, tab='Misc'),             
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),             
@@ -209,9 +210,9 @@ class CameraModule(mp_module.MPModule):
             )
 
         self.image_settings = MPSettings(
-            [ MPSetting('MinRegionArea', float, 0.3, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
+            [ MPSetting('MinRegionArea', float, 0.1, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
               MPSetting('MaxRegionArea', float, 4.0, range=(0,100), increment=0.1, digits=1),
-              MPSetting('MinRegionSize', float, 0.1, range=(0,100), increment=0.05, digits=2),
+              MPSetting('MinRegionSize', float, 0.07, range=(0,100), increment=0.05, digits=2),
               MPSetting('MaxRegionSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
               MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
               MPSetting('RegionMergeSize', float, 1.0, range=(0,100), increment=0.1, digits=1),
@@ -564,7 +565,7 @@ class CameraModule(mp_module.MPModule):
             t1 = time.time()
             im_full = numpy.zeros((960,1280,3),dtype='uint8')
             im_640 = numpy.zeros((480,640,3),dtype='uint8')
-            scanner.debayer_RGB(im, im_full)
+            scanner.debayer(im, im_full)
             if self.camera_settings.rotate180:
                 scanner.rotate180(im_full)
             scanner.downsample(im_full, im_640)
@@ -1173,7 +1174,7 @@ class CameraModule(mp_module.MPModule):
             print("No file: %s" % filename)
             return
         try:
-            img = cuav_util.LoadImage(filename, rotate180=self.camera_settings.rotate180, RGB=True)
+            img = cuav_util.LoadImage(filename, rotate180=self.camera_settings.rotate180, RGB=False)
             img = numpy.asarray(cv.GetMat(img))
         except Exception:
             return
