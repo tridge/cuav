@@ -275,7 +275,9 @@ class Mosaic():
                 MPMenuItem('Fit Window\tCtrl+F', 'Fit Window', 'fitWindow'),
                 MPMenuItem('Full Zoom\tCtrl+Z', 'Full Zoom', 'fullSize'),
                 MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
-                MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness')])
+                MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness'),
+                MPMenuItem('Refresh Image\tCtrl+R', 'Refresh Image', 'refreshImage'),
+                MPMenuItem('Download Full\tCtrl+D', 'Download Full', 'downloadFull')])
             self.view_menu = MPMenuTop([vmenu])
             self.view_image.set_menu(self.view_menu)
             self.view_image.set_popup_menu(vmenu)
@@ -541,6 +543,15 @@ class Mosaic():
             idx = self.find_image_idx(self.view_filename)
             if idx is not None:
                 self.view_imagefile_by_idx(idx+1)
+        elif event.returnkey == 'refreshImage':
+            idx = self.find_image_idx(self.view_filename)
+            if idx is not None:
+                self.view_imagefile_by_idx(idx)
+        elif event.returnkey == 'downloadFull':
+            idx = self.find_image_idx(self.view_filename)
+            if idx is not None:
+                frame_time = self.images[idx].frame_time
+                self.image_requests[frame_time] = True
         elif event.returnkey == 'previousImage':
             idx = self.find_image_idx(self.view_filename)
             if idx is not None:
