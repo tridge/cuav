@@ -9,7 +9,7 @@ import os, sys, math
 mpstate = None
 
 from MAVProxy.modules.lib import mp_module
-from MAVProxy.modules.lib import libchecklist
+import libchecklist
 
 class ChecklistModule(mp_module.MPModule):
     def __init__(self, mpstate):
@@ -27,13 +27,6 @@ class ChecklistModule(mp_module.MPModule):
         type = msg.get_type() 
         master = self.master
 
-        if type == 'HEARTBEAT':
-            '''beforeEngineList - APM booted'''
-            if self.status.heartbeat_error == True:
-                self.checklist.set_status("APM Booted", 0)
-            else:
-                self.checklist.set_status("APM Booted", 1)
-
         '''beforeEngineList - Altitude lock'''
         if type == 'VFR_HUD':
             if msg.alt > 0 and msg.alt < 5000:
@@ -41,44 +34,12 @@ class ChecklistModule(mp_module.MPModule):
             else:
                 self.checklist.set_status("Altitude lock", 0)
 
-        '''beforeEngineList - Flight mode MANUAL'''
-        if self.status.flightmode == "MANUAL":
-            self.checklist.set_status("Flight mode MANUAL", 1)
-        else:
-            self.checklist.set_status("Flight mode MANUAL", 0)
-
-        if type == 'SENSOR_OFFSETS':
-            '''beforeEngineList - Accelerometers and Gyros Calibrated'''
-            if (msg.gyro_cal_x == 0 or msg.gyro_cal_y == 0 or msg.gyro_cal_z == 0 or msg.accel_cal_x == 0 or msg.accel_cal_y == 0 or msg.accel_cal_z == 0):
-                self.checklist.set_status("Accelerometers and Gyros Calibrated", 0)
-            else:
-                self.checklist.set_status("Accelerometers and Gyros Calibrated", 1)
-
-            if msg.mag_ofs_x == 0 or msg.mag_ofs_y == 0 or msg.mag_ofs_z == 0 or msg.mag_declination == 0:
-                self.checklist.set_status("Compass Calibrated", 0)
-            else:
-                self.checklist.set_status("Compass Calibrated", 1)
-
         if type == 'ATTITUDE':
             '''beforeEngineList - UAV Level'''
             if (math.fabs(math.degrees(msg.pitch)) < 3 and math.fabs(math.degrees(msg.roll)) < 3):
                 self.checklist.set_status("UAV Level", 1)
             else:
                 self.checklist.set_status("UAV Level", 0)
-
-        if type == 'GPS_RAW_INT':
-            '''beforeEngineList - GPS lock'''
-            if msg.fix_type < 3:
-                self.checklist.set_status("GPS lock", 0)
-            else:
-                self.checklist.set_status("GPS lock", 1)
-
-        '''beforeEngineList - Radio Links > 6db margin TODO: figure out how to read db levels'''
-        if type == 'HEARTBEAT':
-            for master in self.mpstate.mav_master:
-                self.checklist.set_status("Radio Links > 6db margin", 1)
-                if master.linkerror or master.link_delayed:
-                    self.checklist.set_status("Radio Links > 6db margin", 0)
 
         if type == 'SYS_STATUS':
             '''beforeEngineList - Avionics Battery'''
