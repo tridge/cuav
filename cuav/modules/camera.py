@@ -142,6 +142,7 @@ class CameraModule(mp_module.MPModule):
         self.flying = True
         self.terrain_alt = None
         self.last_camparms = None
+        self.sent_images = {}
 
         # prevent loopback of messages
         for mtype in ['DATA16', 'DATA32', 'DATA64', 'DATA96']:
@@ -794,13 +795,10 @@ class CameraModule(mp_module.MPModule):
         # keep filtered image size
         self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)        
 
-        if bsend is None:
-            bsend = self.best_bsend('send_image')
-
         pkt = ImagePacket(frame_time, jpeg, self.xmit_queue, pos, priority)
         str = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
         # print("sending image len=%u" % len(str))
-        bsend.send(str, priority=priority)
+        self.send_both(str, priority=priority)
 
 
     def reload_mosaic(self, mosaic):
@@ -1163,10 +1161,15 @@ class CameraModule(mp_module.MPModule):
             buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
             self.start_gcs_bsend()
             print("Requesting image %s" % frame_time)
-            self.best_bsend('check_requested_images').send(buf, priority=10000)
+            self.send_both(buf, priority=10000)
 
     def handle_image_request(self, obj, bsend):
         '''handle ImageRequest from GCS'''
+        handled_tuple = (obj.frame_time, obj.fullres)
+        if handled_tuple in self.sent_images and time.time() - self.sent_images[handled_tuple] < 60:
+            # duplicate
+            return
+        
         rawname = "raw%s" % cuav_util.frame_time(obj.frame_time)
         raw_dir = os.path.join(self.camera_dir, "raw")
         filename = '%s/%s.pgm' % (raw_dir, rawname)
@@ -1183,6 +1186,7 @@ class CameraModule(mp_module.MPModule):
             scanner.downsample(img, im_640)
             img = im_640
         print("Sending image %s" % filename)
+        self.sent_images[handled_tuple] = time.time()
         self.send_image(img, obj.frame_time, None, 10000)
 
     def send_packet(self, pkt, bsend=None):
@@ -1216,6 +1220,13 @@ class CameraModule(mp_module.MPModule):
                 return
         pkt = CameraMessage(msg)
         self.send_packet(pkt, bsend)
+
+    def send_both(self, buf, priority):
+        '''send a message buffer on both links'''
+        if self.bsend is not None:
+            self.bsend.send(buf, priority=priority)
+        if self.bsend2 is not None:
+            self.bsend2.send(buf, priority=priority)
 
 def init(mpstate):
     '''initialise module'''
