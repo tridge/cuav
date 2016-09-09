@@ -59,18 +59,26 @@ class MavSocket:
         buf = bytes(s)
         return (buf, 'mavlink')
 
-class ImagePacket:
+class StampedCommand:
+    def __init__(self):
+        self.timestamp = time.time()
+        self.blockid1 = None
+        self.blockid2 = None
+
+class ImagePacket(StampedCommand):
     '''a jpeg image sent to the ground station'''
     def __init__(self, frame_time, jpeg, xmit_queue, pos, priority):
+        StampedCommand.__init__(self)
         self.frame_time = frame_time
         self.jpeg = jpeg
         self.xmit_queue = xmit_queue
         self.pos = pos
         self.priority = priority
 
-class ThumbPacket:
+class ThumbPacket(StampedCommand):
     '''a thumbnail region sent to the ground station'''
     def __init__(self, frame_time, regions, thumb, frame_loss, xmit_queue, pos, highscore):
+        StampedCommand.__init__(self)
         self.frame_time = frame_time
         self.regions = regions
         self.thumb = thumb
@@ -79,48 +87,56 @@ class ThumbPacket:
         self.pos = pos
         self.highscore = highscore
 
-class CommandPacket:
+class CommandPacket(StampedCommand):
     '''a command to run on the plane'''
     def __init__(self, command):
+        StampedCommand.__init__(self)
         self.command = command
 
-class CommandResponse:
+class CommandResponse(StampedCommand):
     '''a command response from the plane'''
     def __init__(self, response):
+        StampedCommand.__init__(self)
         self.response = response
 
 
-class ImageRequest:
+class ImageRequest(StampedCommand):
     '''request a jpeg image from the aircraft'''
     def __init__(self, frame_time, fullres):
+        StampedCommand.__init__(self)
         self.frame_time = frame_time
         self.fullres = fullres
 
-class HeartBeat:
+class HeartBeat(StampedCommand):
     '''generic heartbeat to keep bsend alive'''
     def __init__(self):
+        StampedCommand.__init__(self)
         pass
 
-class CameraMessage:
+class CameraMessage(StampedCommand):
     '''critical camera message'''
     def __init__(self, msg):
+        StampedCommand.__init__(self)
         self.msg = msg
 
-class ChangeCameraSetting:
+class ChangeCameraSetting(StampedCommand):
     '''update a camera setting'''
     def __init__(self, name, value):
+        StampedCommand.__init__(self)
         self.name = name
         self.value = value
 
-class ChangeImageSetting:
+class ChangeImageSetting(StampedCommand):
     '''update a image setting'''
     def __init__(self, name, value):
+        StampedCommand.__init__(self)
         self.name = name
         self.value = value
 
-class BlockCancel:
+class BlockCancel(StampedCommand):
     '''cancel object for callback on send1 complete'''
     def __init__(self, blockid):
+        StampedCommand.__init__(self)
         self.blockid = blockid
         
 
@@ -142,7 +158,7 @@ class CameraModule(mp_module.MPModule):
         self.flying = True
         self.terrain_alt = None
         self.last_camparms = None
-        self.sent_images = {}
+        self.handled_timestamps = {}
 
         # prevent loopback of messages
         for mtype in ['DATA16', 'DATA32', 'DATA64', 'DATA96']:
@@ -198,7 +214,6 @@ class CameraModule(mp_module.MPModule):
               MPSetting('minspeed', int, 4, 'Min vehicle speed to save images'),
 
               MPSetting('minscore', int, 100, 'Min Score Link1', range=(0,5000), increment=1, tab='Scoring'),
-              MPSetting('minscore2', int, 100, 'Min Score Link2', range=(0,5000), increment=1),
               MPSetting('packet_loss', int, 0, 'Packet Loss', range=(0,100), increment=1, tab='Misc'),             
               MPSetting('packet_loss2', int, 0, 'Link2 Packet Loss', range=(0,100), increment=1, tab='Misc'),             
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),             
@@ -259,9 +274,7 @@ class CameraModule(mp_module.MPModule):
         self.bsend_slave = None
         self.framerate = 0
         self.last_minscore = None
-        self.last_minscore2 = None
         self.last_heartbeat = time.time()
-        self.last_heartbeat2 = time.time()
         
         # setup directory for images
         if self.logdir is None:
@@ -279,8 +292,6 @@ class CameraModule(mp_module.MPModule):
                           'set (CAMERASETTING)'])
         self.add_completion_function('(CAMERASETTING)', self.settings.completion)
         self.add_command('remote', self.cmd_remote, "remote command", ['(COMMAND)'])
-        self.add_command('remote1', self.cmd_remote1, "remote command on bsend1", ['(COMMAND)'])
-        self.add_command('remote2', self.cmd_remote2, "remote command on bsend2", ['(COMMAND)'])
         self.add_completion_function('(CAMERASETTING)', self.camera_settings.completion)
         print("camera initialised")
 
@@ -369,18 +380,6 @@ class CameraModule(mp_module.MPModule):
         cmd = " ".join(args)
         pkt = CommandPacket(cmd)
         self.send_packet(pkt)
-
-    def cmd_remote1(self, args):
-        '''camera commands'''
-        cmd = " ".join(args)
-        pkt = CommandPacket(cmd)
-        self.send_packet(pkt, self.bsend)
-
-    def cmd_remote2(self, args):
-        '''camera commands'''
-        cmd = " ".join(args)
-        pkt = CommandPacket(cmd)
-        self.send_packet(pkt, self.bsend2)
 
     def get_base_time(self):
         '''we need to get a baseline time from the camera. To do that we trigger
@@ -585,7 +584,7 @@ class CameraModule(mp_module.MPModule):
             self.scan_count += 1
 
             regions = cuav_region.filter_regions(im_full, regions,
-                                                 min_score=min(self.camera_settings.minscore,self.camera_settings.minscore2),
+                                                 min_score=self.camera_settings.minscore,
                                                  filter_type=self.camera_settings.filter_type)
 
             self.region_count += len(regions)
@@ -621,21 +620,13 @@ class CameraModule(mp_module.MPModule):
         '''check if requested scores have changed, and send missing thumbs if needed'''
         if self.last_minscore is None:
             self.last_minscore = self.camera_settings.minscore
-        if self.last_minscore2 is None:
-            self.last_minscore2 = self.camera_settings.minscore2
 
     def send_heartbeats(self):
         '''possibly send heartbeat msgs'''
         now = time.time()
         if now - self.last_heartbeat > 5 and self.bsend.sendq_size() == 0:
             self.last_heartbeat = now
-            self.send_heartbeat(self.bsend)
-        if (now - self.last_heartbeat2 > 5 and
-            self.camera_settings.use_bsend2 and
-            self.bsend2 is not None and
-            self.bsend2.sendq_size() == 0):
-            self.last_heartbeat2 = now
-            self.send_heartbeat(self.bsend2)
+            self.send_heartbeat()
 
     def airstart_thread(self):
         '''thread for commands in aircraft when camera not running'''
@@ -649,14 +640,6 @@ class CameraModule(mp_module.MPModule):
             self.check_commands(self.bsend)
             self.check_commands(self.bsend2)
             self.send_heartbeats()
-
-    def send_complete(self, blk_cancel):
-        '''called on complete of a send on first link'''
-        if blk_cancel.blockid is None or self.bsend2 is None:
-            # not sent on link2
-            return
-        # cancel link2 send of this block
-        self.bsend2.cancel(blk_cancel.blockid)
 
     def transmit_thread(self):
         '''thread for image transmit to GCS'''
@@ -727,68 +710,27 @@ class CameraModule(mp_module.MPModule):
                                                                thumb_size=self.camera_settings.thumbsize)
                     thumb = scanner.jpeg_compress(numpy.ascontiguousarray(cv.GetMat(thumb_img)), self.camera_settings.quality)
                     pkt = ThumbPacket(frame_time, regions, thumb, self.frame_loss, self.xmit_queue, pos, highscore)
-                    buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
 
                     # keep all thumbs so we can send more on score change
                     self.add_all_thumbs(pkt)
-
-                    blk_cancel = BlockCancel(None)
 
                     if self.camera_settings.send1 and highscore >= self.camera_settings.minscore:
                         # send on primary link
                         self.bsend.set_bandwidth(self.camera_settings.bandwidth)
                         self.bsend.set_packet_loss(self.camera_settings.packet_loss)
-                        self.bsend.send(buf, priority=highscore, callback=functools.partial(self.send_complete, blk_cancel))
-                        pkt.sent1 = True
-
-                    # also send thumbnails via 900MHz telemetry
-                    if (self.camera_settings.send2 and
-                        highscore >= self.camera_settings.minscore2 and
-                        reg_count % self.camera_settings.send2_divider == 0):
-                        # send on secondary link
-                            self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
-                            self.bsend2.set_packet_loss(self.camera_settings.packet_loss2)
-                            blk_cancel.blockid = self.bsend2.send(buf, priority=highscore)
-                            if self.camera_settings.debug:
-                                self.bsend2_thumb_total += len(buf)
-                                print("sent thumb bsend2 highscore=%u len=%u total=%u" % (
-                                    highscore, len(buf), self.bsend2_thumb_total))
+                        self.send_object(pkt, priority=highscore)
 
             # Base how many images we send on the send queue size
-            if self.bsend.is_alive(10):
-                send_frequency = self.xmit_queue // 3
-                if self.camera_settings.gcs_address is None:
-                    continue
-                if send_frequency != 0 and (tx_count+skip_count) % send_frequency != 0:
-                    skip_count += 1
-                    continue
-                tx_count += 1
-                self.send_image(im_640, frame_time, pos, 0, bsend=self.bsend)
-            else:
-                send_frequency = self.xmit_queue2 // 3
-                if self.camera_settings.gcs_address2 is None:
-                    continue
-                if send_frequency != 0 and (tx_count2+skip_count2) % send_frequency != 0:
-                    skip_count2 += 1
-                    continue
-                tx_count2 += 1
-                self.send_image(im_640, frame_time, pos, 0, bsend=self.bsend2)
+            send_frequency = self.xmit_queue // 3
+            if self.camera_settings.gcs_address is None:
+                continue
+            if send_frequency != 0 and (tx_count+skip_count) % send_frequency != 0:
+                skip_count += 1
+                continue
+            tx_count += 1
+            self.send_image(im_640, frame_time, pos, 0)
 
-    def best_bsend(self, who):
-        '''choose the best link to use'''
-        if self.bsend is None and self.bsend2 is None:
-            return None
-        if self.camera_settings.use_bsend2 and not self.bsend.is_alive(20) and self.bsend2 is not None:
-            if self.camera_settings.debug:
-                print("using bsend2 for %s" % who)
-            self.bsend2.set_packet_loss(self.camera_settings.packet_loss2)
-            self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
-            return self.bsend2
-        self.bsend.set_packet_loss(self.camera_settings.packet_loss)
-        self.bsend.set_bandwidth(self.camera_settings.bandwidth)
-        return self.bsend
-
-    def send_image(self, img, frame_time, pos, priority, bsend=None):
+    def send_image(self, img, frame_time, pos, priority):
         '''send an image to the GCS'''
         jpeg = scanner.jpeg_compress(img, self.camera_settings.qualitysend)
 
@@ -796,9 +738,7 @@ class CameraModule(mp_module.MPModule):
         self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)        
 
         pkt = ImagePacket(frame_time, jpeg, self.xmit_queue, pos, priority)
-        str = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
-        # print("sending image len=%u" % len(str))
-        self.send_both(str, priority=priority)
+        self.send_object(pkt, priority=priority)
 
 
     def reload_mosaic(self, mosaic):
@@ -845,10 +785,7 @@ class CameraModule(mp_module.MPModule):
                                                  dest_port=self.camera_settings.gcs_view_port2)
 
         # send an initial packet to open the link
-        if self.bsend:
-            self.send_packet(CommandPacket(''), bsend=self.bsend)
-        if self.bsend2:
-            self.send_packet(CommandPacket(''), bsend=self.bsend2)
+        self.send_packet(CommandPacket(''))
         self.send_heartbeats()
 
     def start_gcs_bsend(self):
@@ -870,11 +807,8 @@ class CameraModule(mp_module.MPModule):
             started_bsend2 = True
 
         # send an initial packet to open the link
-        if self.bsend and started_bsend:
-            self.send_packet(CommandPacket(''), bsend=self.bsend)
-        if self.bsend2 and started_bsend2:
-            self.send_packet(CommandPacket(''), bsend=self.bsend2)
-
+        if started_bsend or started_bsend2:
+            self.send_object(CommandPacket(''), priority=1)
 
     def view_thread(self):
         '''image viewing thread - this runs on the ground station'''
@@ -964,6 +898,12 @@ class CameraModule(mp_module.MPModule):
                                                               dest_port=self.camera_settings.gcs_view_port)
                 # print("send bsend_slave")
                 self.bsend_slave.send(buf, priority=1)
+
+            if isinstance(obj, StampedCommand):
+                if obj.timestamp in self.handled_timestamps:
+                    # we've seen this packet before, discard
+                    continue
+                self.handled_timestamps[obj.timestamp] = time.time()
 
             if isinstance(obj, ThumbPacket):
                 # we've received a set of thumbnails from the plane for a positive hit
@@ -1101,6 +1041,12 @@ class CameraModule(mp_module.MPModule):
         except Exception as e:
             return
 
+        if isinstance(obj, StampedCommand):
+            if obj.timestamp in self.handled_timestamps:
+                # we've seen this packet before, discard
+                return
+            self.handled_timestamps[obj.timestamp] = time.time()
+
         if isinstance(obj, CommandPacket):
             self.handle_command_packet(obj, bsend)
 
@@ -1158,18 +1104,12 @@ class CameraModule(mp_module.MPModule):
         for frame_time in requests.keys():
             fullres = requests[frame_time]
             pkt = ImageRequest(frame_time, fullres)
-            buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
             self.start_gcs_bsend()
             print("Requesting image %s" % frame_time)
-            self.send_both(buf, priority=10000)
+            self.send_object(pkt, priority=10000)
 
     def handle_image_request(self, obj, bsend):
         '''handle ImageRequest from GCS'''
-        handled_tuple = (obj.frame_time, obj.fullres)
-        if handled_tuple in self.sent_images and time.time() - self.sent_images[handled_tuple] < 60:
-            # duplicate
-            return
-        
         rawname = "raw%s" % cuav_util.frame_time(obj.frame_time)
         raw_dir = os.path.join(self.camera_dir, "raw")
         filename = '%s/%s.pgm' % (raw_dir, rawname)
@@ -1186,16 +1126,12 @@ class CameraModule(mp_module.MPModule):
             scanner.downsample(img, im_640)
             img = im_640
         print("Sending image %s" % filename)
-        self.sent_images[handled_tuple] = time.time()
         self.send_image(img, obj.frame_time, None, 10000)
 
-    def send_packet(self, pkt, bsend=None):
+    def send_packet(self, pkt):
         '''send a packet from GCS'''
-        buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
         self.start_gcs_bsend()
-        if bsend is None:
-            bsend = self.best_bsend('send_packet')
-        bsend.send(buf, priority=10000)
+        self.send_object(pkt, priority=10000)
 
     def camera_settings_callback(self, setting):
         '''called on a changed camera setting'''
@@ -1207,19 +1143,30 @@ class CameraModule(mp_module.MPModule):
         pkt = ChangeImageSetting(setting.name, setting.value)
         self.send_packet(pkt)
 
-    def send_heartbeat(self, bsend):
+    def send_heartbeat(self):
         '''send a heartbeat'''
         pkt = HeartBeat()
-        self.send_packet(pkt, bsend)
+        self.send_packet(pkt)
 
-    def send_message(self, msg, bsend=None):
+    def send_message(self, msg):
         '''send a message'''
-        if bsend is None:
-            bsend = self.best_bsend('send_message')
-            if bsend is None:
-                return
         pkt = CameraMessage(msg)
-        self.send_packet(pkt, bsend)
+        self.send_packet(pkt)
+
+    def send_object_complete(self, obj):
+        '''called on complete of an send_object, cancelling send on other link'''
+        if obj.blockid1 is not None and self.bsend is not None:
+            self.bsend.cancel(obj.blockid1)
+        if obj.blockid2 is not None and self.bsend2 is not None:
+            self.bsend2.cancel(obj.blockid2)
+
+    def send_object(self, obj, priority):
+        '''send an object'''
+        buf = cPickle.dumps(obj, cPickle.HIGHEST_PROTOCOL)
+        if self.bsend is not None:
+            obj.blockid1 = self.bsend.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj))
+        if self.bsend2 is not None:
+            obj.blockid2 = self.bsend2.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj))
 
     def send_both(self, buf, priority):
         '''send a message buffer on both links'''
