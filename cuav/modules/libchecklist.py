@@ -77,6 +77,9 @@ class UI():
         'Engine throttle responsive':2,
         'Runway clear':2,
         'IMU OK':2,
+        'Fence enabled':2,
+        'AFS Enabled':2,
+        'QNH pressure Set':2,
         'Set flight timer and alarm':2
         }
 

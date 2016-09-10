@@ -624,7 +624,9 @@ class CameraModule(mp_module.MPModule):
     def send_heartbeats(self):
         '''possibly send heartbeat msgs'''
         now = time.time()
-        if now - self.last_heartbeat > 5 and self.bsend.sendq_size() == 0:
+        if now - self.last_heartbeat > 5 and (
+            self.bsend.sendq_size() == 0 or
+            self.bsend2.sendq_size() == 0):
             self.last_heartbeat = now
             self.send_heartbeat()
 
