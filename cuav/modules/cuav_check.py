@@ -6,9 +6,13 @@ Andrew Tridgell
 
 from MAVProxy.modules.lib import mp_module
 from pymavlink import mavutil
-import time, math
+import time, math, functools
 from MAVProxy.modules.lib import mp_settings
+from MAVProxy.modules.lib import mp_util
 
+if mp_util.has_wxpython:
+    from MAVProxy.modules.lib.mp_menu import *
+    
 class CUAVModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(CUAVModule, self).__init__(mpstate, "CUAV", "CUAV checks")
@@ -25,6 +29,8 @@ class CUAVModule(mp_module.MPModule):
         self.last_rpm_update = 0
         self.last_rpm_value = None
         self.last_rpm_announce = 0
+        self.showLandingZone = 0
+        self.showJoeZone = 0
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.cuav_settings = MPSettings(
             [ MPSetting('rpm_threshold', int, 6000, 'RPM Threshold') ])
@@ -32,7 +38,38 @@ class CUAVModule(mp_module.MPModule):
         self.add_command('cuavcheck', self.cmd_cuavcheck,
                          'cuav check control',
                          ['set (CUAVCHECKSETTING)'])
+                         
+        #make the initial map menu
+        if mp_util.has_wxpython:
+            self.menu = MPMenuSubMenu('UAV Challenge', items=[MPMenuCheckbox('Show Landing Zone', 'Show Landing Zone', '# cuavcheck toggleLandingZone'), MPMenuCheckbox('Show Joe Zone', 'Show Joe Zone', '# cuavcheck toggleJoeZone')])
+            self.module('map').add_menu(self.menu)
+            
+    def toggle_LandingZone(self):
+        '''show/hide the UAV Challenge landing zone around the clicked point'''
+        from MAVProxy.modules.mavproxy_map import mp_slipmap
+        pos = self.module('map').click_position
+        'Create a new layer of two circles - at 30m and 80m radius around the above point'
+        if(self.showLandingZone):
+            self.mpstate.map.add_object(mp_slipmap.SlipClearLayer('LandingZone'))
+            self.mpstate.map.add_object(mp_slipmap.SlipCircle('LandingZoneInner', layer='LandingZone', latlon=pos, radius=30, linewidth=2, color=(0,0,255)))
+            self.mpstate.map.add_object(mp_slipmap.SlipCircle('LandingZoneOuter', layer='LandingZone', latlon=pos, radius=80, linewidth=2, color=(0,0,255)))
+        else:
+            self.mpstate.map.remove_object('LandingZoneInner')
+            self.mpstate.map.remove_object('LandingZoneOuter')
+            self.mpstate.map.remove_object('LandingZone')
 
+    def toggle_JoeZone(self):
+        '''show/hide the UAV Challenge landing zone around the clicked point'''
+        from MAVProxy.modules.mavproxy_map import mp_slipmap
+        pos = self.module('map').click_position
+        'Create a new layer of two circles - at 100m radius around the above point'
+        if(self.showJoeZone):
+            self.mpstate.map.add_object(mp_slipmap.SlipClearLayer('JoeZone'))
+            self.mpstate.map.add_object(mp_slipmap.SlipCircle('JoeZoneCircle', layer='JoeZone', latlon=pos, radius=100, linewidth=2, color=(0,0,128)))
+        else:
+            self.mpstate.map.remove_object('JoeZoneCircle')
+            self.mpstate.map.remove_object('JoeZone')
+                        
     def cmd_cuavcheck(self, args):
         '''handle cuavcheck commands'''
         usage = 'Usage: cuavcheck <set>'
@@ -41,6 +78,12 @@ class CUAVModule(mp_module.MPModule):
             return
         if args[0] == "set":
             self.cuav_settings.command(args[1:])
+        elif args[0] == "toggleLandingZone":
+            self.showLandingZone = not self.showLandingZone
+            self.toggle_LandingZone()
+        elif args[0] == "toggleJoeZone":
+            self.showJoeZone =  not self.showJoeZone
+            self.toggle_JoeZone()
         else:
             print(usage)
             return            
