@@ -35,6 +35,8 @@ class CUAVModule(mp_module.MPModule):
         self.cuav_settings = MPSettings(
             [ MPSetting('rpm_threshold', int, 6000, 'RPM Threshold'),
               MPSetting('wind_speed', float, 0, 'wind speed (m/s)'),
+              MPSetting('wind_speed_warn', float, 25, 'overspeed warn wind speed (m/s)'),
+              MPSetting('wind_speed_fail', float, 30, 'overspeed fail wind speed (m/s)'),
               MPSetting('wind_direction', float, 0, 'wind direction (degrees)') ])
         self.add_completion_function('(CUAVCHECKSETTING)', self.cuav_settings.completion)
         self.add_command('cuavcheck', self.cmd_cuavcheck,
@@ -201,7 +203,14 @@ class CUAVModule(mp_module.MPModule):
                        self.cuav_settings.wind_speed*math.sin(math.radians(self.cuav_settings.wind_direction)), 0)
         ground = Vector3(m.vx*0.01, m.vy*0.01, 0)
         airspeed = ground + wind
-        self.console.set_status('AirspeedEstimate', 'AirspeedEstimate: %u m/s' % airspeed.length(), row=8)
+        if airspeed.length() >= self.cuav_settings.wind_speed_fail:
+            fgcolor = 'red'
+        elif airspeed.length() >= self.cuav_settings.wind_speed_warn:
+            fgcolor = 'orange'
+        else:
+            fgcolor = 'green'
+
+        self.console.set_status('AirspeedEstimate', 'AirspeedEstimate: %u m/s' % airspeed.length(), row=8, fg=fgcolor)
         
 
     def mavlink_packet(self, m):
