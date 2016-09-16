@@ -33,7 +33,9 @@ class CUAVModule(mp_module.MPModule):
         self.showJoeZone = 0
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.cuav_settings = MPSettings(
-            [ MPSetting('rpm_threshold', int, 6000, 'RPM Threshold') ])
+            [ MPSetting('rpm_threshold', int, 6000, 'RPM Threshold'),
+              MPSetting('wind_speed', float, 0, 'wind speed (m/s)'),
+              MPSetting('wind_direction', float, 0, 'wind direction (degrees)') ])
         self.add_completion_function('(CUAVCHECKSETTING)', self.cuav_settings.completion)
         self.add_command('cuavcheck', self.cmd_cuavcheck,
                          'cuav check control',
@@ -190,6 +192,18 @@ class CUAVModule(mp_module.MPModule):
                 self.say("RPM warning")
                 self.last_rpm_announce = now
 
+    def update_airspeed_estimate(self, m):
+        '''update airspeed estimate for helicopters'''
+        if self.cuav_settings.wind_speed <= 0:
+            return
+        from pymavlink.rotmat import Vector3
+        wind = Vector3(self.cuav_settings.wind_speed*math.cos(math.radians(self.cuav_settings.wind_direction)),
+                       self.cuav_settings.wind_speed*math.sin(math.radians(self.cuav_settings.wind_direction)), 0)
+        ground = Vector3(m.vx*0.01, m.vy*0.01, 0)
+        airspeed = ground + wind
+        self.console.set_status('AirspeedEstimate', 'AirspeedEstimate: %u m/s' % airspeed.length(), row=8)
+        
+
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
         now = time.time()
@@ -236,6 +250,9 @@ class CUAVModule(mp_module.MPModule):
             #if flying and self.settings.mavfwd != 0:
             #    print("Disabling mavfwd for flight")
             #    self.settings.mavfwd = 0
+
+        if m.get_type() == "GLOBAL_POSITION_INT":
+            self.update_airspeed_estimate(m)
 
         if m.get_type() == 'NAMED_VALUE_FLOAT' and m.name == 'BAT3VOLT':
             self.console.set_status('BAT3', 'Bat3: %.2f' % m.value, row=8)
