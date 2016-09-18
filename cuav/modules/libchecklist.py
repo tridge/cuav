@@ -65,7 +65,7 @@ class UI():
         'Cameras capturing':2,
         'Battery Voltages':2,
         'Aircraft Params Loaded':2,
-        'Waypoints Loaded':0,
+        'Waypoints Loaded':2,
         'Stabilisation check':2,
         'Airspeed calibration':2,
         'VTOL Motor Test':2
