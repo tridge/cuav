@@ -4,6 +4,9 @@
 
 export PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 export HOME=/root
+export SHELL=/bin/bash
+export TERM=xterm
+
 cd /root
 (
   sleep 5
