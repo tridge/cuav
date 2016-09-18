@@ -45,3 +45,6 @@ ping -q -c 2 $CUAVVPN || {
 [ $(date +%s) -lt 1469439272 ] && {
     /usr/bin/rdate cuav-vpn
 }
+[ $(date +%s) -lt 1469439272 ] && {
+    /usr/bin/rdate ozlabs.org
+}
