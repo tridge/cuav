@@ -257,6 +257,7 @@ class Mosaic():
         for i in range(len(self.images)):
             if filename == self.images[i].filename:
                 self.current_view = i
+                self.last_view_latlon = None
                 self.images[i].shape = (w,h)
         for r in self.regions:
             if r.filename == filename:
@@ -277,7 +278,8 @@ class Mosaic():
                 MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
                 MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness'),
                 MPMenuItem('Refresh Image\tCtrl+R', 'Refresh Image', 'refreshImage'),
-                MPMenuItem('Download Full\tCtrl+D', 'Download Full', 'downloadFull')])
+                MPMenuItem('Download Full\tCtrl+D', 'Download Full', 'downloadFull'),
+                MPMenuItem('Place Marker\tCtrl+M', 'Place Marker', 'placeMarker')])
             self.view_menu = MPMenuTop([vmenu])
             self.view_image.set_menu(self.view_menu)
             self.view_image.set_popup_menu(vmenu)
@@ -334,6 +336,7 @@ class Mosaic():
         if closest == -1:
             return
         self.current_view = closest
+        self.last_view_latlon = None
         image = self.images[closest]
         self.view_imagefile(image.filename)
 
@@ -556,6 +559,23 @@ class Mosaic():
             idx = self.find_image_idx(self.view_filename)
             if idx is not None:
                 self.view_imagefile_by_idx(idx-1)
+        elif event.returnkey == 'placeMarker':
+            if self.current_view >= len(self.images):
+                return
+            if self.last_view_latlon is None:
+                print("Please left click first")
+                return
+            image = self.images[self.current_view]
+            latlon = self.last_view_latlon
+            if latlon is None:
+                return
+            icon = self.slipmap.icon('flag.png')
+            self.slipmap.add_object(mp_slipmap.SlipIcon('Marker-%u' % self.current_view,
+                                                        latlon=latlon,
+                                                        layer='Markers',
+                                                        img=icon,
+                                                        follow=False))
+                
 
     def pos_to_region(self, pos):
         '''work out region for a clicked position on the mosaic'''
