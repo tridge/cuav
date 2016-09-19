@@ -176,7 +176,7 @@ class CameraModule(mp_module.MPModule):
               MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
               MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
 
-              MPSetting('rotate180', bool, False, 'rotate180', tab='Capture2'),
+              MPSetting('rotate', int, 0, 'rotate', tab='Capture2'),
               MPSetting('camparms', str, None, 'camera parameters'),
               MPSetting('filter_type', str, 'compactness', 'Filter Type',
                         choice=['simple', 'compactness']),
@@ -566,8 +566,18 @@ class CameraModule(mp_module.MPModule):
             im_full = numpy.zeros((960,1280,3),dtype='uint8')
             im_640 = numpy.zeros((480,640,3),dtype='uint8')
             scanner.debayer(im, im_full)
-            if self.camera_settings.rotate180:
+            if self.camera_settings.rotate == 180:
                 scanner.rotate180(im_full)
+            elif self.camera_settings.rotate == 270:
+                im2 = numpy.zeros((1280,960,3),dtype='uint8')
+                scanner.rotate270(im_full, im2)
+                im_full = im2
+                im_640 = numpy.zeros((640,480,3),dtype='uint8')
+            elif self.camera_settings.rotate == 90:
+                im2 = numpy.zeros((1280,960,3),dtype='uint8')
+                scanner.rotate90(im_full, im2)
+                im_full = im2
+                im_640 = numpy.zeros((640,480,3),dtype='uint8')
             scanner.downsample(im_full, im_640)
             img_scan = im_full
             regions = scanner.scan(img_scan, scan_parms)
@@ -967,7 +977,7 @@ class CameraModule(mp_module.MPModule):
 
                 if obj.priority != 0:
                     print("Downloaded image %s (width %u)" % (filename, img.width))
-                    if img.width >= 1280:
+                    if img.width >= 960:
                         tag_color = (0,0,255)
                     else:
                         tag_color = (0,255,0)
@@ -1119,12 +1129,15 @@ class CameraModule(mp_module.MPModule):
             print("No file: %s" % filename)
             return
         try:
-            img = cuav_util.LoadImage(filename, rotate180=self.camera_settings.rotate180, RGB=False)
+            img = cuav_util.LoadImage(filename, rotate=self.camera_settings.rotate, RGB=False)
             img = numpy.asarray(cv.GetMat(img))
         except Exception:
             return
         if not obj.fullres:
-            im_640 = numpy.zeros((480,640,3),dtype='uint8')
+            if self.camera_settings.rotate in [90,270]:
+                im_640 = numpy.zeros((640,480,3),dtype='uint8')
+            else:
+                im_640 = numpy.zeros((480,640,3),dtype='uint8')
             scanner.downsample(img, im_640)
             img = im_640
         print("Sending image %s" % filename)

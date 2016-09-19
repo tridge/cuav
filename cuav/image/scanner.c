@@ -1551,6 +1551,102 @@ scanner_downsample(PyObject *self, PyObject *args)
 
 
 /*
+  rotate an image by 90 degrees
+ */
+static PyObject *
+scanner_rotate_90(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+
+	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
+
+        uint16_t height = PyArray_DIM(img_in, 0);
+        uint16_t width  = PyArray_DIM(img_in, 1);
+
+	if (PyArray_STRIDE(img_in, 0) != width*3) {
+		PyErr_SetString(ScannerError, "input must be 24 bit");
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 0) != width ||
+	    PyArray_DIM(img_out, 1) != height ||
+	    PyArray_STRIDE(img_out, 0) != 3*height) {
+		PyErr_SetString(ScannerError, "output must be rotated 24 bit");
+		return NULL;
+	}
+
+        const struct bgr_image *in = allocate_bgr_image8(height, width, PyArray_DATA(img_in));
+	struct bgr_image *out = allocate_bgr_image8(width, height, NULL);
+
+	Py_BEGIN_ALLOW_THREADS;
+	for (uint16_t y=0; y<height; y++) {
+		for (uint16_t x=0; x<width; x++) {
+                    out->data[x][y] = in->data[y][x];
+		}
+	}
+	Py_END_ALLOW_THREADS;
+
+        memcpy(PyArray_DATA(img_out), &out->data[0][0], out->width*out->height*sizeof(struct bgr));
+
+        free(out);
+        free((void*)in);
+
+	Py_RETURN_NONE;
+}
+
+
+/*
+  rotate an image by 270 degrees
+ */
+static PyObject *
+scanner_rotate_270(PyObject *self, PyObject *args)
+{
+	PyArrayObject *img_in, *img_out;
+
+	if (!PyArg_ParseTuple(args, "OO", &img_in, &img_out))
+		return NULL;
+
+	CHECK_CONTIGUOUS(img_in);
+	CHECK_CONTIGUOUS(img_out);
+
+        uint16_t height = PyArray_DIM(img_in, 0);
+        uint16_t width  = PyArray_DIM(img_in, 1);
+
+	if (PyArray_STRIDE(img_in, 0) != width*3) {
+		PyErr_SetString(ScannerError, "input must be 24 bit");
+		return NULL;
+	}
+	if (PyArray_DIM(img_out, 0) != width ||
+	    PyArray_DIM(img_out, 1) != height ||
+	    PyArray_STRIDE(img_out, 0) != 3*height) {
+		PyErr_SetString(ScannerError, "output must be rotated 24 bit");
+		return NULL;
+	}
+
+        const struct bgr_image *in = allocate_bgr_image8(height, width, PyArray_DATA(img_in));
+	struct bgr_image *out = allocate_bgr_image8(width, height, NULL);
+
+	Py_BEGIN_ALLOW_THREADS;
+	for (uint16_t y=0; y<height; y++) {
+		for (uint16_t x=0; x<width; x++) {
+                    out->data[(width-1)-x][y] = in->data[y][x];
+		}
+	}
+	Py_END_ALLOW_THREADS;
+
+        memcpy(PyArray_DATA(img_out), &out->data[0][0], out->width*out->height*sizeof(struct bgr));
+
+        free(out);
+        free((void*)in);
+
+	Py_RETURN_NONE;
+}
+
+
+/*
   reduce bit depth of an image from 16 bit to 8 bit
  */
 static PyObject *
@@ -1841,6 +1937,8 @@ static PyMethodDef ScannerMethods[] = {
 	{"rect_extract", scanner_rect_extract, METH_VARARGS, "extract a rectange from a 24 bit BGR image"},
 	{"rect_overlay", scanner_rect_overlay, METH_VARARGS, "overlay a image with another smaller image at x,y"},
 	{"rotate180", scanner_rotate_180, METH_VARARGS, "rotate 24 bit image by 180 degrees in place"},
+	{"rotate90", scanner_rotate_90, METH_VARARGS, "rotate 24 bit image by 90 degrees"},
+	{"rotate270", scanner_rotate_270, METH_VARARGS, "rotate 24 bit image by 270 degrees"},
 	{"thermal_convert", scanner_thermal_convert, METH_VARARGS, "convert 16 bit thermal image to colour"},
 	{NULL, NULL, 0, NULL}
 };

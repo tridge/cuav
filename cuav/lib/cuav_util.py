@@ -547,7 +547,7 @@ def socket_send_queue_size(sock):
     return v
 
 
-def LoadImage(filename, rotate180=False, RGB=False):
+def LoadImage(filename, rotate=0, RGB=False):
 	'''wrapper around cv.LoadImage that also handles PGM.
 	It always returns a colour image of the same size'''
 	if filename.endswith('.pgm'):
@@ -562,15 +562,24 @@ def LoadImage(filename, rotate180=False, RGB=False):
                         scanner.debayer_RGB(pgm.array, im_full)
                 else:
                         scanner.debayer(pgm.array, im_full)
-                if rotate180:
+                if rotate == 180:
                         scanner.rotate180(im_full)
+                elif rotate == 270:
+                        im2 = numpy.zeros((1280,960,3),dtype='uint8')
+                        scanner.rotate270(im_full, im2)
+                        im_full = im2
+                elif rotate == 90:
+                        im2 = numpy.zeros((1280,960,3),dtype='uint8')
+                        scanner.rotate90(im_full, im2)
+                        im_full = im2
 		return cv.GetImage(cv.fromarray(im_full))
 	img = cv.LoadImage(filename)
-        if rotate180:
+        if rotate != 0:
 		from ..image import scanner
-                img = numpy.ascontiguousarray(cv.GetMat(img))
-                scanner.rotate180(img)
-                img = cv.GetImage(cv.fromarray(img))
+                if rotate == 180:
+                        img = numpy.ascontiguousarray(cv.GetMat(img))
+                        scanner.rotate180(img)
+                        img = cv.GetImage(cv.fromarray(img))
         return img
 
 class PickleStreamIn:
