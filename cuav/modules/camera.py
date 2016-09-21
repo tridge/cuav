@@ -142,7 +142,7 @@ class BlockCancel(StampedCommand):
 
 class CameraModule(mp_module.MPModule):
     def __init__(self, mpstate):
-        super(CameraModule, self).__init__(mpstate, "camera", "cuav camera control")
+        super(CameraModule, self).__init__(mpstate, "camera", "cuav camera control", public = True)
 
         self.running = False
         self.unload_event = threading.Event()

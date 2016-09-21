@@ -24,13 +24,16 @@ class CUAVModule(mp_module.MPModule):
         self.button_remaining = None
         self.button_change = None
         self.last_button_update = time.time()
+        self.last_target_update = time.time()
         self.button_change_recv_time = 0
         self.button_announce_time = 0
         self.last_rpm_update = 0
         self.last_rpm_value = None
         self.last_rpm_announce = 0
         self.showLandingZone = 0
-        self.showJoeZone = 0
+        self.showJoeZone = True
+        self.target = None
+        
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.cuav_settings = MPSettings(
             [ MPSetting('rpm_threshold', int, 6000, 'RPM Threshold'),
@@ -63,11 +66,23 @@ class CUAVModule(mp_module.MPModule):
     def toggle_JoeZone(self):
         '''show/hide the UAV Challenge landing zone around the clicked point'''
         from MAVProxy.modules.mavproxy_map import mp_slipmap
-        pos = self.module('map').click_position
-        'Create a new layer of two circles - at 100m radius around the above point'
-        if(self.showJoeZone):
+        camera = self.module('camera')
+        if camera is None:
+            print("camera module is not loaded")
+            return
+        if camera.camera_settings.target_radius <= 0:
+            print("camera module target_radius is not set")
+            return
+        target = (camera.camera_settings.target_lattitude,
+                  camera.camera_settings.target_longitude,
+                  camera.camera_settings.target_radius)
+        self.target = target
+        
+        'Create a new layer with given radius around the above point'
+        if self.showJoeZone:
             self.mpstate.map.add_object(mp_slipmap.SlipClearLayer('JoeZone'))
-            self.mpstate.map.add_object(mp_slipmap.SlipCircle('JoeZoneCircle', layer='JoeZone', latlon=pos, radius=100, linewidth=2, color=(0,0,128)))
+            self.mpstate.map.add_object(mp_slipmap.SlipCircle('JoeZoneCircle', layer='JoeZone',
+                                                              latlon=(target[0],target[1]), radius=target[2], linewidth=2, color=(0,0,128)))
         else:
             self.mpstate.map.remove_object('JoeZoneCircle')
             self.mpstate.map.remove_object('JoeZone')
@@ -84,7 +99,7 @@ class CUAVModule(mp_module.MPModule):
             self.showLandingZone = not self.showLandingZone
             self.toggle_LandingZone()
         elif args[0] == "toggleJoeZone":
-            self.showJoeZone =  not self.showJoeZone
+            self.showJoeZone = not self.showJoeZone
             self.toggle_JoeZone()
         else:
             print(usage)
@@ -157,7 +172,16 @@ class CUAVModule(mp_module.MPModule):
             self.console.set_status('RPM', 'RPM: --', row=8, fg='red')
             self.say("Engine stopped")
             self.last_rpm_update = 0
-            self.last_rpm_value = None
+        if now - self.last_target_update > 1 and self.showJoeZone:
+            self.last_target_update = now
+            camera = self.module('camera')
+            if camera is not None and camera.camera_settings.target_radius > 0:
+                target = (camera.camera_settings.target_lattitude,
+                          camera.camera_settings.target_longitude,
+                          camera.camera_settings.target_radius)
+                if target != self.target:
+                    self.showJoeZone = False
+                    self.toggle_JoeZone()
 
     def update_button_display(self):
         '''update the Button display on console'''
