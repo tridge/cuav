@@ -144,6 +144,8 @@ class NMEAModule(mp_module.MPModule):
             speed_ms = math.sqrt(m.vx**2+m.vy**2) * 0.01
             knots = speed_ms*1.94384
             course = math.degrees(math.atan2(m.vy,m.vx))
+            if course < 0:
+                course += 360
 
             # for GPGGA
 
