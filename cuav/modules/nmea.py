@@ -13,7 +13,7 @@ It is highly desirable that teams provide:
 
 '''
 
-import sys, os, serial
+import sys, os, serial, math
 from cuav.lib import cuav_util
 from MAVProxy.modules.lib import mp_module
 
@@ -28,6 +28,12 @@ class NMEAModule(mp_module.MPModule):
         self.serial = None
         self.output_time = 0.0
         self.add_command('nmea', self.cmd_nmea, "nmea control")
+
+        self.num_sat = 0
+        self.hdop = 0
+        self.altitude = 0
+        self.fix_quality = 0
+        self.last_time_boot_ms = 0
 
     def cmd_nmea(self, args):
         '''set nmea'''
@@ -114,25 +120,36 @@ class NMEAModule(mp_module.MPModule):
             return
 
         if m.get_type() == 'GPS_RAW_INT':
+            self.num_sat = m.satellites_visible
+            self.hdop = m.eph/100.0
+            self.altitude = m.alt/1000.0
+            self.fix_quality = 1 if (m.fix_type > 1) else 0 # 0/1 for (in)valid or 2 DGPS
+            
+        if m.get_type() == 'GLOBAL_POSITION_INT':
+            if m.time_boot_ms <= self.last_time_boot_ms and self.last_time_boot_ms - self.time_boot_ms < 60000:
+                # time going backwards from multiple links
+                return
+            if m.time_boot_ms - self.last_time_boot_ms < 250:
+                # limit to 4Hz
+                return
+            self.last_time_boot_ms = m.time_boot_ms
+
             # for GPRMC and GPGGA
             utc_sec = now_time
-            fix_status = 'A' if (m.fix_type > 1) else 'V'
+            fix_status = 'A'
             lat = m.lat/1.0e7
             lon = m.lon/1.0e7
 
             # for GPRMC
-            knots = ((m.vel/100.0)/1852.0)*3600
-            course = m.cog/100.0
+            speed_ms = math.sqrt(m.vx**2+m.vy**2) * 0.01
+            knots = speed_ms*1.94384
+            course = math.degrees(math.atan2(m.vy,m.vx))
 
             # for GPGGA
-            fix_quality = 1 if (m.fix_type > 1) else 0 # 0/1 for (in)valid or 2 DGPS
-            num_sat = m.satellites_visible
-            hdop = m.eph/100.0
-            altitude = m.alt/1000.0
 
-            # print format_gga(utc_sec, lat, lon, fix_quality, num_sat, hdop, altitude)
+            # print format_gga(utc_sec, lat, lon, self.fix_quality, self.num_sat, self.hdop, self.altitude)
             # print format_rmc(utc_sec, fix_status, lat, lon, knots, course)
-            gga = self.format_gga(utc_sec, lat, lon, fix_quality, num_sat, hdop, altitude)
+            gga = self.format_gga(utc_sec, lat, lon, self.fix_quality, self.num_sat, self.hdop, self.altitude)
             rmc = self.format_rmc(utc_sec, fix_status, lat, lon, knots, course)
 
             self.output_time = now_time
