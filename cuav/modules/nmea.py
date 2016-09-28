@@ -126,7 +126,7 @@ class NMEAModule(mp_module.MPModule):
             self.fix_quality = 1 if (m.fix_type > 1) else 0 # 0/1 for (in)valid or 2 DGPS
             
         if m.get_type() == 'GLOBAL_POSITION_INT':
-            if m.time_boot_ms <= self.last_time_boot_ms and self.last_time_boot_ms - self.time_boot_ms < 60000:
+            if m.time_boot_ms <= self.last_time_boot_ms and self.last_time_boot_ms - m.time_boot_ms < 60000:
                 # time going backwards from multiple links
                 return
             if m.time_boot_ms - self.last_time_boot_ms < 250:
