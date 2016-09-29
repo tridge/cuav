@@ -295,6 +295,9 @@ def process(args):
         cv.CvtColor(mat, mat, cv.CV_BGR2RGB)
         viewer.set_image(mat)
         viewer.set_title('Image: ' + os.path.basename(f))
+        if opts.saveview:
+          cv.CvtColor(mat, mat, cv.CV_RGB2BGR)
+          cv.SaveImage('view-' + os.path.basename(f), mat)
 
       total_time += (t1-t0)
       if t1 != t0:
@@ -324,6 +327,7 @@ def parse_args():
   parser.add_option("--triggerlog", default=None, type=file_type, help="robota trigger file for image positions")
   parser.add_option("--time-offset", type='float', default=0, help="offset between camera and mavlink log times (seconds)")
   parser.add_option("--view", action='store_true', default=False, help="show images")
+  parser.add_option("--saveview", action='store_true', default=False, help="save image view")
   parser.add_option("--lens", default=28.0, type='float', help="lens focal length")
   parser.add_option("--sensorwidth", default=35.0, type='float', help="sensor width")
   parser.add_option("--service", default='MicrosoftSat', help="map service")

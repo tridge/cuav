@@ -626,7 +626,7 @@ class CameraModule(mp_module.MPModule):
         now = time.time()
         if now - self.last_heartbeat > 5 and (
             self.bsend.sendq_size() == 0 or
-            self.bsend2.sendq_size() == 0):
+            (self.bsend2 and self.bsend2.sendq_size() == 0)):
             self.last_heartbeat = now
             self.send_heartbeat()
 
@@ -638,9 +638,11 @@ class CameraModule(mp_module.MPModule):
                 time.sleep(1)
                 continue
             self.bsend.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue1)
-            self.bsend2.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue2)
+            if self.bsend2:
+                self.bsend2.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue2)
             self.check_commands(self.bsend)
-            self.check_commands(self.bsend2)
+            if self.bsend2:
+                self.check_commands(self.bsend2)
             self.send_heartbeats()
 
     def transmit_thread(self):
@@ -654,9 +656,11 @@ class CameraModule(mp_module.MPModule):
 
         while not self.unload_event.wait(0.02):
             self.bsend.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue1)
-            self.bsend2.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue2)
+            if self.bsend2:
+                self.bsend2.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue2)
             self.check_commands(self.bsend)
-            self.check_commands(self.bsend2)
+            if self.bsend2:
+                self.check_commands(self.bsend2)
             self.send_heartbeats()
             if self.transmit_queue.empty():
                 self.check_send_newscore()
@@ -686,7 +690,8 @@ class CameraModule(mp_module.MPModule):
                                                      filter_type=self.camera_settings.filter_type)
 
             self.xmit_queue = self.bsend.sendq_size()
-            self.xmit_queue2 = self.bsend2.sendq_size()
+            if self.bsend2:
+                self.xmit_queue2 = self.bsend2.sendq_size()
             self.efficiency = self.bsend.get_efficiency()
             self.bandwidth_used = self.bsend.get_bandwidth_used()
             self.rtt_estimate = self.bsend.get_rtt_estimate()
@@ -780,7 +785,7 @@ class CameraModule(mp_module.MPModule):
                                                 bandwidth=self.camera_settings.bandwidth, debug=False,
                                                 dest_ip=self.camera_settings.gcs_address,
                                                 dest_port=self.camera_settings.gcs_view_port)
-        if self.bsend2 is None:
+        if self.bsend2 is None and self.camera_settings.use_bsend2 and self.camera_settings.aircraft_port2:
             self.bsend2 = block_xmit.BlockSender(self.camera_settings.aircraft_port2,
                                                  bandwidth=self.camera_settings.bandwidth2, debug=False,
                                                  dest_ip=self.camera_settings.gcs_address2,
@@ -801,7 +806,7 @@ class CameraModule(mp_module.MPModule):
                                                 dest_port=self.camera_settings.aircraft_port)
             started_bsend = True
 
-        if self.bsend2 is None:
+        if self.bsend2 is None and self.camera_settings.use_bsend2 and self.camera_settings.gcs_view_port2:
             self.bsend2 = block_xmit.BlockSender(self.camera_settings.gcs_view_port2,
                                                  bandwidth=self.camera_settings.bandwidth2,
                                                  dest_ip=self.camera_settings.aircraft_address2,
@@ -856,7 +861,8 @@ class CameraModule(mp_module.MPModule):
             tnow = time.time()
             if tnow - ack_time > 0.1:
                 self.bsend.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue1)
-                self.bsend2.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue2)
+                if self.bsend2:
+                    self.bsend2.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue2)
                 if self.bsend_slave is not None:
                     self.bsend_slave.tick(packet_count=1000)
                     ack_time = tnow
@@ -877,7 +883,7 @@ class CameraModule(mp_module.MPModule):
             self.check_requested_images(mosaic)
 
             buf = self.bsend.recv(0)
-            if buf is None:
+            if buf is None and self.bsend2:
                 buf = self.bsend2.recv(0)
                 bsend = self.bsend2
                 self.bsend2.set_bandwidth(self.camera_settings.bandwidth2)
