@@ -305,6 +305,11 @@ def process(args):
               os.path.basename(f), count/total_time, region_count, scan_count, num_files))
       #raw_input("hit ENTER when ready")
 
+  print("All images processed"
+  while True:
+      # check for any events from the map
+      slipmap.check_events()
+      mosaic.check_events()    
 
 def parse_args():
   '''parse command line arguments'''
