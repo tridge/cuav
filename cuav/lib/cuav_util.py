@@ -456,23 +456,30 @@ def frame_time(t):
     hundredths = int(t * 100.0) % 100
     return "%s%02uZ" % (time.strftime("%Y%m%d%H%M%S", time.gmtime(t)), hundredths)
 
+def parse_exif_time(filename):
+	'''parse a timestamp from exif data'''
+	basename = os.path.basename(filename)
+        if basename.lower().endswith('.jpg') or basename.lower().endswith('.jpeg'):
+                try:
+                        from . import mav_position
+                        return mav_position.exif_timestamp(filename)
+                except Exception as e:
+                        print("Failed to get EXIF timestamp: %s" % e)
+                        return 0
+        return 0
+
 def parse_frame_time(filename):
 	'''parse a image frame time from a image filename
 	from the chameleon capture code'''
 	basename = os.path.basename(filename)
 	i = basename.find('201')
 	if i == -1:
-                if basename.lower().endswith('.jpg') or basename.lower().endswith('.jpeg'):
-                        try:
-                                from . import mav_position
-                                return mav_position.exif_timestamp(filename)
-                        except Exception as e:
-                                print("Failed to get EXIF timestamp: %s" % e)
-                                return 0
-		print('unable to parse filename %s into time' % basename)
-                return 0
+                return parse_exif_time(filename)
 	tstring = basename[i:]
-        ttuple = time.strptime(tstring[:14], "%Y%m%d%H%M%S")
+        try:
+                ttuple = time.strptime(tstring[:14], "%Y%m%d%H%M%S")
+        except Exception:
+                return parse_exif_time(filename)
 	if tstring[14] == '-':
 		hundredths = int(tstring[15:17])
                 z = tstring[17]
