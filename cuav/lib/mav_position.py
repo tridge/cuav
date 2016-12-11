@@ -5,6 +5,18 @@ import fractions
 
 from pymavlink import mavutil
 from cuav.lib import cuav_util
+from MAVProxy.modules.mavproxy_map import mp_elevation
+
+ElevationMap = None
+
+def get_ground_alt(lat, lon):
+        '''get terrain height at a location'''
+        global ElevationMap
+        if ElevationMap is None:
+                ElevationMap = mp_elevation.ElevationModel()
+        if not ElevationMap:
+                return 0
+        return ElevationMap.GetElevation(lat, lon)
 
 class MavInterpolatorException(Exception):
 	'''interpolator error class'''
@@ -307,8 +319,8 @@ def exif_position(filename):
         
         m = pyexiv2.ImageMetadata(filename)
         m.read()
+        GPS = 'Exif.GPSInfo.GPS'
         try:
-                GPS = 'Exif.GPSInfo.GPS'
                 lat_ns = str(m[GPS + 'LatitudeRef'].value)
                 lng_ns = str(m[GPS + 'LongitudeRef'].value)
                 latitude = dms_to_decimal(m[GPS + 'Latitude'].value[0],
@@ -324,7 +336,7 @@ def exif_position(filename):
                 longitude = 0
                 
         try:
-                altitude = float(m[GPS + 'Altitude'].value)
+                altitude = float(m[GPS + 'Altitude'].value) - get_ground_alt(latitude, longitude)
         except Exception:
                 altitude = -1
 
@@ -404,7 +416,6 @@ class KmlPosition(object):
 class TriggerPosition(object):
         '''parse a Robota trigger file to get positions for images'''
         def __init__(self, filename):
-                from MAVProxy.modules.mavproxy_map import mp_elevation
                 f = open(filename)
                 lines = f.readlines()
                 f.close()
@@ -412,7 +423,6 @@ class TriggerPosition(object):
                 self.columns = lines[0].rstrip().split(' ')
                 self.colmap = {}
                 self.time_offset = None
-                self.ElevationMap = mp_elevation.ElevationModel()
                 for i in range(len(self.columns)):
                         self.colmap[self.columns[i]] = i
                 for i in range(1, len(lines)):
@@ -435,7 +445,7 @@ class TriggerPosition(object):
                 vals = line.split(' ')
                 lat = self._column('Lat(deg)', vals, 0)
                 lon = self._column('Lon(deg)', vals, 0)
-                ground_alt = self.ElevationMap.GetElevation(lat, lon)
+                ground_alt = get_ground_alt(lat, lon)
                 pos = MavPosition(lat, lon,
                                   max(self._column('GpsAlt(m)', vals, 0) - ground_alt, 10),
                                   self._column('Roll(deg)', vals, 0),
