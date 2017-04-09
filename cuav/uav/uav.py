@@ -1,6 +1,5 @@
 from numpy import array, linalg, eye, zeros, dot, transpose
 from numpy import sin, cos, pi
-from matplotlib import pyplot
 
 #def rotationMatrix(phi, theta, psi):
 #  out = zeros((3,3))
@@ -91,6 +90,8 @@ class uavxfer:
 
 
 if __name__ == '__main__':
+  from matplotlib import pyplot
+  
   xfer = uavxfer()
   xfer.setCameraParams(200.0, 200.0, 512, 480)
   xfer.setCameraOrientation(0.0, 0.0, -pi/2)
