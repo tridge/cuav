@@ -1,5 +1,10 @@
 # -*- mode: python -*-
 # spec file for pyinstaller to build cuav for windows
+
+#Gooey_languages and gooey_images are used to fetch the files and solve the problem that was occuring preivously. (i.e : Language file not found)
+gooey_languages = Tree('C:/Python27/Lib/site-packages/gooey/languages', prefix = 'gooey/languages')
+gooey_images = Tree('C:/Python27/Lib/site-packages/gooey/images', prefix = 'gooey/images')
+
 geotagAny = Analysis(['.\\cuav\\tools\\geotag.py'],
              pathex=[os.path.abspath('.')],
              # for some unknown reason these hidden imports don't pull in
@@ -16,7 +21,7 @@ geotagAny = Analysis(['.\\cuav\\tools\\geotag.py'],
                             'pymavlink.dialects.v20.slugs', 'pymavlink.dialects.v10.slugs',
                             'pymavlink.dialects.v20.standard', 'pymavlink.dialects.v10.standard',
                             'pymavlink.dialects.v20.ualberta', 'pymavlink.dialects.v10.ualberta',
-                            'pymavlink.dialects.v20.uAvionix', 'pymavlink.dialects.v10.uAvionix'],
+                            'pymavlink.dialects.v20.uAvionix', 'pymavlink.dialects.v10.uAvionix', 'gooey'],
              excludes=['tcl', 'tk', 'Tkinter', 'tkinter', '_tkinter'],
              hookspath=None,
              runtime_hooks=None)
@@ -24,7 +29,7 @@ pgmconvertAny = Analysis(['.\\cuav\\tools\\pgm_convert.py'],
              pathex=[os.path.abspath('.')],
              # for some unknown reason these hidden imports don't pull in
              # all the needed pieces, so we also import them in mavproxy.py
-             hiddenimports=['UserList', 'UserString'],
+             hiddenimports=['UserList', 'UserString', 'gooey'],
              excludes=['tcl', 'tk', 'Tkinter', 'tkinter', '_tkinter'],
              hookspath=None,
              runtime_hooks=None)
@@ -44,7 +49,7 @@ geosearchAny = Analysis(['.\\cuav\\tools\\geosearch.py'],
                             'pymavlink.dialects.v20.slugs', 'pymavlink.dialects.v10.slugs',
                             'pymavlink.dialects.v20.standard', 'pymavlink.dialects.v10.standard',
                             'pymavlink.dialects.v20.ualberta', 'pymavlink.dialects.v10.ualberta',
-                            'pymavlink.dialects.v20.uAvionix', 'pymavlink.dialects.v10.uAvionix'],
+                            'pymavlink.dialects.v20.uAvionix', 'pymavlink.dialects.v10.uAvionix', 'gooey'],
              excludes=[],
              hookspath=None,
              runtime_hooks=None)
@@ -64,6 +69,8 @@ geotag_coll = COLLECT(geotag_exe,
                geotagAny.binaries,
                geotagAny.zipfiles,
                geotagAny.datas,
+               gooey_languages,
+               gooey_images,
                strip=None,
                upx=True,
                name='geotag')
@@ -81,6 +88,8 @@ pgmconvert_coll = COLLECT(pgmconvert_exe,
                pgmconvertAny.binaries,
                pgmconvertAny.zipfiles,
                pgmconvertAny.datas,
+               gooey_languages,
+               gooey_images,
                strip=None,
                upx=True,
                name='pgmconvert')
@@ -98,6 +107,8 @@ geosearch_coll = COLLECT(geosearch_exe,
                geosearchAny.binaries,
                geosearchAny.zipfiles,
                geosearchAny.datas,
+               gooey_languages,
+               gooey_images,
                strip=None,
                upx=True,
                name='geosearch')

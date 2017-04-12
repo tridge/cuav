@@ -10,6 +10,7 @@ from cuav.camera import cam_params
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 from MAVProxy.modules.lib import mp_image
 from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
+from gooey import Gooey, GooeyParser
 
 slipmap = None
 mosaic = None
@@ -314,8 +315,8 @@ def process(args):
 
 def parse_args():
   '''parse command line arguments'''
-  parser = argparse.ArgumentParser(description='GeoSearch')
-
+  parser = argparse.ArgumentParser(description='Search images for Joe')
+    
   parser.add_argument("directory", default=None, nargs='+', help="directory containing image files")
   parser.add_argument("--mission", default=None, type=file, help="mission file to display")
   parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file")
@@ -326,7 +327,8 @@ def parse_args():
   parser.add_argument("--saveview", action='store_true', default=False, help="save image view")
   parser.add_argument("--lens", default=28.0, type=float, help="lens focal length")
   parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
-  parser.add_argument("--service", default='MicrosoftSat', help="map service")
+  parser.add_argument("--service", default='MicrosoftSat', 
+    choices=('GoogleSat', 'MicrosoftSat', 'OviSat', 'OpenStreetMap', 'MicrosoftHyb', 'OviHybrid', 'GoogleMap'), help="map service")
   parser.add_argument("--camera-params", default=None, type=file, help="camera calibration json file from OpenCV")
   parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
   parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
@@ -343,9 +345,45 @@ def parse_args():
   parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
   return parser.parse_args()
 
+@Gooey
+def parse_args_gooey():
+  '''parse command line arguments'''
+  parser = GooeyParser(description='Search images for Joe') 
+  
+  parser.add_argument("directory", default=None, nargs='+', help="directory containing image files", widget='DirChooser')
+  parser.add_argument("--mission", default=None, type=file, help="mission file to display", widget='FileChooser')
+  parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file", widget='FileChooser')
+  parser.add_argument("--kmzlog", default=None, type=file, help="kmz file for image positions", widget='FileChooser')
+  parser.add_argument("--triggerlog", default=None, type=file, help="robota trigger file for image positions", widget='FileChooser')
+  parser.add_argument("--time-offset", type=float, default=0, help="offset between camera and mavlink log times (seconds)")
+  parser.add_argument("--view", action='store_true', default=False, help="show images")
+  parser.add_argument("--saveview", action='store_true', default=False, help="save image view")
+  parser.add_argument("--lens", default=28.0, type=float, help="lens focal length")
+  parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
+  parser.add_argument("--service", default='MicrosoftSat', 
+    choices=['GoogleSat', 'MicrosoftSat', 'OviSat', 'OpenStreetMap', 'MicrosoftHyb', 'OviHybrid', 'GoogleMap'], help="map service")
+  parser.add_argument("--camera-params", default=None, type=file, help="camera calibration json file from OpenCV", widget='FileChooser')
+  parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
+  parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
+  parser.add_argument("--rotate-180", default=False, action='store_true', help="rotate images 180 degrees")
+  parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
+  parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
+  parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")
+  parser.add_argument("--minscore", default=100, type=int, help="minimum score")
+  parser.add_argument("--gammalog", default=None, type=str, help="gamma.log from flight", widget='FileChooser')
+  parser.add_argument("--target", default=None, type=str, help="lat,lon,radius target")
+  parser.add_argument("--categories", default=None, type=str, help="xml file containing categories for classification", widget='FileChooser')
+  if 1 != len(sys.argv):
+    parser.add_argument("--flag", default=[], type=str, action='append', help="flag positions"),
+  parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
+  return parser.parse_args()
+  
 if __name__ == '__main__':
   multiprocessing.freeze_support()
-  args = parse_args()
+  if not len(sys.argv) > 1:
+    args = parse_args_gooey()
+  else:
+    args = parse_args()
 
   # main program
   process(args)
