@@ -6,20 +6,39 @@ import pyexiv2, datetime, argparse
 from cuav.lib import cuav_util, cuav_mosaic, mav_position, cuav_joe, cuav_region
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 from MAVProxy.modules.lib import mp_image
+from gooey import Gooey, GooeyParser
 
-from optparse import OptionParser
-parser = argparse.ArgumentParser()
-parser.add_argument("files", default=None, nargs='+', help="<directory|files>")
-parser.add_argument("--mavlog", default=None, help="flight log for geo-referencing")
-parser.add_argument("--max-deltat", default=0.0, type=float, help="max deltat for interpolation")
-parser.add_argument("--max-attitude", default=45, type=float, help="max attitude geo-referencing")
-parser.add_argument("--lens", default=4.0, type=float, help="lens focal length")
-parser.add_argument("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
-parser.add_argument("--gps-lag", default=0.0, type=float, help="GPS lag in seconds")
-parser.add_argument("--destdir", default=None, help="destination directory")
-parser.add_argument("--inplace", default=False, action='store_true', help="in-place modify")
-args = parser.parse_args()
-
+@Gooey
+def parse_args_gooey():
+  '''parse command line arguments'''
+  parser = GooeyParser(description="Geotag images from flight log")    
+  
+  parser.add_argument("files", default=None, nargs='+', help="Image folder", widget='DirChooser')
+  parser.add_argument("mavlog", default=None, help="flight log for geo-referencing", widget='FileChooser')
+  parser.add_argument("--max-deltat", default=0.0, type=float, help="max deltat for interpolation")
+  parser.add_argument("--max-attitude", default=45, type=float, help="max attitude geo-referencing")
+  parser.add_argument("--lens", default=4.0, type=float, help="lens focal length")
+  parser.add_argument("--roll-stabilised", default=False, action='store_true', help="Is camera roll stabilised?")
+  parser.add_argument("--gps-lag", default=0.0, type=float, help="GPS lag in seconds")
+  parser.add_argument("--destdir", default=None, help="destination directory", widget='DirChooser')
+  parser.add_argument("--inplace", default=False, action='store_true', help="modify images in-place?")
+  return parser.parse_args()
+  
+def parse_args():
+  '''parse command line arguments'''
+  parser = argparse.ArgumentParser("Geotag images from flight log")
+  
+  parser.add_argument("files", default=None, nargs='+', help="Image directory or files")
+  parser.add_argument("mavlog", default=None, help="flight log for geo-referencing")
+  parser.add_argument("--max-deltat", default=0.0, type=float, help="max deltat for interpolation")
+  parser.add_argument("--max-attitude", default=45, type=float, help="max attitude geo-referencing")
+  parser.add_argument("--lens", default=4.0, type=float, help="lens focal length")
+  parser.add_argument("--roll-stabilised", default=False, action='store_true', help="Is camera roll stabilised?")
+  parser.add_argument("--gps-lag", default=0.0, type=float, help="GPS lag in seconds")
+  parser.add_argument("--destdir", default=None, help="destination directory")
+  parser.add_argument("--inplace", default=False, action='store_true', help="modify images in-place?")
+  return parser.parse_args()
+   
 def to_deg(value, loc):
   if value < 0:
     loc_value = loc[0]
@@ -92,12 +111,8 @@ def process(args):
   num_files = len(files)
   print("num_files=%u" % num_files)
 
-  if args.mavlog:
-    mpos = mav_position.MavInterpolator(gps_lag=args.gps_lag)
-    mpos.set_logfile(args.mavlog)
-  else:
-    print("You must provide a mavlink log file")
-    sys.exit(1)
+  mpos = mav_position.MavInterpolator(gps_lag=args.gps_lag)
+  mpos.set_logfile(args.mavlog)
 
   frame_time = 0
 
@@ -136,5 +151,11 @@ def process(args):
     set_gps_location(newfile, lat_deg, lng_deg, pos.altitude, pos.time)
 
 # main program
+if __name__ == '__main__':
+  if not len(sys.argv) > 1:
+    args = parse_args_gooey()
+  else:
+    args = parse_args()
+    
+  process(args)
 
-process(args)
