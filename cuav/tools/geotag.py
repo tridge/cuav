@@ -1,23 +1,24 @@
 #!/usr/bin/python
 
 import numpy, os, time, cv, sys, math, sys, glob
-import pyexiv2, datetime
+import pyexiv2, datetime, argparse
 
 from cuav.lib import cuav_util, cuav_mosaic, mav_position, cuav_joe, cuav_region
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 from MAVProxy.modules.lib import mp_image
 
 from optparse import OptionParser
-parser = OptionParser("geotag.py [options] <directory|files>")
-parser.add_option("--mavlog", default=None, help="flight log for geo-referencing")
-parser.add_option("--max-deltat", default=0.0, type='float', help="max deltat for interpolation")
-parser.add_option("--max-attitude", default=45, type='float', help="max attitude geo-referencing")
-parser.add_option("--lens", default=4.0, type='float', help="lens focal length")
-parser.add_option("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
-parser.add_option("--gps-lag", default=0.0, type='float', help="GPS lag in seconds")
-parser.add_option("--destdir", default=None, help="destination directory")
-parser.add_option("--inplace", default=False, action='store_true', help="in-place modify")
-(opts, args) = parser.parse_args()
+parser = argparse.ArgumentParser()
+parser.add_argument("files", default=None, nargs='+', help="<directory|files>")
+parser.add_argument("--mavlog", default=None, help="flight log for geo-referencing")
+parser.add_argument("--max-deltat", default=0.0, type=float, help="max deltat for interpolation")
+parser.add_argument("--max-attitude", default=45, type=float, help="max attitude geo-referencing")
+parser.add_argument("--lens", default=4.0, type=float, help="lens focal length")
+parser.add_argument("--roll-stabilised", default=False, action='store_true', help="roll is stabilised")
+parser.add_argument("--gps-lag", default=0.0, type=float, help="GPS lag in seconds")
+parser.add_argument("--destdir", default=None, help="destination directory")
+parser.add_argument("--inplace", default=False, action='store_true', help="in-place modify")
+args = parser.parse_args()
 
 def to_deg(value, loc):
   if value < 0:
@@ -82,7 +83,7 @@ def process(args):
 
   count = 0
   files = []
-  for a in args:
+  for a in args.files:
     if os.path.isdir(a):
       files.extend(glob.glob(os.path.join(a, '*.png')))
     else:
@@ -91,26 +92,26 @@ def process(args):
   num_files = len(files)
   print("num_files=%u" % num_files)
 
-  if opts.mavlog:
-    mpos = mav_position.MavInterpolator(gps_lag=opts.gps_lag)
-    mpos.set_logfile(opts.mavlog)
+  if args.mavlog:
+    mpos = mav_position.MavInterpolator(gps_lag=args.gps_lag)
+    mpos.set_logfile(args.mavlog)
   else:
     print("You must provide a mavlink log file")
     sys.exit(1)
 
   frame_time = 0
 
-  if opts.destdir:
-    cuav_util.mkdir_p(opts.destdir)
+  if args.destdir:
+    cuav_util.mkdir_p(args.destdir)
 
   for f in files:
     frame_time = os.path.getmtime(f)
     try:
-      if opts.roll_stabilised:
+      if args.roll_stabilised:
         roll = 0
       else:
         roll = None
-      pos = mpos.position(frame_time, opts.max_deltat,roll=roll)
+      pos = mpos.position(frame_time, args.max_deltat,roll=roll)
     except mav_position.MavInterpolatorException as e:
       print e
       pos = None
@@ -120,13 +121,13 @@ def process(args):
     lat_deg = pos.lat
     lng_deg = pos.lon
 
-    if opts.inplace:
+    if args.inplace:
       newfile = f
     else:
       basefile = f.split('.')[0]
       newfile = basefile + '.jpg'    
-      if opts.destdir:
-        newfile = os.path.join(opts.destdir, os.path.basename(newfile))
+      if args.destdir:
+        newfile = os.path.join(args.destdir, os.path.basename(newfile))
     cv.SaveImage(newfile, im_orig)
     count += 1
     
