@@ -45,6 +45,9 @@ rem -----Create version Info-----
 @echo %VERSION%> .\windows\version.txt
 @echo on
 
-
+rem -----Build the Installer-----
+cd  .\windows\
+rem Newer Inno Setup versions do not require a -compile flag, please add it if you have an old version
+"%INNOSETUP%\ISCC.exe" /dMyAppVersion=%VERSION% cuav.iss
 
 pause
