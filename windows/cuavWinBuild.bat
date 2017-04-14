@@ -10,6 +10,8 @@ SETLOCAL enableextensions
 
 if "%PYTHON_LOCATION%" == "" (set "PYTHON_LOCATION=C:\Python27")
 if "%INNOSETUP%" == "" (set "INNOSETUP=C:\Program Files (x86)\Inno Setup 5")
+if "%MINGW_LOCATION%" == "" (set "MINGW_LOCATION=C:\MinGW\bin")
+if "%LIBJPEGTURBO_LOCATION%" == "" (set "LIBJPEGTURBO_LOCATION=C:\libjpeg-turbo-gcc")
 
 rem get the version
 for /f "tokens=*" %%a in (
@@ -21,17 +23,22 @@ for /f "tokens=*" %%a in (
 rem -----build the changelog-----
 "%PYTHON_LOCATION%\python" createChangelog.py
 
+rem -----Add MingW and libjpeg-turbo to path-----
+SET PATH=%PATH%;%MINGW_LOCATION%;%LIBJPEGTURBO_LOCATION%\include;%LIBJPEGTURBO_LOCATION%\lib
+
 rem -----Build CUAV-----
 cd ..\
 "%PYTHON_LOCATION%\python" setup.py clean build --compiler=mingw32 install 
 "%PYTHON_LOCATION%\Scripts\pyinstaller" -y --clean .\windows\cuav.spec
 
-rem ----Copy the files and scanner.pyd----
+rem ----Copy the files, libjpeg-turbo dll's and scanner.pyd----
 mkdir .\dist\cuav
 xcopy .\dist\pgmconvert\* .\dist\cuav /Y /E
 xcopy .\dist\geotag\* .\dist\cuav /Y /E
 xcopy .\dist\geosearch\* .\dist\cuav /Y /E
 xcopy .\build\lib.win32-2.7\cuav\image\scanner.pyd .\dist\cuav\cuav.image.scanner.pyd /Y
+xcopy %LIBJPEGTURBO_LOCATION%\bin\libjpeg-62.dll .\dist\cuav\ /Y
+xcopy %LIBJPEGTURBO_LOCATION%\bin\libturbojpeg.dll .\dist\cuav\ /Y
 
 rem -----Create version Info-----
 @echo off
