@@ -157,7 +157,7 @@ class Mosaic():
             self.region_class = lxml.objectify.E.regions()
 
         self.add_menus()
-
+        
     def add_menus(self):
         '''add menus'''
         menu = MPMenuTop([])
@@ -422,6 +422,7 @@ class Mosaic():
         if last_page != self.page:
             print("Page %u/%u" % (self.page, max_page))
             self.redisplay_mosaic()
+        self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
 
     def re_sort(self):
         '''re sort the mosaic'''
@@ -694,6 +695,9 @@ class Mosaic():
         if self.brightness != 1.0:
             cv.ConvertScale(self.mosaic, self.mosaic, scale=self.brightness)
         self.image_mosaic.set_image(self.mosaic, bgr=True)
+        
+        max_page = (len(self.regions_sorted)-1) / self.display_regions
+        self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
 
     def add_regions(self, regions, thumbs, filename, pos=None):
         '''add some regions'''
@@ -732,6 +736,9 @@ class Mosaic():
             ridx = len(self.regions)
             self.regions.append(MosaicRegion(ridx, r, filename, pos, thumbs[i], thumb, latlon=(lat,lon)))
             self.regions_sorted.append(self.regions[-1])
+            
+            max_page = (len(self.regions_sorted)-1) / self.display_regions
+            self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
 
             frame_time = cuav_util.parse_frame_time(filename)
             if not frame_time in self.ridx_by_frame_time:
