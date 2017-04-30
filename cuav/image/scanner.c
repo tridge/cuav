@@ -51,6 +51,11 @@ static PyObject *ScannerError;
 
 #define MAX_REGIONS 4000
 
+#ifdef __MINGW32__
+    #define __LITTLE_ENDIAN 1
+    #define __BYTE_ORDER 1
+#endif
+
 struct scan_params {
     uint16_t min_region_area;
     uint16_t max_region_area;
@@ -1201,13 +1206,9 @@ scanner_thermal_convert(PyObject *self, PyObject *args)
 
 	for (uint32_t i=0; i<width*height; i++) {
             uint16_t value = data[i];
-            #ifndef __MINGW32__
             if (__BYTE_ORDER == __LITTLE_ENDIAN) {
                 swab(&value, &value, 2);
             }
-            #else
-            swab(&value, &value, 2);
-            #endif
             value >>= 2;
             mask |= value;
             if (value > maxv) maxv = value;
@@ -1218,13 +1219,9 @@ scanner_thermal_convert(PyObject *self, PyObject *args)
 
 	for (uint32_t i=0; i<width*height; i++) {
             uint16_t value = data[i];
-            #ifndef __MINGW32__
             if (__BYTE_ORDER == __LITTLE_ENDIAN) {
                 swab(&value, &value, 2);
             }
-            #else
-            swab(&value, &value, 2);
-            #endif
             value >>= 2;
             uint8_t map_value(float v, const float threshold) {
                 if (v > threshold) {
