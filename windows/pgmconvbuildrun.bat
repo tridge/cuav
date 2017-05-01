@@ -1,4 +1,4 @@
-rem This builds and runs geosearch.py
+rem This builds and runs geotag.py
 rem It is useful as a quick build-n-run for debugging changes to cuav
 rem This assumes Python is installed in C:\Python27
 rem   If it is not, change the PYTHON_LOCATION environment variable accordingly
@@ -20,7 +20,7 @@ rem -----Build CUAV-----
 cd ..\
 "%PYTHON_LOCATION%\python" setup.py clean build --compiler=mingw32 install 
 
-rem -----Run geosearch.py-----
+rem -----Run geotag.py-----
 cd .\cuav\tools
-geosearch.py
+pgm_convert.py
 pause

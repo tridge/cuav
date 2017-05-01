@@ -14,7 +14,7 @@ if "%MINGW_LOCATION%" == "" (set "MINGW_LOCATION=C:\MinGW\bin")
 if "%LIBJPEGTURBO_LOCATION%" == "" (set "LIBJPEGTURBO_LOCATION=C:\libjpeg-turbo-gcc")
 
 rem -----Add MingW and libjpeg-turbo to path-----
-SET PATH=%PATH%;%MINGW_LOCATION%;%LIBJPEGTURBO_LOCATION%\include;%LIBJPEGTURBO_LOCATION%\lib
+SET PATH=%PATH%;%MINGW_LOCATION%;%LIBJPEGTURBO_LOCATION%\include;%LIBJPEGTURBO_LOCATION%\lib;%LIBJPEGTURBO_LOCATION%\bin
 
 rem -----Build CUAV-----
 cd ..\

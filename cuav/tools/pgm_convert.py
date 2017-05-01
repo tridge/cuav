@@ -13,7 +13,7 @@ def parse_args_gooey():
   '''parse command line arguments'''
   parser = GooeyParser(description="Convert pgm image to png or jpg")    
     
-  parser.add_argument("directory", default=None, nargs='+',
+  parser.add_argument("directory", default=None,
                     help="directory containing PGM image files", widget='DirChooser')
   parser.add_argument("--output-directory", default=None,
                     help="directory to use for converted files", widget='DirChooser')
@@ -24,7 +24,7 @@ def parse_args():
   '''parse command line arguments'''
   parser = argparse.ArgumentParser("Convert pgm image to png or jpg")
     
-  parser.add_argument("directory", default=None, nargs='+',
+  parser.add_argument("directory", default=None,
                     help="directory containing PGM image files")
   parser.add_argument("--output-directory", default=None,
                     help="directory to use for converted files")
@@ -35,14 +35,13 @@ def process(args):
   '''process a set of files'''
 
   files = []
-  for a in args.directory:
-    if os.path.isdir(a):
-      files.extend(glob.glob(os.path.join(a, '*.pgm')))
+  if os.path.isdir(args.directory):
+    files.extend(glob.glob(os.path.join(args.directory, '*.pgm')))
+  else:
+    if args.directory.find('*') != -1:
+      files.extend(glob.glob(args.directory))
     else:
-      if a.find('*') != -1:
-        files.extend(glob.glob(a))
-      else:
-        files.append(a)
+      files.append(args.directory)
   files.sort()
 
   for f in files:
@@ -61,5 +60,6 @@ if __name__ == '__main__':
     args = parse_args_gooey()
   else:
     args = parse_args()
+    
   # main program
   process(args)
