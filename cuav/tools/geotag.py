@@ -13,7 +13,7 @@ def parse_args_gooey():
   '''parse command line arguments'''
   parser = GooeyParser(description="Geotag images from flight log")    
   
-  parser.add_argument("files", default=None, nargs='+', help="Image folder", widget='DirChooser')
+  parser.add_argument("files", default=None, help="Image folder", widget='DirChooser')
   parser.add_argument("mavlog", default=None, help="flight log for geo-referencing", widget='FileChooser')
   parser.add_argument("--max-deltat", default=0.0, type=float, help="max deltat for interpolation")
   parser.add_argument("--max-attitude", default=45, type=float, help="max attitude geo-referencing")
@@ -28,7 +28,7 @@ def parse_args():
   '''parse command line arguments'''
   parser = argparse.ArgumentParser("Geotag images from flight log")
   
-  parser.add_argument("files", default=None, nargs='+', help="Image directory or files")
+  parser.add_argument("files", default=None, help="Image directory or files")
   parser.add_argument("mavlog", default=None, help="flight log for geo-referencing")
   parser.add_argument("--max-deltat", default=0.0, type=float, help="max deltat for interpolation")
   parser.add_argument("--max-attitude", default=45, type=float, help="max attitude geo-referencing")
@@ -102,11 +102,10 @@ def process(args):
 
   count = 0
   files = []
-  for a in args.files:
-    if os.path.isdir(a):
-      files.extend(glob.glob(os.path.join(a, '*.png')))
-    else:
-      files.append(a)
+  if os.path.isdir(args.files):
+    files.extend(glob.glob(os.path.join(args.files, '*.png')))
+  else:
+    files.append(args.files)
   files.sort()
   num_files = len(files)
   print("num_files=%u" % num_files)

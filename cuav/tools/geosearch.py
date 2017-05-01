@@ -54,14 +54,13 @@ def process(args):
   global slipmap, mosaic
   scan_count = 0
   files = []
-  for a in args.directory:
-    if os.path.isdir(a):
-      files.extend(file_list(a, ['jpg', 'pgm', 'png']))
+  if os.path.isdir(args.directory):
+    files.extend(file_list(args.directory, ['jpg', 'pgm', 'png']))
+  else:
+    if args.directory.find('*') != -1:
+      files.extend(glob.glob(args.directory))
     else:
-      if a.find('*') != -1:
-        files.extend(glob.glob(a))
-      else:
-        files.append(a)
+      files.append(args.directory)
   files.sort()
   num_files = len(files)
   print("num_files=%u" % num_files)
@@ -317,7 +316,7 @@ def parse_args():
   '''parse command line arguments'''
   parser = argparse.ArgumentParser(description='Search images for Joe')
     
-  parser.add_argument("directory", default=None, nargs='+', help="directory containing image files")
+  parser.add_argument("directory", default=None, help="directory containing image files")
   parser.add_argument("--mission", default=None, type=file, help="mission file to display")
   parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file")
   parser.add_argument("--kmzlog", default=None, type=file, help="kmz file for image positions")
@@ -350,7 +349,7 @@ def parse_args_gooey():
   '''parse command line arguments'''
   parser = GooeyParser(description='Search images for Joe') 
   
-  parser.add_argument("directory", default=None, nargs='+', help="directory containing image files", widget='DirChooser')
+  parser.add_argument("directory", default=None, help="directory containing image files", widget='DirChooser')
   parser.add_argument("--mission", default=None, type=file, help="mission file to display", widget='FileChooser')
   parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file", widget='FileChooser')
   parser.add_argument("--kmzlog", default=None, type=file, help="kmz file for image positions", widget='FileChooser')

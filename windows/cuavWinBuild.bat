@@ -4,6 +4,7 @@ rem   If it is not, change the PYTHON_LOCATION environment variable accordingly
 rem This assumes InnoSetup is installed in C:\Program Files (x86)\Inno Setup 5
 rem   If it is not, change the INNOSETUP environment variable accordingly
 rem This requires the MinGW compiler and libjpeg-turbo development files (libjpeg-turbo-1.5.1-gcc.exe)
+rem from https://sourceforge.net/projects/libjpeg-turbo/
 rem This requires Pyinstaller==2.1, setuptools==19.2 and packaging==14.2
 rem also requires pyexiv2 - https://launchpad.net/pyexiv2
 SETLOCAL enableextensions
