@@ -343,7 +343,7 @@ def exif_position(filename):
         try:
                 t = time.mktime(m['Exif.Image.DateTime'].value.timetuple())
         except Exception:
-                t = os.path.getmtime()
+                t = os.path.getmtime(filename)
         if _last_position is None:
                 yaw = 0
         else:
