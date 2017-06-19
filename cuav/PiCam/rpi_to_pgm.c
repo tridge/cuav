@@ -4,6 +4,7 @@
   With thanks to http://github.com/6by9/RPiTest
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -201,19 +202,12 @@ static void rgb16_to_rgb8(const struct rgb16_image *rgb16, struct rgb8_image *rg
     }
 }
 
-int main(int argc, const char *argv[])
+/*
+  load bayer data from a RPi image
+ */
+static void load_rpi_bayer(const char *fname, struct bayer_image *bayer)
 {
-    const char *fname = argv[1];
-    int fd;
-    struct bayer_image *bayer;
-    struct rgb16_image *rgb16;
-    struct rgb8_image *rgb8;
-
-    bayer = malloc(sizeof(*bayer));
-    rgb16 = malloc(sizeof(*rgb16));
-    rgb8 = malloc(sizeof(*rgb8));
-    
-    fd = open(fname, O_RDONLY);
+    int fd = open(fname, O_RDONLY);
     if (fd == -1) {
         perror(fname);
         exit(1);
@@ -247,16 +241,48 @@ int main(int argc, const char *argv[])
     extract_raw10(fd, header.width, header.height, raw_stride, bayer);
 
     close(fd);
+}
 
-    //shift_bayer(bayer, 2);
-    
-    save_pgm(bayer, "out.pgm");
-    
-    debayer_BGGR(bayer, rgb16);
+int main(int argc, const char *argv[])
+{
+    if (argc < 1) {
+        printf("Usage: rpi_to_pgm <files>\n");
+        exit(1);
+    }
 
-    rgb16_to_rgb8(rgb16, rgb8);
+    struct bayer_image *bayer;
+    struct rgb16_image *rgb16;
+    struct rgb8_image *rgb8;
+
+    bayer = malloc(sizeof(*bayer));
+    rgb16 = malloc(sizeof(*rgb16));
+    rgb8 = malloc(sizeof(*rgb8));
+        
+    for (uint8_t i=1; i<argc; i++) {
+        const char *fname = argv[i];
+        char *basename = strdup(fname);
+        char *p = strchr(basename, '.');
+        if (p) {
+            *p = 0;
+        }
+
+        load_rpi_bayer(fname, bayer);
+
+        char *pgm_name = NULL;
+        asprintf(&pgm_name, "%s.pgm", basename);
+        save_pgm(bayer, pgm_name);
+        free(pgm_name);
     
-    save_ppm(rgb8, "out.ppm");
-    
-    exit(0);
+        debayer_BGGR(bayer, rgb16);
+
+        rgb16_to_rgb8(rgb16, rgb8);
+
+        char *ppm_name = NULL;
+        asprintf(&ppm_name, "%s.ppm", basename);        
+        free(ppm_name);
+        
+        save_ppm(rgb8, ppm_name);
+    }
+
+    return 0;
 }
