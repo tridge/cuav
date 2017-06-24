@@ -1,6 +1,6 @@
 # cuav
 
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/tridge/cuav?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/CanberraUAV/cuav?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 The CanberraUAV Image Processing (cuav) tools are designed to quickly and
 accurately locate objects of interest from a large set of photos. With the addition
