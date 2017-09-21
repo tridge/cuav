@@ -171,6 +171,8 @@ def process(args):
   for f in files:
       if not mosaic.started():
         print("Waiting for startup")
+        if args.start:
+          mosaic.has_started = True
         while not mosaic.started():
           mosaic.check_events()
           time.sleep(0.01)
@@ -342,6 +344,7 @@ def parse_args():
   if 1 != len(sys.argv):
     parser.add_argument("--flag", default=[], type=str, action='append', help="flag positions"),
   parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
+  parser.add_argument("--start", default=False, action='store_true', help="start straight away")
   return parser.parse_args()
 
 @Gooey
