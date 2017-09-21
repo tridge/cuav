@@ -392,7 +392,7 @@ class CameraModule(mp_module.MPModule):
         time.sleep(0.5)
         h = chameleon.open(1, self.camera_settings.depth, self.camera_settings.capture_brightness)
 
-        print('Getting camare base_time')
+        print('Getting camera base_time')
         while frame_time is None:
             try:
                 im = numpy.zeros((960,1280),dtype='uint8' if self.camera_settings.depth==8 else 'uint16')
