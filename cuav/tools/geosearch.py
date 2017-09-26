@@ -168,6 +168,7 @@ def process(args):
   if args.view:
     viewer = mp_image.MPImage(title='Image', can_zoom=True, can_drag=True)
 
+  start_time = time.time()
   for f in files:
       if not mosaic.started():
         print("Waiting for startup")
@@ -307,7 +308,7 @@ def process(args):
               os.path.basename(f), count/total_time, region_count, scan_count, num_files))
       #raw_input("hit ENTER when ready")
 
-  print("All images processed")
+  print("All images processed (%u seconds)" % (time.time() - start_time))
   while True:
       # check for any events from the map
       slipmap.check_events()
