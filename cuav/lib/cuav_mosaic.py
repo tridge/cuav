@@ -93,7 +93,8 @@ class Mosaic():
                  camera_settings = None,
                  image_settings = None,
                  start_menu=False,
-                 classify=None):
+                 classify=None,
+                 image_view_width=1280):
         self.thumb_size = thumb_size
         self.width = grid_width * thumb_size
         self.height = grid_height * thumb_size
@@ -121,6 +122,7 @@ class Mosaic():
         self.start_menu = start_menu
         self.classify = classify
         self.has_started = not start_menu
+        self.image_view_width = image_view_width # for image viewer
         import wx
         self.image_mosaic = mp_image.MPImage(title='Mosaic', 
                                              mouse_events=True,
@@ -264,11 +266,19 @@ class Mosaic():
                 r.region.draw_rectangle(img, colour=(255,0,0), linewidth=min(max(w/600,1),3), offset=max(w/200,1))
         if self.view_image is None or not self.view_image.is_alive():
             import wx
+            viewwidth = w
+            viewheight = h
+            if self.image_view_width is not None:
+                if viewwidth > self.image_view_width:
+                    viewwidth = self.image_view_width
+                viewheight = (h*viewwidth)/w
             self.view_image = mp_image.MPImage(title='View',
                                                mouse_events=True,
                                                key_events=True,
                                                can_zoom=True,
-                                               can_drag=True)
+                                               can_drag=True,
+                                               width=viewwidth,
+                                               height=viewheight)
             vmenu = MPMenuSubMenu('View',
                                   items=[
                 MPMenuItem('Next Image\tCtrl+N', 'Next Image', 'nextImage'),
