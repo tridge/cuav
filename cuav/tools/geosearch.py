@@ -222,12 +222,13 @@ def process(args):
 
       if not args.camera_params:
         C_params.set_resolution(w, h)
-      
+
+      if False:
+        im_640 = cv.CreateImage((640, 480), 8, 3)
+        cv.Resize(im_full, im_640, cv.CV_INTER_NN)
+        im_640 = numpy.ascontiguousarray(cv.GetMat(im_640))
+
       im_full = im_orig
-        
-      im_640 = cv.CreateImage((640, 480), 8, 3)
-      cv.Resize(im_full, im_640, cv.CV_INTER_NN)
-      im_640 = numpy.ascontiguousarray(cv.GetMat(im_640))
       im_full = numpy.ascontiguousarray(cv.GetMat(im_full))
 
       count = 0
