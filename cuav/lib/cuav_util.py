@@ -432,7 +432,7 @@ def gps_position_from_image_region(region, pos, width=1280, height=960, C=Camera
         return None
     x = (region.x1+region.x2)*0.5
     y = (region.y1+region.y2)*0.5
-    return gps_position_from_xy(x, y, pos, C=C, altitude=altitude)
+    return gps_position_from_xy(x, y, pos, C=C, shape=(width,height), altitude=altitude)
 
 def mkdir_p(dir):
     '''like mkdir -p'''
