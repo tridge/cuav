@@ -373,6 +373,13 @@ class Mosaic():
             # show closest image from history
             self.show_closest(event.latlon, event.selected)
             return
+        if hasattr(event.event, "EventType"):
+            import wx
+            if event.event.EventType == 10037: # double-click
+                if len(event.selected):
+                    if event.selected[0].objkey:
+                        region = self.objkey_to_region(event.selected[0].objkey)
+                        self.popup_show_image(region)
         if len(event.selected) == 0:
             # no objects were selected
             return
