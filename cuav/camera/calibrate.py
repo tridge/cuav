@@ -8,6 +8,9 @@ from cam_params import CameraParams
 
 dims=(10,7)
 
+lens=4.0
+sensorwidth=5.0
+
 def calibrate(imagedir):
   nimages = 0
   datapoints = []
@@ -79,7 +82,7 @@ def calibrate(imagedir):
   cv.CalibrateCamera2(opts, ipts, npts, size, K, D, rcv, tcv, flags)
 
   # storing results using CameraParams
-  C = CameraParams(xresolution=im_dims[0], yresolution=im_dims[1])
+  C = CameraParams(lens=lens, sensorwidth=sensorwidth, xresolution=im_dims[0], yresolution=im_dims[1])
   print array(K)
   print array(D)
   C.setParams(K, D)
@@ -131,8 +134,7 @@ def genReversMaps(K, D, C):
 
 def dewarp(imagedir):
   # Loading from json file
-  C = CameraParams()
-  C.load(imagedir+"/params.json")
+  C = CameraParams.fromfile(imagedir+"/params.json")
   K = cv.fromarray(C.K)
   D = cv.fromarray(C.D)
   print "loaded camera parameters"

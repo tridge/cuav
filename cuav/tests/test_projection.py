@@ -41,11 +41,13 @@ includes_sky = False
 
 print("Roll=%.1f Pitch=%.1f Yaw=%.1f Altitude=%.1f" % (opts.roll, opts.pitch, opts.yaw, opts.altitude))
 
-C_params = cam_params.CameraParams(lens=opts.lens,
-                                   xresolution=opts.xres,
-                                   yresolution=opts.yres)
-if opts.cam_params:
-    C_params.load(opts.cam_params)
+if opts.cam_params is not None:
+    C_params = cam_params.CameraParams.fromfile(opts.cam_params)
+else:
+    C_params = cam_params.CameraParams(sensorwidth=5.0,
+                                       lens=opts.lens,
+                                       xresolution=opts.xres,
+                                       yresolution=opts.yres)
 
 def plot_point(x, y):
     '''add one point'''

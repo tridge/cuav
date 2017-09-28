@@ -114,10 +114,11 @@ def process(args):
     triggerpos = None
 
   # create a simple lens model using the focal length
-  C_params = cam_params.CameraParams(lens=args.lens, sensorwidth=args.sensorwidth, xresolution=args.xresolution, yresolution=args.yresolution)
 
   if args.camera_params:
-    C_params.load(args.camera_params.name)
+    C_params = cam_params.CameraParams.fromfile(args.camera_params.name)
+  else:
+    C_params = cam_params.CameraParams(lens=args.lens, sensorwidth=args.sensorwidth, xresolution=args.xresolution, yresolution=args.yresolution)
 
   if args.target:
     target = args.target.split(',')
@@ -219,9 +220,6 @@ def process(args):
       if im_orig is None:
         continue
       (w,h) = cuav_util.image_shape(im_orig)
-
-      if not args.camera_params:
-        C_params.set_resolution(w, h)
 
       if False:
         im_640 = cv.CreateImage((640, 480), 8, 3)

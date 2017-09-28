@@ -10,11 +10,12 @@
 
 from numpy import array
 import json
+import sys
 from exceptions import Exception
 
 class CameraParams:
   # A default constructor based on sensor and lens specs only
-  def __init__(self, lens=None, sensorwidth=None, xresolution=None, yresolution=None):
+  def __init__(self, lens=None, sensorwidth=None, xresolution=None, yresolution=None, K=None, D=None):
     if lens is None:
       raise ValueError("Lens required")
     if sensorwidth is None:
@@ -26,6 +27,8 @@ class CameraParams:
     self.version = 0
     self.sensorwidth = sensorwidth
     self.lens = lens
+    self.K = K
+    self.D = D
     self.set_resolution(xresolution, yresolution)
 
   def set_resolution(self, xresolution, yresolution):
@@ -53,25 +56,36 @@ class CameraParams:
     data['sensorwidth'] = self.sensorwidth
     data['xresolution'] = self.xresolution
     data['yresolution'] = self.yresolution
-    data['K'] = self.K.tolist()
-    data['D'] = self.D.tolist()
+    if self.K is not None:
+      data['K'] = self.K.tolist()
+    if self.D is not None:
+      data['D'] = self.D.tolist()
     return data
 
-  def fromdict(self, data):
-    self.version = data['version']
-    if self.version == 0:
-      self.lens = data['lens']
-      self.sensorwidth = data['sensorwidth']
-      self.xresolution = data['xresolution']
-      self.yresolution = data['yresolution']
-      self.K = array(data['K'])
-      self.D = array(data['D'])
+  @staticmethod
+  def fromdict(data):
+    if data['version'] == 0:
+      try:
+        K = array(data['K'])
+        D = array(data['D'])
+      except KeyError:
+        K = None
+        D = None
+      ret = CameraParams(lens=data['lens'],
+                         sensorwidth=data['sensorwidth'],
+                         xresolution=data['xresolution'],
+                         yresolution=data['yresolution'],
+                         K=K,
+                         D=D)
+      ret.version = data['version']
+      return ret;
     else:
       raise Exception('version %d of camera params unsupported' % (self.version))
 
-  def fromstring(self, strung):
+  @staticmethod
+  def fromstring(strung):
     dic = json.loads(strung)
-    self.fromdict(dic)
+    return CameraParams.fromdict(dic)
 
   def save(self, filename):
     f = open(filename,"wb")
@@ -79,17 +93,22 @@ class CameraParams:
     f.write(str(self)+"\n")
     f.close()
 
-  def load(self, filename):
+  @staticmethod
+  def fromfile(filename):
     f = open(filename,"rb")
     # dump json form
     d = f.read(65535)
     f.close()
-    self.fromstring(d)
+    return CameraParams.fromstring(d)
 
 if __name__ == "__main__":
   import json
-  C = CameraParams()
+  C = CameraParams(lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960)
   C.save('foo.txt')
-  print C
-  C.load('foo.txt')
-  print C
+  print(C)
+  C2 = CameraParams.fromfile('foo.txt')
+  print(C2)
+  if str(C) != str(C2):
+    print("Reload mismatch")
+    sys.exit(1)
+  sys.exit(0)
