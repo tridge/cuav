@@ -629,6 +629,11 @@ class Mosaic():
         if region is None:
             return
 
+        if hasattr(event, "EventType"):
+            import wx
+            if event.EventType == 10037: # double-click
+                self.popup_show_image(region)
+
         if event.m_leftDown: # TODO is this dangerous
             self.show_region(region.ridx, event.m_middleDown)
             if region.latlon != (None,None):
