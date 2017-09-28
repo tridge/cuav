@@ -89,12 +89,14 @@ def ExtractThumbs(img, count):
 class Mosaic():
     '''keep a mosaic of found regions'''
     def __init__(self, slipmap,
-                 grid_width=20, grid_height=20, thumb_size=35, C=CameraParams(),
+                 grid_width=20, grid_height=20, thumb_size=35, C=None,
                  camera_settings = None,
                  image_settings = None,
                  start_menu=False,
                  classify=None,
                  image_view_width=1280):
+        if C is None:
+            raise ValueError("camera parameters must be supplied")
         self.thumb_size = thumb_size
         self.width = grid_width * thumb_size
         self.height = grid_height * thumb_size
@@ -643,7 +645,7 @@ class Mosaic():
         if self.current_view >= len(self.images):
             return
         image = self.images[self.current_view]
-        latlon = cuav_util.gps_position_from_xy(x, y, image.pos, C=self.c_params, shape=image.shape)
+        latlon = cuav_util.gps_position_from_xy(x, y, image.pos, C=self.c_params, shape=image.shape, altitude=image.pos.altitude)
         if self.last_view_latlon is None or latlon is None:
             dist = ''
         else:

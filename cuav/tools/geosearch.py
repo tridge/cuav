@@ -114,7 +114,7 @@ def process(args):
     triggerpos = None
 
   # create a simple lens model using the focal length
-  C_params = cam_params.CameraParams(lens=args.lens, sensorwidth=args.sensorwidth)
+  C_params = cam_params.CameraParams(lens=args.lens, sensorwidth=args.sensorwidth, xresolution=args.xresolution, yresolution=args.yresolution)
 
   if args.camera_params:
     C_params.load(args.camera_params.name)
@@ -261,7 +261,7 @@ def process(args):
 
       if pos:
         for r in regions:
-          r.latlon = cuav_util.gps_position_from_image_region(r, pos, w, h, altitude=altitude)
+          r.latlon = cuav_util.gps_position_from_image_region(r, pos, w, h, altitude=altitude, C=C_params)
 
         if camera_settings.target_radius > 0 and pos is not None:
           regions = cuav_region.filter_radius(regions, (camera_settings.target_lattitude,
@@ -330,6 +330,8 @@ def parse_args():
   parser.add_argument("--saveview", action='store_true', default=False, help="save image view")
   parser.add_argument("--lens", default=28.0, type=float, help="lens focal length")
   parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
+  parser.add_argument("--xresolution", default=1280, type=float, help="sensor width")
+  parser.add_argument("--yresolution", default=960, type=float, help="sensor width")
   parser.add_argument("--service", default='MicrosoftSat', 
     choices=('GoogleSat', 'MicrosoftSat', 'OviSat', 'OpenStreetMap', 'MicrosoftHyb', 'OviHybrid', 'GoogleMap'), help="map service")
   parser.add_argument("--camera-params", default=None, type=file, help="camera calibration json file from OpenCV")

@@ -14,7 +14,15 @@ from exceptions import Exception
 
 class CameraParams:
   # A default constructor based on sensor and lens specs only
-  def __init__(self, lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960):
+  def __init__(self, lens=None, sensorwidth=None, xresolution=None, yresolution=None):
+    if lens is None:
+      raise ValueError("Lens required")
+    if sensorwidth is None:
+      raise ValueError("sensorwidth required")
+    if xresolution is None:
+      raise ValueError("yresolution required")
+    if yresolution is None:
+      raise ValueError("yresolution required")
     self.version = 0
     self.sensorwidth = sensorwidth
     self.lens = lens

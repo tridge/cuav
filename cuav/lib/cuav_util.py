@@ -391,11 +391,13 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
     distance = math.sqrt(xofs**2 + yofs**2)
     return gps_newpos(latitude, longitude, bearing, distance)
 
-def gps_position_from_xy(x, y, pos, C=CameraParams(), altitude=None, shape=None):
+def gps_position_from_xy(x, y, pos, C=None, altitude=None, shape=None):
     '''
     return a GPS position in an image given a MavPosition object
     and an image x,y position
     '''
+    if C is None:
+            raise ValueError("camera parameters must be supplied")
     if pos is None:
             return None
     if shape is not None:
@@ -423,11 +425,13 @@ def meters_per_pixel(pos, C):
         return mpp
         
 
-def gps_position_from_image_region(region, pos, width=1280, height=960, C=CameraParams(), altitude=None):
+def gps_position_from_image_region(region, pos, width=1280, height=960, C=None, altitude=None):
     '''
     return a GPS position in an image given a MavPosition object
     and an image region tuple
     '''
+    if C is None:
+        raise ValueError("camera parameters must be supplied")
     if pos is None:
         return None
     x = (region.x1+region.x2)*0.5
