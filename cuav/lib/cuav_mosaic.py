@@ -252,9 +252,9 @@ class Mosaic():
                                                                                         os.path.basename(region.filename))
         self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
         if view_the_image and os.path.exists(region.filename):
-            self.view_imagefile(region.filename)
+            self.view_imagefile(region.filename, focus_region=region.region)
 
-    def view_imagefile(self, filename):
+    def view_imagefile(self, filename, focus_region=None):
         '''view an image in a zoomable window'''
         img = cuav_util.LoadImage(filename, rotate180=self.camera_settings.rotate180)
         (w,h) = cuav_util.image_shape(img)
@@ -297,6 +297,8 @@ class Mosaic():
             self.view_image.set_popup_menu(vmenu)
         self.view_filename = filename
         self.view_image.set_image(img, bgr=True)
+        if focus_region is not None:
+            self.view_image.center(focus_region.center())
         self.view_image.set_title('View: ' + os.path.basename(filename))
 
     def find_image_idx(self, filename):
@@ -325,7 +327,7 @@ class Mosaic():
             return False
         region = self.regions[ridx]
         if os.path.exists(region.filename):
-            self.view_imagefile(region.filename)
+            self.view_imagefile(region.filename, focus_region=region)
             return True
             
         return False
@@ -350,7 +352,7 @@ class Mosaic():
         self.current_view = closest
         self.last_view_latlon = None
         image = self.images[closest]
-        self.view_imagefile(image.filename)
+        self.view_imagefile(image.filename, focus_region=selected)
 
     def map_menu_callback(self, event):
         '''called on popup menu on map'''
