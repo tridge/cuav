@@ -67,7 +67,10 @@ def process(args):
   region_count = 0
 
   slipmap = mp_slipmap.MPSlipMap(service=args.service, elevation=True, title='Map')
-  icon = slipmap.icon('redplane.png')
+  if args.vehicle_type == "Copter":
+    icon = slipmap.icon('redcopter.png')
+  else:
+      icon = slipmap.icon('redplane.png')
   slipmap.add_object(mp_slipmap.SlipIcon('plane', (0,0), icon, layer=3, rotation=0,
                                          follow=True,
                                          trail=mp_slipmap.SlipTrail()))
@@ -211,9 +214,9 @@ def process(args):
         pos = mav_position.exif_position(f)
         pos.time += args.time_offset
 
-      # update the plane icon on the map
+      # update the vehicle icon on the map
       if pos is not None:
-        slipmap.set_position('plane', (pos.lat, pos.lon), rotation=pos.yaw)
+        slipmap.set_position("plane", (pos.lat, pos.lon), rotation=pos.yaw)
         if camera_settings.altitude > 0:
           pos.altitude = camera_settings.altitude
 
@@ -323,6 +326,10 @@ def parse_args():
   '''parse command line arguments'''
   parser = argparse.ArgumentParser(description='Search images for Joe')
     
+  parser.add_argument("--vehicle-type",
+                      default="Plane",
+                      help="vehicle type",
+                      choices=('Plane','Copter'))
   parser.add_argument("directory", default=None, help="directory containing image files")
   parser.add_argument("--mission", default=None, type=file, help="mission file to display")
   parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file")
@@ -359,7 +366,11 @@ def parse_args():
 def parse_args_gooey():
   '''parse command line arguments'''
   parser = GooeyParser(description='Search images for Joe') 
-  
+
+  parser.add_argument("--vehicle-type",
+                      default="Plane",
+                      help="vehicle type",
+                      choices=('Plane','Copter'))
   parser.add_argument("directory", default=None, help="directory containing image files", widget='DirChooser')
   parser.add_argument("--mission", default=None, type=file, help="mission file to display", widget='FileChooser')
   parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file", widget='FileChooser')
