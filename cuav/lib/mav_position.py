@@ -249,28 +249,26 @@ class MavInterpolator():
 		altitude = self._altitude(scaled_pressure, terrain_report)
 
 		# and attitude
-		mavroll  = math.degrees(self.interpolate_angle('ATTITUDE', 'roll', t, max_deltat))
 		if roll is None:
-			roll = mavroll
-		elif abs(mavroll) < maxroll:
+			roll = math.degrees(self.interpolate_angle('ATTITUDE', 'roll', t, max_deltat))
+		if abs(roll) < maxroll:
                         # camera stabilisation system can take care of it
 			roll = 0
-		elif mavroll >= maxroll:
+		elif roll >= maxroll:
                         # adjust for roll stabilisation system can't handle
-			roll = mavroll - maxroll
+			roll = roll - maxroll
 		else:
                         # adjust for roll stabilisation system can't handle
-			roll = mavroll + maxroll
+			roll = roll + maxroll
 
-		mavpitch = math.degrees(self.interpolate_angle('ATTITUDE', 'pitch', t, max_deltat))
 		if pitch is None:
-			pitch = mavpitch
-		elif abs(mavpitch) < maxpitch:
+			pitch = math.degrees(self.interpolate_angle('ATTITUDE', 'pitch', t, max_deltat))
+		if abs(pitch) < maxpitch:
 			pitch = 0
-		elif mavpitch >= maxpitch:
-			pitch = mavpitch - maxpitch
+		elif pitch >= maxpitch:
+			pitch = pitch - maxpitch
 		else:
-			pitch = mavpitch + maxpitch
+			pitch = pitch + maxpitch
 
 		yaw   = math.degrees(self.interpolate_angle('ATTITUDE', 'yaw', t, max_deltat))
 
