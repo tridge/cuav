@@ -576,7 +576,11 @@ def LoadImage(filename, rotate180=False, RGB=False):
                 if rotate180:
                         scanner.rotate180(im_full)
 		return cv.GetImage(cv.fromarray(im_full))
-	img = cv.LoadImage(filename)
+        try:
+	        img = cv.LoadImage(filename)
+        except Exception as e:
+                print('Failed to load %s: %s' % (filename, e))
+                return None
         if rotate180:
 		from ..image import scanner
                 img = numpy.ascontiguousarray(cv.GetMat(img))
