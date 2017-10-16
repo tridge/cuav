@@ -298,7 +298,10 @@ class Mosaic():
         self.view_filename = filename
         self.view_image.set_image(img, bgr=True)
         if focus_region is not None:
-            self.view_image.center(focus_region.center())
+            try:
+                self.view_image.center(focus_region.center())
+            except Exception:
+                pass
         self.view_image.set_title('View: ' + os.path.basename(filename))
 
     def find_image_idx(self, filename):
