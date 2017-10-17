@@ -143,6 +143,7 @@ def process(args):
       MPSetting('target_radius', float, float(target[2]), 'target radius', increment=1),
       MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
       MPSetting('thumbsize', int, args.thumbsize, 'Thumbnail Size', range=(10, 200), increment=1),
+      MPSetting('map_thumbsize', int, args.map_thumbsize, 'Map Thumbnail Size', range=(10, 200), increment=1),
       MPSetting('minscore', int, args.minscore, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
       MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
                 digits=2, tab='Display'),      
@@ -167,7 +168,8 @@ def process(args):
                               image_settings=image_settings,
                               start_menu=True,
                               classify=args.categories,
-                              thumb_size=args.mosaic_thumbsize)
+                              thumb_size=args.mosaic_thumbsize,
+                              map_thumb_size=args.map_thumbsize)
 
   joelog = cuav_joe.JoeLog(None)
 
@@ -353,6 +355,7 @@ def parse_args():
   parser.add_argument("--rotate-180", default=False, action='store_true', help="rotate images 180 degrees")
   parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
   parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
+  parser.add_argument("--map-thumbsize", default=60, type=int, help="map thumbnail size")
   parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")
   parser.add_argument("--minscore", default=100, type=int, help="minimum score")
   parser.add_argument("--gammalog", default=None, type=str, help="gamma.log from flight")

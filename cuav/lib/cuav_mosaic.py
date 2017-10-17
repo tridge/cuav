@@ -89,7 +89,10 @@ def ExtractThumbs(img, count):
 class Mosaic():
     '''keep a mosaic of found regions'''
     def __init__(self, slipmap,
-                 grid_width=20, grid_height=20, thumb_size=35, C=None,
+                 grid_width=20, grid_height=20,
+                 thumb_size=35,
+                 map_thumb_size=None,
+                 C=None,
                  camera_settings = None,
                  image_settings = None,
                  start_menu=False,
@@ -98,6 +101,10 @@ class Mosaic():
         if C is None:
             raise ValueError("camera parameters must be supplied")
         self.thumb_size = thumb_size
+        if map_thumb_size is not None:
+            self.map_thumb_size = map_thumb_size
+        else:
+            self.map_thumb_size = self.thumb_size
         self.width = grid_width * thumb_size
         self.height = grid_height * thumb_size
         self.mosaic = cv.CreateImage((self.height,self.width),8,3)
@@ -728,11 +735,24 @@ class Mosaic():
         max_page = (len(self.regions_sorted)-1) / self.display_regions
         self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
 
+    def make_thumb(self, full, r, size):
+        (x1,y1,x2,y2) = r.tuple()
+        rsize = max(x2+1-x1,y2+1-y1)
+        tsize = cuav_util.image_width(full)
+        if rsize < tsize:
+            thumb = cuav_util.SubImage(full, ((tsize-size)//2,
+                                              (tsize-size)//2,
+                                              size,
+                                              size))
+        else:
+            thumb = cv.CreateImage((size, size),8,3)
+            cv.Resize(full, thumb)
+        return thumb
+
     def add_regions(self, regions, thumbs, filename, pos=None):
         '''add some regions'''
         for i in range(len(regions)):
             r = regions[i]
-            (x1,y1,x2,y2) = r.tuple()
 
             latlon = r.latlon
             if latlon is None:
@@ -751,16 +771,7 @@ class Mosaic():
             # the thumbnail we have been given will be bigger than the size we want to
             # display on the mosaic. Extract the middle of it for display
             full_thumb = thumbs[i]
-            rsize = max(x2+1-x1,y2+1-y1)
-            tsize = cuav_util.image_width(full_thumb)
-            if rsize < tsize:
-                thumb = cuav_util.SubImage(full_thumb, ((tsize-self.thumb_size)//2,
-                                                        (tsize-self.thumb_size)//2,
-                                                        self.thumb_size,
-                                                        self.thumb_size))
-            else:
-                thumb = cv.CreateImage((self.thumb_size, self.thumb_size),8,3)
-                cv.Resize(full_thumb, thumb)
+            thumb = self.make_thumb(full_thumb, r, self.thumb_size)
 
             ridx = len(self.regions)
             self.regions.append(MosaicRegion(ridx, r, filename, pos, thumbs[i], thumb, latlon=(lat,lon)))
@@ -778,10 +789,19 @@ class Mosaic():
             self.display_mosaic_region(len(self.regions_sorted)-1)
 
             if (lat,lon) != (None,None):
-                self.slipmap.add_object(mp_slipmap.SlipThumbnail("region %u" % ridx, (lat,lon),
-                                                                 img=thumb,
-                                                                 layer=2, border_width=1, border_colour=(255,0,0),
-                                                                 popup_menu=self.popup_menu))
+                mapthumb = thumb
+                if self.map_thumb_size != self.thumb_size:
+                    mapthumb = self.make_thumb(full_thumb,
+                                                r,
+                                                self.map_thumb_size)
+
+                slobj = mp_slipmap.SlipThumbnail("region %u" % ridx, (lat,lon),
+                                                 img=mapthumb,
+                                                 layer=2,
+                                                 border_width=1,
+                                                 border_colour=(255,0,0),
+                                                 popup_menu=self.popup_menu)
+                self.slipmap.add_object(slobj)
 
         self.image_mosaic.set_image(self.mosaic, bgr=True)
 
