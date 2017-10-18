@@ -240,6 +240,11 @@ def process(args):
       im_full = im_orig
       im_full = numpy.ascontiguousarray(cv.GetMat(im_full))
 
+      if args.downsample:
+        im_downsampled = numpy.zeros((h/2,w/2,3),dtype='uint8')
+        scanner.downsample(im_full, im_downsampled)
+        im_full = im_downsampled
+
       count = 0
       total_time = 0
 
@@ -365,6 +370,7 @@ def parse_args():
     parser.add_argument("--flag", default=[], type=str, action='append', help="flag positions"),
   parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
   parser.add_argument("--start", default=False, action='store_true', help="start straight away")
+  parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
   return parser.parse_args()
 
 @Gooey
