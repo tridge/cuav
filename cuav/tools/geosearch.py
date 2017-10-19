@@ -131,6 +131,7 @@ def process(args):
   camera_settings = MPSettings(
     [ MPSetting('roll_stabilised', bool, args.roll_stabilised, 'Roll Stabilised'),
       MPSetting('pitch_stabilised', bool, args.pitch_stabilised, 'Pitch Stabilised'),
+      MPSetting('pitch_offset', float, args.pitch_offset, 'Pitch Offset'),
       MPSetting('altitude', int, args.altitude, 'Altitude', range=(0,10000), increment=1),
       MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
       MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
@@ -200,7 +201,7 @@ def process(args):
         else:
           pitch = None
         try:
-          pos = mpos.position(frame_time, roll=roll, pitch=pitch)
+          pos = mpos.position(frame_time, roll=roll, pitch=pitch, pitch_offset=camera_settings.pitch_offset)
         except Exception:
           print("No position available for %s" % frame_time)
           # skip this frame
@@ -348,6 +349,7 @@ def parse_args():
   parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
   parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
   parser.add_argument("--pitch-stabilised", default=False, action='store_true', help="assume pitch stabilised camera")
+  parser.add_argument("--pitch-offset", default=0, type=float, help="pitch offset from autopilot pitch")
   parser.add_argument("--rotate-180", default=False, action='store_true', help="rotate images 180 degrees")
   parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
   parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
@@ -387,6 +389,7 @@ def parse_args_gooey():
   parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
   parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
   parser.add_argument("--pitch-stabilised", default=False, action='store_true', help="assume roll pitch camera")
+  parser.add_argument("--pitch-offset", default=0, type=float, help="pitch offset from autopilot pitch")
   parser.add_argument("--rotate-180", default=False, action='store_true', help="rotate images 180 degrees")
   parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
   parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")

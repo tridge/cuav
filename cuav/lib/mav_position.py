@@ -220,7 +220,7 @@ class MavInterpolator():
 
         # maxroll and maxpitch represent the maximum roll and pitch
         # that can be stabilised by the stabilisation system
-	def position(self, t, max_deltat=0,roll=None, pitch=None, maxroll=45, maxpitch=45):
+	def position(self, t, max_deltat=0,roll=None, pitch=None, maxroll=45, maxpitch=45, pitch_offset=0):
 		'''return a MavPosition estimate given a time'''
 		self.advance_log(t)
 			
@@ -269,6 +269,9 @@ class MavInterpolator():
 			pitch = pitch - maxpitch
 		else:
 			pitch = pitch + maxpitch
+
+                # add pitch offset
+                pitch += pitch_offset
 
 		yaw   = math.degrees(self.interpolate_angle('ATTITUDE', 'yaw', t, max_deltat))
 
