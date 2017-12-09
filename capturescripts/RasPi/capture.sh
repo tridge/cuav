@@ -1,24 +1,18 @@
 #!/bin/bash
 
-CAPDIR=/tmp/capture
+CAPDIR=/var/run/capture
 OUTDIR=cap
 
 QUALITY=100
 ISO=100
 
-N=0
-PREV=""
-
 mkdir -p $CAPDIR $OUTDIR
+N=0
 
 while :; do
     echo "Capture $N at $(date)"
-    raspistill -n -r -ISO $ISO -q $QUALITY -o ${CAPDIR}/$N.jpg &
-    if [ "$PREV" != "" ]; then
-	FNAME=$(date +%Y%m%d%H%M%S00.png)
-        ./rpi_raw_png $CAPDIR/$PREV.jpg $OUTDIR/$FNAME
-	echo "Created $FNAME"
-    fi
-    PREV=$N
-    wait
+    raspistill -t 10 -n -r -ISO $ISO -q $QUALITY -o ${CAPDIR}/$N.jpg
+    FNAME=$(date +%Y%m%d%H%M%S00.jpg)
+    (./rpi_raw_jpg $CAPDIR/$N.jpg $OUTDIR/$FNAME && /bin/rm -f $CAPDIR/$N.jpg) &
+    N=$((N+1))
 done
