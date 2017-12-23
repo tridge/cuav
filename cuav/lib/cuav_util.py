@@ -429,3 +429,42 @@ def set_system_clock(time_seconds):
 
     # http://linux.die.net/man/3/clock_settime
     return librt.clock_settime(CLOCK_REALTIME, ctypes.byref(ts))
+
+def gps_ddtodms(latlon):
+    import math
+
+    dmsLatHem = 'N'
+    dmsLongHem = 'E'
+    if latlon[0] < 0:
+        dmsLatHem = 'S'
+        latlon[0] *= -1
+    if latlon[1] < 0:
+        dmsLongHem = 'W'
+        latlon[1] *= -1
+
+    _lat = str(latlon[0])
+    _long = str(latlon[1])
+
+    # degrees
+    ddLatVals = _lat.split('.')
+    dmsLatDeg = int(ddLatVals[0])
+    ddLongVals = _long.split('.')
+    dmsLongDeg = int(ddLongVals[0])
+    # * 60 = mins
+    ddLatMin = float("0.%s" % ddLatVals[1]) * 60.0
+    ddLatMinVals = str(ddLatMin).split('.')
+    dmsLatMin = ddLatMinVals[0]
+    ddLongMin = float("0.%s" % ddLongVals[1]) * 60.0
+    ddLongMinVals = str(ddLongMin).split('.')
+    dmsLongMin = ddLongMinVals[0]
+    # * 60 = sec
+    ddLatSec = round(float("0.%s" % ddLatMinVals[1]) * 60.0)
+    ddLatSecVals = str(ddLatSec).split('.')
+    dmsLatSec = ddLatSecVals[0]
+    ddLongSec = round(float("0.%s" % ddLongMinVals[1]) * 60.0)
+    ddLongSecVals = str(ddLongSec).split('.')
+    dmsLongSec = ddLongSecVals[0]
+    
+    _latStr = '{0}°{1}\"{2}\'{3}'.format(dmsLatDeg, dmsLatMin, dmsLatSec, dmsLatHem)
+    _longStr = '{0}°{1}\"{2}\'{3}'.format(dmsLongDeg, dmsLongMin, dmsLongSec, dmsLongHem)
+    return (_latStr, _longStr)
