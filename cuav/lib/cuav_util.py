@@ -458,12 +458,12 @@ def gps_ddtodms(latlon):
     ddLongMinVals = str(ddLongMin).split('.')
     dmsLongMin = ddLongMinVals[0]
     # * 60 = sec
-    ddLatSec = round(float("0.%s" % ddLatMinVals[1]) * 60.0)
+    ddLatSec = float("0.%s" % ddLatMinVals[1]) * 60.0
     ddLatSecVals = str(ddLatSec).split('.')
-    dmsLatSec = ddLatSecVals[0]
-    ddLongSec = round(float("0.%s" % ddLongMinVals[1]) * 60.0)
+    dmsLatSec = "{0}.{1}".format(ddLatSecVals[0], ddLatSecVals[1][:3])
+    ddLongSec = float("0.%s" % ddLongMinVals[1]) * 60.0
     ddLongSecVals = str(ddLongSec).split('.')
-    dmsLongSec = ddLongSecVals[0]
+    dmsLongSec = "{0}.{1}".format(ddLongSecVals[0], ddLongSecVals[1][:3])
     
     _latStr = '{0}°{1}\"{2}\'{3}'.format(dmsLatDeg, dmsLatMin, dmsLatSec, dmsLatHem)
     _longStr = '{0}°{1}\"{2}\'{3}'.format(dmsLongDeg, dmsLongMin, dmsLongSec, dmsLongHem)
