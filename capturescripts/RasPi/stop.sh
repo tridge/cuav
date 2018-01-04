@@ -3,9 +3,6 @@
 set -e
 set -x
 
-killall -9 start_rpi_capture.sh
-killall -9 jpg_to_bayer.sh
-killall -9 bayer_to_png.sh
+killall -9 rpi_capture
+killall -9 mavproxy
 
-#need to unmount RAMDisk at end
-sudo umount /media/ramdisk

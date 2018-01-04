@@ -2,8 +2,8 @@
 
 set -e
 
-PNG_DIR=~/images_png
+JPEG_DIR=~/images_captured
 
-rm -r ${PNG_DIR}
+rm -r ${JPEG_DIR}
 
-mkdir -p ${PNG_DIR}
+mkdir -p ${JPEG_DIR}

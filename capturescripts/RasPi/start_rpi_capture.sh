@@ -6,24 +6,12 @@ set -x
 # set timezone to GMT
 export TZ=GMT
 
-QUALITY=100
-ISO=100
+CAPTURE_DIR=~/images_captured
+DATETIME_DIR=$(date +"%Y%m%d_%H-%M-%S")
 
-# create directory for images
-CAPTURE_DIR=$1
+# start rpi capture. Images stored in PNG_DIR
+screen -L -d -m -S rpi_capture -s /bin/bash ./cuavraw -o ${PNG_DIR}/${DATETIME_DIR}
 
-#clear the base capture dir
-rm -rf ${CAPTURE_DIR}/
-
-# create base directory
-mkdir -p ${CAPTURE_DIR}
-
-# take pictures using raspistill timelapse
-while [ 1 ]; do
-    #-dt, --datetime    : Replace output pattern (%d) with DateTime (MonthDayHourMinSec)
-    # So 2017111610355300Z.jpg
-    raspistill -n -r -ISO $ISO -q $QUALITY -v -dt -t 3600000 -tl 4000 -o ${CAPTURE_DIR}/2017%d00Z.jpg
-    echo " *************** raspistill exited, restarting ***************"
-    sleep 1
-done
+# start MAVProxy logging
+screen -L -d -m -S mavproxy -s /bin/bash cd ${PNG_DIR}/${DATETIME_DIR} && mavproxy.py
 
