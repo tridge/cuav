@@ -431,8 +431,6 @@ def set_system_clock(time_seconds):
     return librt.clock_settime(CLOCK_REALTIME, ctypes.byref(ts))
 
 def gps_ddtodms(latlon):
-    import math
-
     dmsLatHem = 'N'
     dmsLongHem = 'E'
     if latlon[0] < 0:

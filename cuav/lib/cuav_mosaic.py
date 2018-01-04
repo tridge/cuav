@@ -688,6 +688,7 @@ class Mosaic():
             return
         image = self.images[self.current_view]
         latlon = cuav_util.gps_position_from_xy(x, y, image.pos, C=self.c_params, shape=image.shape, altitude=image.pos.altitude)
+        latlon_dms = cuav_util.gps_ddtodms(latlon)
         if self.last_view_latlon is None or latlon is None:
             dist = ''
         else:
@@ -696,10 +697,7 @@ class Mosaic():
             bearing = cuav_util.gps_bearing(self.last_view_latlon[0], self.last_view_latlon[1],
                                              latlon[0], latlon[1])
             dist = "dist %.1f bearing %.1f alt=%.1f shape=%s" % (distance, bearing, image.pos.altitude, image.shape)
-        print("-> %s %s %s" % (latlon, image.filename, dist))
-        if hasattr(cuav_util, 'gps_ddtodms'):
-            latlon_dms = cuav_util.gps_ddtodms(latlon)
-            print("-> (%s, %s) %s %s" % (latlon_dms[0], latlon_dms[1], image.filename, dist))
+        print("-> %s(%s, %s) %s %s" % (latlon, latlon_dms[0], latlon_dms[1], image.filename, dist))
         self.last_view_latlon = latlon
 
     def key_event(self, event):
