@@ -9,9 +9,11 @@ export TZ=GMT
 CAPTURE_DIR=~/images_captured
 DATETIME_DIR=$(date +"%Y%m%d_%H-%M-%S")
 
-# start rpi capture. Images stored in PNG_DIR
-screen -L -d -m -S rpi_capture -s /bin/bash ./cuavraw -o ${PNG_DIR}/${DATETIME_DIR}
+mkdir -p ${CAPTURE_DIR}/${DATETIME_DIR}
+
+# start rpi capture. Images stored in ${CAPTURE_DIR}/${DATETIME_DIR}
+screen -L -d -m -S rpi_capture -s /bin/bash ./cuavraw -o ${CAPTURE_DIR}/${DATETIME_DIR}/
 
 # start MAVProxy logging
-screen -L -d -m -S mavproxy -s /bin/bash cd ${PNG_DIR}/${DATETIME_DIR} && mavproxy.py
+screen -L -d -m -S mavproxy -s /bin/bash ./mavlog.sh ${CAPTURE_DIR}/${DATETIME_DIR}
 

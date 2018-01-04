@@ -3,6 +3,5 @@
 set -e
 set -x
 
-killall -9 rpi_capture
-killall -9 mavproxy
-
+screen -S rpi_capture -X quit
+screen -S mavproxy -X quit
