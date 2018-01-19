@@ -9,5 +9,5 @@ fi
 LOG_DIR=$1
 
 cd ${LOG_DIR}
-mavproxy.py
+mavproxy.py --master=/dev/ttyAMA0 --baud=115200
 
