@@ -41,7 +41,9 @@ Ensure any 3G dongles are disconnected from the Pi before uploading image data, 
 quite large. It's recommended to use a LAN connection for this.
 
 Before uploading for the first time, some libraries need to be installed:
+sudo apt-get install python3-pip screen
 pip3 install boto3 --user
+You may need to run the above command twice (it may crash the first time)
 
 Run the uploader via:
 ./dataupload.py
