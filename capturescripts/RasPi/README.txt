@@ -28,6 +28,9 @@ Run start_rpi_capture.sh to start the capture
 Run stop.sh to stop all capture processes
 Run clear_images.sh to delete all captured images from the Pi
 
+Note a telemetry stream will be available over the Zerotier IP.
+Connect to it via "mavproxy.py --master=udpout:<Pi Zerotier IP>:14550"
+
 Images are stored in png format in the ~/images_captured/<start datetime> folder
 
 Run the "joeenter.py" file to enter in known Joe locations after an image collection flight.
