@@ -33,4 +33,29 @@ Images are stored in png format in the ~/images_captured/<start datetime> folder
 Run the "joeenter.py" file to enter in known Joe locations after an image collection flight.
 The coordinates will be stored in ~/images_captured/<start datetime>/joe.txt
 
+---------Uploading-----------
+Ensure any 3G dongles are disconnected from the Pi before uploading image data, as the datasets are
+quite large. It's recommended to use a LAN connection for this.
+
+Before uploading for the first time, some libraries need to be installed:
+pip3 install boto3 --user
+
+Run the uploader via:
+./dataupload.py
+The software will ask for a confirmation before uploading. It's worth double-checking the folder it's
+going to upload has a name corresponding to the date/time of the last flight.
+
+---------Downloading-----------
+
+Before uploading for the first time, some libraries need to be installed:
+pip3 install awscli --user
+
+The download utlity will synchonise your local images data with that on AWS. Thus any existing files
+will not be re-downloaded.
+
+Run it by:
+./datadownload.py <path>
+
+Where <path> is an existing folder where all the image data is locally stored
+
 
