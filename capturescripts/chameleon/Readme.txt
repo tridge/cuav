@@ -10,6 +10,8 @@ camera. Run "installrules.sh" to add the permissions, then reboot.
 
 To build this module, run:
 python setup.py build_ext --inplace
+
+For capturing options, take a look at the source of py_catpure.py
    
 -----------APM Config--------
 Typically, the companion computer would be connected to the TELEM2 port 
@@ -21,8 +23,8 @@ SERIAL2_BAUD = 115
 
 -----------Running-----------
 Run start_chameleon_capture.sh to start the capture
-Run stop.sh to stop all capture processes
-Run clear_images.sh to delete all captured images
+Run ../stop.sh to stop all capture processes
+Run ../clear_images.sh to delete all captured images
 
 Note: If you have any existing pgm files that you need to convert to png/jpg format, 
 use the "pgm_convert.py" script

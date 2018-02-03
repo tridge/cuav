@@ -87,8 +87,13 @@ def save_thread():
   last_filename = None
   while True:
     frame_time, im = state.save_queue.get()
-    filename =  os.path.join(opts.save, 'i{0}.{1}'.format(get_frame_time(frame_time), opts.format))
-    cv2.imwrite(filename, im)
+    filename =  os.path.join(opts.save, '{0}.{1}'.format(get_frame_time(frame_time), opts.format))
+    if opts.format == 'jpg':
+        cv2.imwrite(filename, im, [cv2.IMWRITE_JPEG_QUALITY, 99])
+    elif opts.format == 'png':
+        cv2.imwrite(filename, im, [cv2.IMWRITE_PNG_COMPRESSION, 1])
+    else:
+        cv2.imwrite(filename, im)
     if opts.make_fake is not None:
       try:
         os.unlink(opts.make_fake)
