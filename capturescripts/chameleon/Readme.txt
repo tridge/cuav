@@ -2,11 +2,11 @@
 The cuav git repo must be in the ~/ directory
 
 Install these via the following commands:
-sudo apt-get install python-pip python-dev python-opencv libusb-1.0.0-dev libdc1394-22-dev"
+sudo apt-get install python-pip python-dev python-opencv libusb-1.0.0-dev libdc1394-22-dev
 pip install future numpy
 
 Ensure your system has the correct permissions to access the 
-camera. Run "installrules.sh" to add the permissions.
+camera. Run "installrules.sh" to add the permissions, then reboot.
 
 To build this module, run:
 python setup.py build_ext --inplace
