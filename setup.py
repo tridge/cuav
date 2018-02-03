@@ -14,10 +14,10 @@ else:
     else:
         extra_compile_args=["-std=gnu99", "-O3"]
 
-    chameleon = Extension('cuav.camera.chameleon',
-                          sources = ['cuav/camera/chameleon_py.c',
-                                     'cuav/camera/chameleon.c',
-                                     'cuav/camera/chameleon_util.c'],
+    chameleon = Extension('capturescripts.chameleon',
+                          sources = ['capturescripts/chameleon/chameleon_py.c',
+                                     'capturescripts/chameleon/chameleon.c',
+                                     'capturescripts/chameleon/chameleon_util.c'],
                           libraries = ['dc1394', 'm', 'usb-1.0'],
                           extra_compile_args=extra_compile_args + ['-O0'])
     ext_modules.append(chameleon)
@@ -50,9 +50,9 @@ setup (name = 'cuav',
                     'Topic :: Scientific/Engineering'
                     ],
        license='GPLv3',
-       include_dirs = [np.get_include(),
-                       'cuav/camera/include'],
-       packages = ['cuav', 'cuav.lib', 'cuav.image', 'cuav.camera', 'cuav.uav', 'cuav.modules'],
+       #include_dirs = [np.get_include(),
+       #                'cuav/camera/include'],
+       packages = ['cuav', 'cuav.lib', 'cuav.image', 'cuav.camera', 'cuav.uav', 'cuav.modules', 'capturescripts'],
        scripts = [ 'cuav/tools/geosearch.py', 'cuav/tools/geotag.py',
                    'cuav/tools/cuav_lens.py', 'cuav/tools/agl_mission.py',
                    'cuav/tools/pgm_convert.py',
