@@ -11,7 +11,6 @@
 from numpy import array
 import json
 import sys
-from exceptions import Exception
 
 class CameraParams:
   # A default constructor based on sensor and lens specs only
