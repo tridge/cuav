@@ -13,15 +13,6 @@ else:
         extra_compile_args=["-std=gnu99", "-O3", "-mfpu=neon"]
     else:
         extra_compile_args=["-std=gnu99", "-O3"]
-
-    chameleon = Extension('capturescripts.chameleon',
-                          sources = ['capturescripts/chameleon/chameleon_py.c',
-                                     'capturescripts/chameleon/chameleon.c',
-                                     'capturescripts/chameleon/chameleon_util.c'],
-                          libraries = ['dc1394', 'm', 'usb-1.0'],
-                          extra_compile_args=extra_compile_args + ['-O0'])
-    ext_modules.append(chameleon)
-
  
 scanner = Extension('cuav.image.scanner',
                     sources = ['cuav/image/scanner.c', 'cuav/image/imageutil.c'],
@@ -38,8 +29,7 @@ setup (name = 'cuav',
        url = 'https://github.com/CanberraUAV/cuav',
        author = 'CanberraUAV',
        install_requires = [ 'pymavlink',
-                            'MAVProxy',
-                            'gooey<=0.9.2'],
+                            'MAVProxy'],
        author_email = 'andrew-cuav@tridgell.net',
        classifiers=['Development Status :: 4 - Beta',
                     'Environment :: Console',
@@ -50,16 +40,12 @@ setup (name = 'cuav',
                     'Topic :: Scientific/Engineering'
                     ],
        license='GPLv3',
-       #include_dirs = [np.get_include(),
-       #                'cuav/camera/include'],
-       packages = ['cuav', 'cuav.lib', 'cuav.image', 'cuav.camera', 'cuav.uav', 'cuav.modules', 'capturescripts'],
+       packages = ['cuav', 'cuav.lib', 'cuav.image', 'cuav.camera', 'cuav.uav', 'cuav.modules'],
        scripts = [ 'cuav/tools/geosearch.py', 'cuav/tools/geotag.py',
                    'cuav/tools/cuav_lens.py', 'cuav/tools/agl_mission.py',
-                   'cuav/tools/pgm_convert.py',
                    'cuav/tools/thermal_view.py',
                    'cuav/tests/cuav_benchmark.py' ],
        package_data = { 'cuav' : [ 'tests/test-8bit.pgm',
                                    'data/chameleon1_arecont0.json',
-                                   'camera/include/*.h',
                                    'image/include/*.h']},
        ext_modules = ext_modules)
