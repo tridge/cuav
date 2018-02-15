@@ -10,8 +10,8 @@ It can be run in realtime directly from a camera, or offine from a folder of ima
 
 The tools can be run on both Linux and Windows platforms.
 
-cuav was created by `CanberraUAV <http://canberrauav.org.au/>`_ as part of the 
-`UAV Challenge <https://uavchallenge.org/>`_, in order to find a missing
+cuav was created by [CanberraUAV](http://www.canberrauav.org.au) as part of the 
+[UAV Challenge](https://uavchallenge.org), in order to find a missing
 bushwalker from photos taken by a Unmanned Aerial System (UAS, commonly known as a "drone")
 as it flew over the search area at low altitude.
 
