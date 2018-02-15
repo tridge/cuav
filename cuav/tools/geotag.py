@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
-import numpy, os, time, cv2, sys, math, sys, glob, re
+import os, time, math, glob, re
 import pyexiv2, datetime, argparse
-import fractions, dateutil.parser
+import fractions, dateutil.parser, shutil
 
 from cuav.lib import cuav_util, mav_position
 
@@ -132,23 +132,25 @@ def process(args):
       pos = None
 
     if pos:
-        im_orig = cv2.imread(f, -1)
 
         lat_deg = pos.lat
         lng_deg = pos.lon
 
         if args.inplace:
-          basefile = f
+            outfile = f
         else:
-          basefile = os.path.basename(f)
-          if args.destdir:
-            basefile = os.path.join(args.destdir, os.path.basename(basefile))
-        cv2.imwrite(basefile, im_orig)
+            basefile = os.path.basename(f)
+            outfile = ""
+            if args.destdir:
+                outfile = os.path.join(args.destdir, basefile)
+            else:
+                outfile = os.path.join(os.getcwd(), basefile)
+            shutil.copy2(f, outfile)
         count += 1
         
-        print("%s %.7f %.7f [%u/%u %.1f%%]" % (os.path.basename(basefile),
+        print("%s %.7f %.7f [%u/%u %.1f%%]" % (os.path.basename(outfile),
                                                lat_deg, lng_deg, count, num_files, (100.0*count)/num_files))
-        set_gps_location(basefile, lat_deg, lng_deg, pos.altitude, pos.time)
+        set_gps_location(outfile, lat_deg, lng_deg, pos.altitude, pos.time)
 
 # main program
 if __name__ == '__main__':
