@@ -12,3 +12,6 @@ dist/
 MANIFEST
 deb_dist/
 logs/
+.eggs/
+.pytest_cache/
+cuav.egg-info/

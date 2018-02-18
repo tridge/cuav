@@ -100,14 +100,3 @@ class CameraParams:
     f.close()
     return CameraParams.fromstring(d)
 
-if __name__ == "__main__":
-  import json
-  C = CameraParams(lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960)
-  C.save('foo.txt')
-  print(C)
-  C2 = CameraParams.fromfile('foo.txt')
-  print(C2)
-  if str(C) != str(C2):
-    print("Reload mismatch")
-    sys.exit(1)
-  sys.exit(0)
