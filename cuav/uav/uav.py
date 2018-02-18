@@ -89,27 +89,3 @@ class uavxfer:
     self.z_earth = -600
 
 
-if __name__ == '__main__':
-  from matplotlib import pyplot
-  
-  xfer = uavxfer()
-  xfer.setCameraParams(200.0, 200.0, 512, 480)
-  xfer.setCameraOrientation(0.0, 0.0, -pi/2)
-  xfer.setPlatformPose(500.0, 1000.0, -700.0, 0.1, -0.1, 0.1)
-
-  f = pyplot.figure(1)
-  f.clf()
-
-  p_w = array([500. +00., 1000. -00., -600.0])
-  p_p = xfer.worldToPlatform(p_w[0], p_w[1], p_w[2])
-  p_i = xfer.worldToImage(p_w[0], p_w[1], p_w[2])
-
-  pyplot.plot(p_w[1], -p_w[0], 'bo')
-  pyplot.plot(p_p[1], -p_p[0], 'ro')
-  pyplot.axis([-1000,1000, -1000, 1000])
-  f.show()
-
-  (l_w, scale) = xfer.imageToWorld(p_i[0], p_i[1])
-
-  print l_w
-

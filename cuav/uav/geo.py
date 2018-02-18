@@ -177,28 +177,3 @@ class geodetic:
     lon = _lambda*180.0/pi
     return (lat, lon)
 
-if __name__ == '__main__':
-  g = geodetic()
-
-  # Buninyong (zone 54) E 758,173.797 N 5,828,674.340
-  lat = -( 37.0 + 39.0/60.0 + 10.15610/3600.0)
-  lon = +(143.0 + 55.0/60.0 + 35.38390/3600.0)
-  # When zone forced to 55
-  # Buninyong (zone 55) E 228,854.052 N 5,828,259.038
-
-  # Flinders peak (zone 55) E 273,741.297 N 5,796,489.777
-  #lat = -( 37.0 + 57.0/60.0 +  3.7203/3600.0)
-  #lon = +(144.0 + 25.0/60.0 + 29.5244/3600.0)
-
-  print 'latitude:', lat, 'longitude:', lon
-
-  (zone, band) = g.computeZoneAndBand(lat, lon)
-  print 'zone/band:',zone,band
-
-  (northing, easting) = g.geoToGrid(lat, lon, zone, band)
-  print 'northing:', northing, 'easting:', easting
-
-  (lat_, lon_) = g.gridToGeo(northing, easting, zone, band)
-  print 'latitude:', lat_, 'longitude:', lon_
-
-
