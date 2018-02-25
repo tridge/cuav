@@ -1,85 +1,13 @@
 #!/usr/bin/env python
 '''common CanberraUAV utility functions'''
 
-import numpy, cv2, math, sys, os, time, struct, calendar
+import numpy, cv2, math, sys, os, time, struct, calendar, re, datetime
 
 import six; from six.moves import cPickle as pickle
 from cuav.camera.cam_params import CameraParams
 from . import rotmat
 
 radius_of_earth = 6378100.0 # in meters
-
-class PGMError(Exception):
-    '''PGMLink error class'''
-    def __init__(self, msg):
-            Exception.__init__(self, msg)
-
-
-class PGM(object):
-    '''8/16 bit 1280x960 PGM image handler'''
-    def __init__(self, filename):
-        self.filename = filename
-
-        f = open(filename, mode='rb')
-        fmt = f.readline()
-        if fmt.strip() != 'P5':
-            raise PGMError('Expected P5 image in %s' % filename)
-        dims = f.readline()
-        dims = dims.split(' ')
-        width = int(dims[0])
-        height = int(dims[1])
-        line = f.readline()
-        self.comment = None
-        if line[0] == '#':
-            self.comment = line
-            line = f.readline()
-        line = line.strip()
-        if line == "65535":
-            self.eightbit = False
-        elif line == "255":
-            self.eightbit = True
-        else:
-            raise PGMError('Expected 8/16 bit image image in %s - got %s' % (filename, line))
-        ofs = f.tell()
-        if self.eightbit:
-            rawdata = numpy.fromfile(f, dtype='uint8')
-            rawdata = numpy.reshape(rawdata, (height,width))
-            self.img = cv.CreateImageHeader((width, height), 8, 1)
-        else:
-            rawdata = numpy.fromfile(f, dtype='uint16')
-            rawdata = rawdata.byteswap(True)
-            rawdata = numpy.reshape(rawdata, (height, width))
-            self.img = cv.CreateImageHeader((width, height), 16, 1)
-        f.close()
-        self.rawdata = rawdata
-        self.array = self.rawdata.byteswap(True)
-        cv.SetData(self.img, self.array.tostring(), self.array.dtype.itemsize*width)
-
-def key_menu(i, n, image, filename, pgm=None):
-    '''simple keyboard menu'''
-    while True:
-        key = cv.WaitKey()
-        key &= 0xFF
-        if not key in range(128):
-            continue
-        key = chr(key)
-        if key == 'q':
-            sys.exit(0)
-        if key == 's':
-            print("Saving %s" % filename)
-            cv.SaveImage(filename, image)
-        if key == 'c' and pgm is not None:
-            print("Comment: %s" % pgm.comment)
-        if key in ['n', '\n', ' ']:
-            if i == n-1:
-                print("At last image")
-            else:
-                return i+1
-        if key == 'b':
-            if i == 0:
-                print("At first image")
-            else:
-                return i-1
 
 
 def gps_distance(lat1, lon1, lat2, lon2):
@@ -180,81 +108,6 @@ def pixel_height(height, yresolution=960, lens=4.0, sensorwidth=5.0):
     return groundwidth(height, lens=lens, sensorwidth=sensorwidth)/yresolution
 
 
-def ground_offset(height, pitch, roll, yaw):
-    '''
-    find the offset on the ground in meters of the center of view of the plane
-    given height above the ground in meters, and pitch/roll/yaw in degrees.
-
-    The yaw is from grid north. Positive yaw is clockwise
-    The roll is from horiznotal. Positive roll is down on the right
-    The pitch is from horiznotal. Positive pitch is up in the front
-
-    return result is a tuple, with meters east and north of GPS position
-
-    This is only correct for small values of pitch/roll
-    '''
-
-    # x/y offsets assuming the plane is pointing north
-    xoffset = -height * math.tan(math.radians(roll))
-    yoffset = height * math.tan(math.radians(pitch))
-
-    # convert to polar coordinates
-    distance = math.hypot(xoffset, yoffset)
-    angle    = math.atan2(yoffset, xoffset)
-
-    # add in yaw
-    angle -= math.radians(yaw)
-
-    # back to rectangular coordinates
-    x = distance * math.cos(angle)
-    y = distance * math.sin(angle)
-
-    return (x, y)
-
-
-def pixel_position_old(xpos, ypos, height, pitch, roll, yaw,
-                   lens=4.0, sensorwidth=5.0, xresolution=1280, yresolution=960):
-    '''
-    NOTE: this algorithm is incorrect
-    
-    find the offset on the ground in meters of a pixel in a ground image
-    given height above the ground in meters, and pitch/roll/yaw in degrees, the
-    lens and image parameters
-
-    The xpos,ypos is from the top-left of the image
-    The height is in meters
-    
-    The yaw is from grid north. Positive yaw is clockwise
-    The roll is from horiznotal. Positive roll is down on the right
-    The pitch is from horiznotal. Positive pitch is up in the front
-    lens is in mm
-    sensorwidth is in mm
-    xresolution and yresolution is in pixels
-    
-    return result is a tuple, with meters east and north of current GPS position
-
-    This is only correct for small values of pitch/roll
-    '''
-    
-    (xcenter, ycenter) = ground_offset(height, pitch, roll, yaw)
-    
-    pw = pixel_width(height, xresolution=xresolution, lens=lens, sensorwidth=sensorwidth)
-
-    dx = (xresolution/2) - xpos
-    dy = (yresolution/2) - ypos
-
-    range_c = math.hypot(dx * pw, dy * py)
-    angle_c = math.atan2(dy * pw, dx * px)
-
-    # add in yaw
-    angle_c += math.radians(yaw)
-
-    # back to rectangular coordinates
-    x = - range_c * math.cos(angle_c)
-    y = range_c * math.sin(angle_c)
-
-    return (xcenter+x, ycenter+y)
-
 def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C):
     '''
     find the offset on the ground in meters of a pixel in a ground image
@@ -271,7 +124,7 @@ def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C):
     return result is a tuple, with meters east and north of current GPS position
 
     '''
-    from numpy import array,eye
+    from numpy import array,eye, zeros, uint64
     from cuav.uav.uav import uavxfer
     from math import pi
   
@@ -282,13 +135,14 @@ def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C):
     xfer.setPlatformPose(0, 0, -height, math.radians(roll), math.radians(pitch), math.radians(yaw))
 
     # compute the undistorted points for the ideal camera matrix
-    src = cv.CreateMat(1, 1, cv.CV_64FC2)
+    #src = numpy.zeros((1,1,2), numpy.uint64) #cv.CreateMat(1, 1, cv.CV_64FC2)
+    src = numpy.zeros((1,1, 2), numpy.float32)
     src[0,0] = (xpos, ypos)
-    dst = cv.CreateMat(1, 1, cv.CV_64FC2)
-    R = cv.fromarray(eye(3))
-    K = cv.fromarray(C.K)
-    D = cv.fromarray(C.D)
-    cv.UndistortPoints(src, dst, K, D, R, K)
+    #dst = cv.CreateMat(1, 1, cv.CV_64FC2)
+    R = eye(3)
+    K = C.K
+    D = C.D
+    dst = cv2.undistortPoints(src, K, D, R, K)
     x = dst[0,0][0]
     y = dst[0,0][1]
     #print '(', xpos,',', ypos,') -> (', x, ',', y, ')'
@@ -304,62 +158,6 @@ def pixel_position_matt(xpos, ypos, height, pitch, roll, yaw, C):
 
     # east and north
     return (joe_w[1], joe_w[0])
-
-
-def pixel_position(xpos, ypos, height, pitch, roll, yaw, C):
-    '''
-    find the offset on the ground in meters of a pixel in a ground image
-    given height above the ground in meters, and pitch/roll/yaw in degrees, the
-    lens and image parameters
-
-    The xpos,ypos is from the top-left of the image
-    The height is in meters
-    
-    The yaw is from grid north. Positive yaw is clockwise
-    The roll is from horiznotal. Positive roll is down on the right
-    The pitch is from horiznotal. Positive pitch is up in the front
-    lens is in mm
-    sensorwidth is in mm
-    xresolution and yresolution is in pixels
-    
-    return result is a tuple, with meters east and north of current GPS position
-
-    This is only correct for small values of pitch/roll
-    '''
-    from rotmat import Vector3, Matrix3, Plane, Line
-    from math import radians
-    
-    # get pixel sizes in meters, this assumes we are pointing straight down with square pixels
-    pw = pixel_width(height, xresolution=C.xresolution, lens=C.lens, sensorwidth=C.sensorwidth)
-
-    # ground plane
-    ground_plane = Plane()
-
-    # the position of the camera in the air, remembering its a right
-    # hand coordinate system, so +ve z is down
-    camera_point = Vector3(0, 0, -height)
-
-    # get position on ground relative to camera assuming camera is pointing straight down
-    ground_point = Vector3(-pw * (ypos - (C.yresolution/2)),
-               pw * (xpos - (C.xresolution/2)),
-               height)
-    
-    # form a rotation matrix from our current attitude
-    r = Matrix3()
-    r.from_euler(radians(roll), radians(pitch), radians(yaw))
-
-    # rotate ground_point to form vector in ground frame
-    rot_point = r * ground_point
-
-    # a line from the camera to the ground
-    line = Line(camera_point, rot_point)
-
-    # find the intersection with the ground
-    pt = line.plane_intersection(ground_plane, forward_only=True)
-    if pt is None:
-        # its pointing up into the sky
-        return None
-    return (pt.y, pt.x)
 
 
 def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw, C):
@@ -462,42 +260,24 @@ def frame_time(t):
     hundredths = int(t * 100.0) % 100
     return "%s%02uZ" % (time.strftime("%Y%m%d%H%M%S", time.gmtime(t)), hundredths)
 
-def parse_exif_time(filename):
-    '''parse a timestamp from exif data'''
-    basename = os.path.basename(filename)
-    if basename.lower().endswith('.jpg') or basename.lower().endswith('.jpeg'):
-        try:
-            from . import mav_position
-            return mav_position.exif_timestamp(filename)
-        except Exception as e:
-            print("Failed to get EXIF timestamp: %s" % e)
-            return 0
-    return 0
+def datetime_to_float(d):
+    """Datetime object to seconds since epoch (float)"""
+    epoch = datetime.datetime.utcfromtimestamp(0)
+    total_seconds =  (d - epoch).total_seconds()
+    # total_seconds will be in decimals (millisecond precision)
+    return total_seconds
 
 def parse_frame_time(filename):
     '''parse a image frame time from a image filename
-    from the chameleon capture code'''
-    basename = os.path.basename(filename)
-    i = basename.find('201')
-    if i == -1:
-                return parse_exif_time(filename)
-    tstring = basename[i:]
-    try:
-        ttuple = time.strptime(tstring[:14], "%Y%m%d%H%M%S")
-    except Exception:
-        return parse_exif_time(filename)
-    if tstring[14] == '-':
-        hundredths = int(tstring[15:17])
-        z = tstring[17]
-    else:
-        hundredths = int(tstring[14:16])
-        z = tstring[16]
-        is_gmt = (z.upper() == 'Z')
-        if is_gmt:
-            t = calendar.timegm(ttuple)
-        else:
-            t = time.mktime(ttuple)
-    t += hundredths * 0.01
+    '''
+    timestamp = (os.path.splitext(os.path.basename(filename))[0])
+    m = re.search("\d", timestamp)
+    if m :
+        timestamp = timestamp[m.start():]
+    
+    frame_time = datetime.datetime.strptime(timestamp, "%Y%m%d%H%M%S%fZ")
+    t = datetime_to_float(frame_time)
+    
     return t
 
 
@@ -549,91 +329,6 @@ def polygon_complete(V):
     return (len(V) >= 4 and V[-1][0] == V[0][0] and V[-1][1] == V[0][1])
 
 
-        
-
-def socket_send_queue_size(sock):
-    '''return size of the TCP send queue for a socket'''
-    import fcntl, termios, struct
-    buf = struct.pack('@l', 0)
-    ret = fcntl.ioctl(sock.fileno(), termios.TIOCOUTQ, buf)
-    v, = struct.unpack('@l', ret)
-    return v
-
-
-def LoadImage(filename, rotate180=False, RGB=False):
-    '''wrapper around cv.LoadImage that also handles PGM.
-    It always returns a colour image of the same size'''
-    if filename.endswith('.pgm'):
-        from ..image import scanner
-        try:
-            pgm = PGM(filename)
-        except Exception as e:
-            print('Failed to load %s: %s' % (filename, e))
-            return None
-        im_full = numpy.zeros((960,1280,3),dtype='uint8')
-        if RGB:
-            scanner.debayer_RGB(pgm.array, im_full)
-        else:
-            scanner.debayer(pgm.array, im_full)
-        if rotate180:
-            scanner.rotate180(im_full)
-        return cv.GetImage(cv.fromarray(im_full))
-    try:
-        img = cv.LoadImage(filename)
-    except Exception as e:
-            print('Failed to load %s: %s' % (filename, e))
-            return None
-    if rotate180:
-        from ..image import scanner
-        img = numpy.ascontiguousarray(cv.GetMat(img))
-        scanner.rotate180(img)
-        img = cv.GetImage(cv.fromarray(img))
-    return img
-
-class PickleStreamIn:
-    '''a non-blocking pickle abstraction'''
-    def __init__(self):
-        self.objs = []
-        self.io = ""
-        self.prefix = ""
-        self.bytes_needed = -1
-
-    def write(self, buf):
-        '''add some data from the stream'''
-        while len(buf) != 0:
-            if len(self.prefix) < 4:
-                n = min(4 - len(self.prefix), len(buf))
-                self.prefix += buf[:n]
-                buf = buf[n:]
-            if self.bytes_needed == -1 and len(self.prefix) == 4:
-                (self.bytes_needed,) = struct.unpack('<I', self.prefix)
-            n = min(len(buf), self.bytes_needed - len(self.io))
-            self.io += buf[:n]
-            buf = buf[n:]
-            if len(self.io) == self.bytes_needed:
-                self.objs.append(cPickle.loads(self.io))
-                self.io = ""
-                self.prefix = ""
-                self.bytes_needed = -1
-
-    def get(self):
-        '''get an object if available'''
-        if len(self.objs) == 0:
-            return None
-        return self.objs.pop(0)
-
-class PickleStreamOut:
-    '''a non-blocking pickle abstraction - output side'''
-    def __init__(self, sock):
-        self.sock = sock
-
-    def send(self, obj):
-        '''send an object over the stream'''
-        buf = cPickle.dumps(obj, protocol=cPickle.HIGHEST_PROTOCOL)
-        prefix = struct.pack('<I', len(buf))
-        self.sock.send(prefix + buf)
-        
-
 def image_shape(img):
     '''return (w,h) of an image, coping with different image formats'''
     if getattr(img, 'shape', None) is not None:
@@ -647,26 +342,13 @@ def image_width(img):
     return getattr(img, 'width')
 
 
-def cv_wait_quit():
-    '''wait until q is hit for quit'''
-    print("Press q to quit")
-    while True:
-        key = cv.WaitKey()
-        key &= 0xFF
-        if not key in range(128):
-            continue
-        key = chr(key)
-        if key in ['q', 'Q']:
-            break
-
-def SubImage(img, region):
+def SubImage(src, region):
     '''return a subimage as a new image. This allows
     for the region going past the edges.
     region is of the form (x1,y1,width,height)'''
     (x1,y1,width,height) = region
-    zeros = numpy.zeros((height,width,3),dtype='uint8')
-    ret = cv.GetImage(cv.fromarray(zeros))
-    (img_width,img_height) = cv.GetSize(img)
+    ret = numpy.zeros((height,width,3),dtype=src.dtype)
+    (img_width,img_height) = image_shape(src)
     if x1 < 0:
         sx1 = 0
         xofs = -x1
@@ -687,108 +369,31 @@ def SubImage(img, region):
         h = height
     else:
         h = img_height - sy1
-    cv.SetImageROI(img, (sx1, sy1, w-xofs, h-yofs))
-    cv.SetImageROI(ret, (xofs, yofs, w-xofs, h-yofs))
-    cv.Copy(img, ret)
-    cv.ResetImageROI(img)
-    cv.ResetImageROI(ret)
+
+    ret[yofs:yofs+h, xofs:xofs+w] = src[sy1:sy1+h, sx1:sx1+w]
     return ret
 
 def OverlayImage(img, img2, x, y):
     '''overlay a 2nd image on a first image, at position x,y
     on the first image'''
-    (w,h) = cv.GetSize(img2)
-    cv.SetImageROI(img, (x, y, w, h))
-    cv.Copy(img2, img)
-    cv.ResetImageROI(img)
+    (img_width,img_height) = image_shape(img2)
+    img[y:y+img_height, x:x+img_width] = img2
 
-if __name__ == "__main__":
-    pos1 = (-35.36048084339494,  149.1647973335984)
-    pos2 = (-35.36594385616202,  149.1656758119368)
-    dist = gps_distance(pos1[0], pos1[1],
-                pos2[0], pos2[1])
-    bearing = gps_bearing(pos1[0], pos1[1],
-                  pos2[0], pos2[1])
-    print('distance %f m' % dist)
-    print('bearing %f degrees' % bearing)
-    pos3 = gps_newpos(pos1[0], pos1[1],
-              bearing, dist)
-    err = gps_distance(pos2[0], pos2[1],
-               pos3[0], pos3[1])
-    if math.fabs(err) > 0.01:
-        raise RuntimeError('coordinate error too large %f' % err)
-    # check negative distances too
-    pos4 = gps_newpos(pos3[0], pos3[1],
-              bearing, -dist)
-    err = gps_distance(pos1[0], pos1[1],
-               pos4[0], pos4[1])
-    if math.fabs(err) > 0.01:
-        raise RuntimeError('coordinate error too large %f' % err)
-    print('error %f m' % err)
-
-    print('Testing polygon_outside()')
-    '''
-    this is the boundary of the 2010 outback challenge
-    Note that the last point must be the same as the first for the
-    polygon_outside() algorithm
-    '''
-    
-    OBC_boundary = polygon_load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'OBC_boundary.txt'))
-    test_points = [
-        (-26.6398870, 151.8220000, True ),
-        (-26.6418700, 151.8709260, False ),
-        (-350000000, 1490000000, True ),
-        (0, 0,                   True ),
-        (-26.5768150, 151.8408250, False ),
-        (-26.5774060, 151.8405860, True ),
-        (-26.6435630, 151.8303440, True ),
-        (-26.6435650, 151.8313540, False ),
-        (-26.6435690, 151.8303530, False ),
-        (-26.6435690, 151.8303490, True ),
-        (-26.5875990, 151.8344049, True ),
-        (-26.6454781, 151.8820530, True ),
-        (-26.6454779, 151.8820530, True ),
-        (-26.6092109, 151.8747420, True ),
-        (-26.6092111, 151.8747420, False ),
-        (-26.6092110, 151.8747421, True ),
-        (-26.6092110, 151.8747419, False ),
-        (-26.6092111, 151.8747421, True ),
-        (-26.6092109, 151.8747421, True ),
-        (-26.6092111, 151.8747419, False ),
-        (-27.6092111, 151.8747419, True ),
-        (-27.6092111, 152.0000000, True ),
-        (-25.0000000, 150.0000000, True )
-        ]
-    if not polygon_complete(OBC_boundary):
-        raise RuntimeError('OBC_boundary invalid')
-    for lat, lon, outside in test_points:
-        if outside != polygon_outside((lat, lon), OBC_boundary):
-            raise RuntimeError('OBC_boundary test error', lat, lon)
-            
 
 def SaturateImage(img, scale=2, brightness=2):
     '''return a zoomed saturated image. Assumes a RGB image'''
-    (w,h) = cv.GetSize(img)
+    (w,h) = image_shape(img)
     (w2,h2) = (w//scale, h//scale)
-    cv.SetImageROI(img, ((w//2)-(w2//2),(h//2)-(h2//2),w2,h2))
-    img2 = cv.CreateImage((w,h), 8, 3)
-    cv.Resize(img, img2)
-    cv.ResetImageROI(img)
-    cv.CvtColor(img2, img2, cv.CV_RGB2HSV)    
-    for x in range(w):
-        for y in range(h):
-            (hue,s,v) = img2[y,x]
-            img2[y,x] = (hue,255,v)
-    cv.CvtColor(img2, img2, cv.CV_HSV2RGB)
+    img2 = cv2.resize(img, (0,0), fx=scale, fy=scale)
+    img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2HSV)
+    h, s, v = cv2.split(img2)
+    v[:] = 255
     if brightness != 1:
-        cv.ConvertScale(img2, img2, scale=brightness)
-    return img2
-
-
-
-def zero_image(img):
-    '''zero an image'''
-    cv.ConvertScale(img, img, scale=0)
+        lim = 255 - brightness
+        v[v > lim] = 255
+        v[v <= lim] += brightness
+    final_hsv = cv2.merge((h, s, v))
+    return cv2.cvtColor(img2, cv2.COLOR_HSV2RGB)
 
 
 def set_system_clock(time_seconds):

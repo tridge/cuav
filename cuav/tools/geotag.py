@@ -7,19 +7,6 @@ import fractions, dateutil.parser, shutil
 from cuav.lib import cuav_util, mav_position
 
 
-class Fraction(fractions.Fraction):
-    """Only create Fractions from floats.
-
-    >>> Fraction(0.3)
-    Fraction(3, 10)
-    >>> Fraction(1.1)
-    Fraction(11, 10)
-    """
-
-    def __new__(cls, value, ignore=None):
-        """Should be compatible with Python 2.6, though untested."""
-        return fractions.Fraction.from_float(value).limit_denominator(99999)
-
 def parse_args():
     '''parse command line arguments'''
     parser = argparse.ArgumentParser("Geotag images from flight log")
@@ -32,27 +19,6 @@ def parse_args():
     parser.add_argument("--destdir", default=None, help="destination directory")
     parser.add_argument("--inplace", default=False, action='store_true', help="modify images in-place?")
     return parser.parse_args()
-
-
-def datetime_to_float(d):
-    """Datetime object to seconds since epoch (float)"""
-    epoch = datetime.datetime.utcfromtimestamp(0)
-    total_seconds =  (d - epoch).total_seconds()
-    # total_seconds will be in decimals (millisecond precision)
-    return total_seconds
-
-
-def decimal_to_dms(decimal):
-    """Convert decimal degrees into degrees, minutes, seconds.
-
-    >>> decimal_to_dms(50.445891)
-    [Fraction(50, 1), Fraction(26, 1), Fraction(113019, 2500)]
-    >>> decimal_to_dms(-125.976893)
-    [Fraction(125, 1), Fraction(58, 1), Fraction(92037, 2500)]
-    """
-    remainder, degrees = math.modf(abs(decimal))
-    remainder, minutes = math.modf(remainder * 60)
-    return [Fraction(n) for n in (degrees, minutes, remainder * 60)]
 
 
 def set_gps_location(file_name, lat, lng, alt, t):
@@ -71,9 +37,9 @@ def set_gps_location(file_name, lat, lng, alt, t):
     m = pyexiv2.ImageMetadata(file_name)
     m.read()
 
-    m["Exif.GPSInfo.GPSLatitude"] = decimal_to_dms(lat)
+    m["Exif.GPSInfo.GPSLatitude"] = mav_position.decimal_to_dms(lat)
     m["Exif.GPSInfo.GPSLatitudeRef"] = 'N' if lat >= 0 else 'S'
-    m["Exif.GPSInfo.GPSLongitude"] = decimal_to_dms(lng)
+    m["Exif.GPSInfo.GPSLongitude"] = mav_position.decimal_to_dms(lng)
     m["Exif.GPSInfo.GPSLongitudeRef"] = 'E' if lng >= 0 else 'W'
     m["Exif.Image.GPSTag"] = 654
     m["Exif.GPSInfo.GPSMapDatum"] = "WGS-84"
@@ -119,7 +85,7 @@ def process(args):
         timestamp = timestamp[m.start():]
     
     frame_time = datetime.datetime.strptime(timestamp, "%Y%m%d%H%M%S%fZ")
-    frame_time = datetime_to_float(frame_time)
+    frame_time = mav_position.datetime_to_float(frame_time)
 
     try:
       if args.roll_stabilised:

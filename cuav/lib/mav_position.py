@@ -1,10 +1,13 @@
 '''class to interpolate position information given a time'''
 
-import sys, os, time, math
+import sys, os, time, math, datetime, re
 import fractions
 
+from MAVProxy.modules.mavproxy_map import mp_elevation
 from pymavlink import mavutil
 from cuav.lib import cuav_util
+
+EleModel = mp_elevation.ElevationModel()
 
 class MavInterpolatorException(Exception):
     '''interpolator error class'''
@@ -278,7 +281,7 @@ class Fraction(fractions.Fraction):
     >>> Fraction(1.1)
     Fraction(11, 10)
     """
-    
+
     def __new__(cls, value, ignore=None):
         """Should be compatible with Python 2.6, though untested."""
         return fractions.Fraction.from_float(value).limit_denominator(99999)
@@ -296,7 +299,6 @@ def dms_to_decimal(degrees, minutes, seconds, sign=' '):
         float(minutes) / 60   +
         float(seconds) / 3600
     )
-
 
 def decimal_to_dms(decimal):
     """Convert decimal degrees into degrees, minutes, seconds.
@@ -338,32 +340,25 @@ def exif_position(filename):
                 latitude = 0
                 longitude = 0
                 
-        try:
-                altitude = float(m[GPS + 'Altitude'].value) - get_ground_alt(latitude, longitude)
-        except Exception:
-                altitude = -1
 
-        try:
-                t = time.mktime(m['Exif.Image.DateTime'].value.timetuple())
-        except Exception:
-                t = os.path.getmtime(filename)
+        altitude = float(m[GPS + 'Altitude'].value)
+
+        timestamp = (os.path.splitext(os.path.basename(filename))[0])
+        m = re.search("\d", timestamp)
+        if m :
+            timestamp = timestamp[m.start():]
+        
+        frame_time = datetime.datetime.strptime(timestamp, "%Y%m%d%H%M%S%fZ")
+        frame_time = cuav_util.datetime_to_float(frame_time)
+        
         if _last_position is None:
                 yaw = 0
         else:
                 yaw = cuav_util.gps_bearing(_last_position.lat, _last_position.lon,
                                             latitude, longitude)
-        pos = MavPosition(latitude, longitude, altitude, 0, 0, yaw, t)
+        pos = MavPosition(latitude, longitude, altitude, 0, 0, yaw, frame_time)
         _last_position = pos
         return pos
-
-
-def exif_timestamp(filename):
-        '''get a timestamp from exif tags
-        '''
-        import pyexiv2        
-        m = pyexiv2.ImageMetadata(filename)
-        m.read()
-        return time.mktime(m['Exif.Image.DateTime'].value.timetuple())
 
 
 class KmlPosition(object):
@@ -391,11 +386,23 @@ class KmlPosition(object):
                         return
                 marks = dom.getElementsByTagName('Placemark')
                 for m in marks:
+                    try:
                         name = self._getElement(m.getElementsByTagName('name')[0])
-                        latitude = self._getElement(m.getElementsByTagName('latitude')[0])
-                        longitude = self._getElement(m.getElementsByTagName('longitude')[0])
+                        coords = (m.getElementsByTagName('Point')[0].getElementsByTagName('coordinates')[0]).childNodes
+                        coordsstr = str(self.getText(coords))
+                        latitude = coordsstr.split(',')[1]
+                        longitude = coordsstr.split(',')[0]
                         self.images[name] = MavPosition(float(latitude), float(longitude), 0, 0, 0, 0, 0)
+                    except:
+                        pass
 
+        def getText(self, nodelist):
+            rc = []
+            for node in nodelist:
+                if node.nodeType == node.TEXT_NODE:
+                    rc.append(node.data)
+            return ''.join(rc)
+    
         def position(self, imagename):
                 imagename = os.path.basename(imagename)
                 if not imagename in self.images:
@@ -459,24 +466,38 @@ class TriggerPosition(object):
 
         def position(self, imagename):
                 '''find the best matching MavPosition for an image file'''
-                tstamp = exif_timestamp(imagename)
+                timestamp = (os.path.splitext(os.path.basename(imagename))[0])
+                m = re.search("\d", timestamp)
+                if m :
+                    timestamp = timestamp[m.start():]
+                
+                frame_time = datetime.datetime.strptime(timestamp, "%Y%m%d%H%M%S%fZ")
+                frame_time = cuav_util.datetime_to_float(frame_time)
+                
                 if self.time_offset is None:
                         # assume first file matches first trigger record
-                        self.time_offset = tstamp - self.positions[0].time
+                        self.time_offset = frame_time - self.positions[0].time
                 # find the best time match
                 besti = 0
                 bestdt = -1
                 for i in range(len(self.positions)):
-                        dt = abs((self.positions[i].time - tstamp) + self.time_offset)
+                        dt = abs((self.positions[i].time - frame_time) + self.time_offset)
                         if bestdt == -1 or dt < bestdt:
                                 bestdt = dt
                                 besti = i
                 return self.positions[besti]
 
-if __name__ == "__main__":
-        import sys
-        tpos = TriggerPosition(sys.argv[1])
-        for f in sys.argv[2:]:
-                print(os.path.basename(f), str(tpos.position(f)))
-                
-        
+def get_ground_alt(lat, lon):
+    '''get highest ground altitide around a point'''
+    global EleModel
+    ground = EleModel.GetElevation(lat, lon)
+    surrounds = []
+    for bearing in range(0, 360, 45):
+        surrounds.append((150, bearing))
+    for (dist, bearing) in surrounds:
+        (lat2, lon2) = cuav_util.gps_newpos(lat, lon, bearing, dist)
+        el = EleModel.GetElevation(lat2, lon2)
+        if el > ground:
+            ground = el
+    return ground
+

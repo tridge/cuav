@@ -23,7 +23,7 @@ class JoePosition():
 
   def rawname(self):
     '''return raw filename'''
-    return 'raw%s.pgm' % cuav_util.frame_time(self.frame_time)
+    return '%s' % cuav_util.frame_time(self.frame_time)
   
   def __str__(self):
     return 'JoePosition(lat=%f lon=%f %s %s %s %s %s %s)' % (self.latlon[0], self.latlon[1],
@@ -49,14 +49,14 @@ class JoeLog():
       self.log.write(cPickle.dumps(joe, protocol=cPickle.HIGHEST_PROTOCOL))
       self.log.flush()
         
-  def add_regions(self, frame_time, regions, pos, image_filename, thumb_filename=None, width=1280, height=960, altitude=None):
+  def add_regions(self, frame_time, regions, pos, image_filename, thumb_filename=None, width=1280, height=960, altitude=None, C=None):
     '''add a set of regions to the log, applying geo-referencing.
     Add latlon attribute to regions
     '''
     ret = []
     for r in regions:
       if r.latlon is None:
-        latlon = cuav_util.gps_position_from_image_region(r, pos, width, height, altitude=altitude)
+        latlon = cuav_util.gps_position_from_image_region(r, pos, width, height, altitude=altitude, C=C)
       else:
         # the plane already added latlon
         latlon = r.latlon
@@ -82,37 +82,3 @@ class JoeIterator():
     return joe
   
 
-
-if __name__ == "__main__":
-  from MAVProxy.modules.mavproxy_map import mp_slipmap
-  from cuav.lib import cuav_mosaic
-  from optparse import OptionParser
-  parser = OptionParser("cuav_joe.py [options]")
-  parser.add_option("--minscore", type='int', default=1000, help="min score")
-  (opts, args) = parser.parse_args()
-
-  sm = mp_slipmap.MPSlipMap(lat=-26.6360, lon=151.8436, elevation=True, service='GoogleSat')
-  
-  joelog = JoeIterator(sys.argv[1])
-  tidx = 0
-  thumb_filename = None
-  for joe in joelog:
-    thumb = cuav_util.LoadImage(joe.thumb_filename)
-    if thumb_filename != joe.thumb_filename:
-      tidx = 0
-    else:
-      tidx += 1
-    (w,h) = cuav_util.image_shape(thumb)
-    count = w//h
-    thumbs = cuav_mosaic.ExtractThumbs(thumb, count)
-    r = getattr(joe,'r',None)
-    if r is not None and r.score > opts.minscore:
-      print joe
-      sm.add_object(mp_slipmap.SlipThumbnail("time %u" % joe.frame_time,
-                                             joe.latlon,
-                                             img=thumbs[tidx],
-                                             layer=2, border_width=1, border_colour=(255,0,0)))
-    
-#    sm.add_object(mp_slipmap.SlipPolygon('Search Pattern', gen.getMapPolygon(), layer=1, linewidth=2, colour=(0,255,0)))
-  
-    

@@ -32,22 +32,6 @@ if len(args) < 1:
     sys.exit(1)
 
 parms = {}
-
-EleModel = mp_elevation.ElevationModel()
-
-def get_ground_alt(lat, lon):
-    '''get highest ground altitide around a point'''
-    global EleModel
-    ground = EleModel.GetElevation(lat, lon)
-    surrounds = []
-    for bearing in range(0, 360, 45):
-        surrounds.append((opts.lookahead, bearing))
-    for (dist, bearing) in surrounds:
-        (lat2, lon2) = cuav_util.gps_newpos(lat, lon, bearing, dist)
-        el = EleModel.GetElevation(lat2, lon2)
-        if el > ground:
-            ground = el
-    return ground
     
 
 def fix_alt(filename, agl):
