@@ -5,7 +5,7 @@ Andrew Tridgell
 May 2012
 '''
 
-import numpy, os, cv, sys, cuav_util, time, math, functools, cuav_region
+import numpy, os, cv2, sys, cuav_util, time, math, functools, cuav_region
 
 from MAVProxy.modules.lib import mp_image
 from MAVProxy.modules.mavproxy_map import mp_slipmap
@@ -30,7 +30,7 @@ class MosaicRegion:
         '''tag the small thumbnail image with a marker making it clear the
         full image is available'''
         (w,h) = cuav_util.image_shape(self.small_thumbnail)
-        cv.Rectangle(self.small_thumbnail, (w-3,0), (w-1,2), color, 2) 
+        cv2.rectangle(self.small_thumbnail, (w-3,0), (w-1,2), color, 2)
 
     def __str__(self):
         position_string = ''
