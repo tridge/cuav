@@ -209,6 +209,10 @@ def test_SubImage():
     subimage = SubImage(img, region)
     assert subimage.shape == (20, 20, 3)
     
+    region = (-20, 55, 100, 100)
+    subimage = SubImage(img, region)
+    assert subimage.shape == (100, 100, 3)
+    
 def test_OverlayImage():
     img = cv2.imread(os.path.join(os.getcwd(), 'tests', 'testdata', 'raw2016111223465120Z.png'))
     region = (10, 10, 30, 30)

@@ -56,7 +56,7 @@ def CompositeThumbnail(img, regions, thumb_size=100):
 
     The composite will consist of N thumbnails side by side
     '''
-    composite = cv.CreateImage((thumb_size*len(regions), thumb_size),8,3)
+    composite = []
     for i in range(len(regions)):
         (x1,y1,x2,y2) = regions[i].tuple()
         midx = (x1+x2)/2
@@ -66,15 +66,15 @@ def CompositeThumbnail(img, regions, thumb_size=100):
             # we need to shrink the region
             rsize = max(x2+1-x1, y2+1-y1)
             src = cuav_util.SubImage(img, (midx-rsize/2,midy-rsize/2,rsize,rsize))
-            thumb = cv.CreateImage((thumb_size, thumb_size),8,3)
-            cv.Resize(src, thumb)
+            thumb = cv2.resize(src, (thumb_size, thumb_size))
         else:
             x1 = midx - thumb_size/2
             y1 = midy - thumb_size/2
             thumb = cuav_util.SubImage(img, (x1, y1, thumb_size, thumb_size))
-        cv.SetImageROI(composite, (thumb_size*i, 0, thumb_size, thumb_size))
-        cv.Copy(thumb, composite)
-        cv.ResetImageROI(composite)
+        if composite == []:
+            composite = thumb
+        else:
+            composite = numpy.concatenate((composite, thumb), axis=1)
     return composite
 
 def ExtractThumbs(img, count):
@@ -107,8 +107,7 @@ class Mosaic():
             self.map_thumb_size = self.thumb_size
         self.width = grid_width * thumb_size
         self.height = grid_height * thumb_size
-        self.mosaic = cv.CreateImage((self.height,self.width),8,3)
-        cuav_util.zero_image(self.mosaic)
+        self.mosaic = numpy.zeros((self.height,self.width,3),dtype=numpy.uint32)
         self.display_regions = grid_width*grid_height
         self.regions = []
         self.regions_sorted = []
@@ -235,15 +234,21 @@ class Mosaic():
     def set_brightness(self, b):
         '''set mosaic brightness'''
         if b != self.brightness:
-            self.brightness = b
+            hsv = cv2.cvtColor(self.mosaic, cv2.COLOR_RGB2HSV)
+            h, s, v = cv2.split(hsv)
+
+            lim = 255 - b*10
+            v[v > lim] = 255
+            v[v <= lim] += b*10
+
+            final_hsv = cv2.merge((h, s, v))
+            self.mosaic = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
             self.redisplay_mosaic()
 
     def show_region(self, ridx, view_the_image=False):
         '''display a region on the map'''
         region = self.regions[ridx]
-        thumbnail = cv.CloneImage(region.full_thumbnail)
-        # slipmap wants it as RGB
-        cv.CvtColor(thumbnail, thumbnail, cv.CV_BGR2RGB)
+        thumbnail = region.full_thumbnail
         thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
@@ -263,7 +268,7 @@ class Mosaic():
 
     def view_imagefile(self, filename, focus_region=None):
         '''view an image in a zoomable window'''
-        img = cuav_util.LoadImage(filename, rotate180=self.camera_settings.rotate180)
+        img = cv2.imread(filename)
         (w,h) = cuav_util.image_shape(img)
         for i in range(len(self.images)):
             if filename == self.images[i].filename:
@@ -708,8 +713,7 @@ class Mosaic():
         dest_y = ((page_idx * self.thumb_size) / width) * self.thumb_size
 
         if region == self.mouse_region:
-            thumb = cv.CreateImage((self.thumb_size,self.thumb_size), 8, 3)
-            cv.ConvertScale(region.small_thumbnail, thumb, 2.0)
+            thumb = cv2.resize(region.small_thumbnail, (self.thumb_size, self.thumb_size))
         else:
             thumb = region.small_thumbnail
 
@@ -724,12 +728,9 @@ class Mosaic():
         '''re-display whole mosaic page'''
         width = (self.width // self.thumb_size) * self.thumb_size
         height = (self.height // self.thumb_size) * self.thumb_size
-        self.mosaic = cv.CreateImage((width,height),8,3)
-        cuav_util.zero_image(self.mosaic)
+        self.mosaic = numpy.zeros((height,width,3),dtype=numpy.uint8)
         for ridx in range(len(self.regions_sorted)):
             self.display_mosaic_region(ridx)
-        if self.brightness != 1.0:
-            cv.ConvertScale(self.mosaic, self.mosaic, scale=self.brightness)
         self.image_mosaic.set_image(self.mosaic, bgr=True)
         
         max_page = (len(self.regions_sorted)-1) / self.display_regions
@@ -745,8 +746,7 @@ class Mosaic():
                                               size,
                                               size))
         else:
-            thumb = cv.CreateImage((size, size),8,3)
-            cv.Resize(full, thumb)
+            thumb = cv2.resize(full, (size, size))
         return thumb
 
     def add_regions(self, regions, thumbs, filename, pos=None):

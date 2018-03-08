@@ -369,7 +369,11 @@ def SubImage(src, region):
         h = height
     else:
         h = img_height - sy1
-
+    if yofs+h > height:
+        h = h - yofs
+    if xofs+w > width:
+        w = w - xofs
+        
     ret[yofs:yofs+h, xofs:xofs+w] = src[sy1:sy1+h, sx1:sx1+w]
     return ret
 
