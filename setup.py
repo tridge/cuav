@@ -65,7 +65,6 @@ setup (name = 'cuav',
        scripts = [ 'cuav/tools/geosearch.py', 'cuav/tools/geotag.py',
                    'cuav/tools/cuav_lens.py', 'cuav/tools/agl_mission.py',
                    'cuav/tools/thermal_view.py'],
-       package_data = { 'cuav' : [ 'tests/test-8bit.pgm',
-                                   'data/chameleon1_arecont0.json',
+       package_data = { 'cuav' : [ 'data/chameleon1_arecont0.json',
                                    'image/include/*.h']},
        ext_modules = ext_modules)

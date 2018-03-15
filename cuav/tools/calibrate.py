@@ -1,272 +1,109 @@
 #!/usr/bin/env python
+"""
+This generates a camera calibration matrix (in json form) to correct
+for any camera lens distortion.
+Requires a set of 10x7 chessboard photos captured via the camera
+See ./cuav/data/calibration_images_2015/ChameleonArecort/ for examples
+"""
 
-
-import cv
+import cv2
 import os,sys,string
-from numpy import array, zeros, ones
-from cam_params import CameraParams
+import argparse
+import numpy
+from cuav.camera.cam_params import CameraParams
 
-dims=(10,7)
+# checkerboard Dimensions
+cbrow = 10
+cbcol = 7
 
 lens=4.0
 sensorwidth=5.0
 
+def file_list(directory, extensions):
+    '''return file list for a directory'''
+    flist = []
+    for (root, dirs, files) in os.walk(directory):
+        for f in files:
+            extension = f.split('.')[-1]
+            if extension.lower() in extensions:
+                flist.append(os.path.join(root, f))
+    return flist
+    
 def calibrate(imagedir):
-  nimages = 0
-  datapoints = []
-  im_dims = (0,0)
-  for f in os.listdir(imagedir):
-    if (f.find('pgm')<0):
-      continue
-    image = imagedir+'/'+f
-    grey = cv.LoadImage(image,cv.CV_LOAD_IMAGE_GRAYSCALE)
-    found,points=cv.FindChessboardCorners(grey,dims,cv.CV_CALIB_CB_ADAPTIVE_THRESH)
-    points=cv.FindCornerSubPix(grey,points,(11,11),(-1,-1),(cv.CV_TERMCRIT_EPS+cv.CV_TERMCRIT_ITER,30,0.1))
+    nimages = 0
+    datapoints = []
+    im_dims = (0,0)
+    # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+    objp = numpy.zeros((cbrow * cbcol, 3), numpy.float32)
+    objp[:, :2] = numpy.mgrid[0:cbcol, 0:cbrow].T.reshape(-1, 2)
+    # Arrays to store object points and image points from all the images.
+    objpoints = [] # 3d point in real world space
+    imgpoints = [] # 2d points in image plane.
 
-    if (found):
-      print 'using ', image
-      nimages += 1
-      datapoints.append(points)
-      im_dims = (grey.width, grey.height)
+    files = file_list(imagedir, ['jpg', 'jpeg', 'png'])
+    for f in files:
+        colour = cv2.imread(f)
+        grey = cv2.cvtColor(colour, cv2.COLOR_BGR2GRAY)
+        ret, corners = cv2.findChessboardCorners(grey, (cbcol, cbrow), flags=cv2.CALIB_CB_ADAPTIVE_THRESH)
+        
+        if (ret):
+            print('using ' + f)
+            cv2.cornerSubPix(grey,corners,(11,11),(-1,-1),(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.01))
+            objpoints.append(objp)
+            imgpoints.append(corners)
+            im_dims = grey.shape[:2]
 
-  #Number of points in chessboard
-  num_pts = dims[0] * dims[1]
-  #image points
-  ipts = cv.CreateMat(nimages * num_pts, 2, cv.CV_32FC1)
-  #object points
-  opts = cv.CreateMat(nimages * num_pts, 3, cv.CV_32FC1)
-  npts = cv.CreateMat(nimages, 1, cv.CV_32SC1)
+    if len(imgpoints) == 0:
+        print("Not enough good quality images. Aborting")
+        return
+    
+    ret, K, D, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, grey.shape[::-1], None, None)
 
-  for i in range(0,nimages):
-    k=i*num_pts
-    squareSize = 1.0
-    # squareSize is 1.0 (i.e. units of checkerboard)
-    for j in range(num_pts):
-      cv.Set2D(ipts,k,0,datapoints[i][j][0])
-      cv.Set2D(ipts,k,1,datapoints[i][j][1])
-      cv.Set2D(opts,k,0,float(j%dims[0])*squareSize)
-      cv.Set2D(opts,k,1,float(j/dims[0])*squareSize)
-      cv.Set2D(opts,k,2,0.0)
-      k=k+1
-    cv.Set2D(npts,i,0,num_pts)
-
-  K = cv.CreateMat(3, 3, cv.CV_64FC1)
-  D = cv.CreateMat(5, 1, cv.CV_64FC1)
-  
-  cv.SetZero(K)
-  cv.SetZero(D)
-  
-  # focal lengths have 1/1 ratio
-  K[0,0] = im_dims[0]
-  K[1,1] = im_dims[0]
-  K[0,2] = im_dims[0]/2
-  K[1,2] = im_dims[1]/2
-  K[2,2] = 1.0
-
-  rcv = cv.CreateMat(nimages, 3, cv.CV_64FC1)
-  tcv = cv.CreateMat(nimages, 3, cv.CV_64FC1)
-
-  #print 'object'
-  #print array(opts)
-  #print 'image'
-  #print array(ipts)
-  #print 'npts'
-  #print array(npts)
-
-  size=cv.GetSize(grey)
-  flags = 0
-  #flags |= cv.CV_CALIB_FIX_ASPECT_RATIO
-  #flags |= cv.CV_CALIB_USE_INTRINSIC_GUESS
-  #flags |= cv.CV_CALIB_ZERO_TANGENT_DIST
-  #flags |= cv.CV_CALIB_FIX_PRINCIPAL_POINT
-  cv.CalibrateCamera2(opts, ipts, npts, size, K, D, rcv, tcv, flags)
-
-  # storing results using CameraParams
-  C = CameraParams(lens=lens, sensorwidth=sensorwidth, xresolution=im_dims[0], yresolution=im_dims[1])
-  print array(K)
-  print array(D)
-  C.setParams(K, D)
-  C.save(imagedir+"/params.json")
-
-# distort a single point
-def distort(K, D, p):
-  u = p[0]
-  v = p[1]
-  d = D.flatten()
-  x = (u - K[0,2])/K[0,0]
-  y = (v - K[1,2])/K[1,1]
-  print 'x,y', x,y
-  x2 = x**2
-  y2 = y**2
-  r2 = x2 + y2
-  r4 = r2*r2
-  r6 = r2*r4
-  radial = (1.0 + d[0]*r2 + d[1]*r4 + d[4]*r6)
-  tanx = 2.0*d[2]*x*y + d[3]*(r2 + 2.0*x2)
-  tany = d[2]*(r2 + 2.0*y2) + 2.0*d[3]*x*y
-
-  x_ = x*radial + tanx
-  y_ = y*radial + tany
-
-  u_ = x_*K[0,0] + K[0,2]
-  v_ = y_*K[1,1] + K[1,2]
-  return (u_, v_)
-
-def genReversMaps(K, D, C):
-  map_u = -9999*ones(C.yresolution, C.xresolution, dtype=int)
-  map_v = -9999*ones(C.yresolution, C.xresolution, dtype=int)
-
-  # fill what we can by forward lookup
-  for v in range(0, C.yresolution):
-    for u in range(0, C.xresolution):
-      if (map_u[int(v_), int(u_)] == -9999):
-        (u_,v_) = distort(u, v)
-        map_u[int(v_), int(u_)] = u
-        map_v[int(v_), int(u_)] = v
-
-  #something like
-  #for v_ in range(0, C.yresolution):
-  #  for u_ in range(0, C.xresolution):
-  #    if (map_u[int(v_), int(u_)] == -9999):
-  #      (u, v) = solve((u_, v_), distort)
-  #      map_u[int(v_), int(u_)] = u
-  #      map_v[int(v_), int(u_)] = v
+    # storing results using CameraParams
+    C = CameraParams(lens=lens, sensorwidth=sensorwidth, xresolution=im_dims[1], yresolution=im_dims[0])
+    C.setParams(K, D)
+    C.save(os.path.join(imagedir, "params.json"))
+    print("Saved params in " + os.path.join(imagedir, "params.json"))
+    
 
 def dewarp(imagedir):
-  # Loading from json file
-  C = CameraParams.fromfile(imagedir+"/params.json")
-  K = cv.fromarray(C.K)
-  D = cv.fromarray(C.D)
-  print "loaded camera parameters"
-  mapx = None
-  mapy = None
-  for f in os.listdir(imagedir):
-    if (f.find('pgm')<0):
-      continue
-    image = imagedir+'/'+f
-    print image
-    original = cv.LoadImage(image,cv.CV_LOAD_IMAGE_GRAYSCALE)
-    dewarped = cv.CloneImage(original);
-    # setup undistort map for first time
-    if (mapx == None or mapy == None):
-      im_dims = (original.width, original.height)
-      mapx = cv.CreateImage( im_dims, cv.IPL_DEPTH_32F, 1 );
-      mapy = cv.CreateImage( im_dims, cv.IPL_DEPTH_32F, 1 );
-      cv.InitUndistortMap(K,D,mapx,mapy)
+    # Loading from json file
+    C = CameraParams.fromfile(os.path.join(imagedir, "params.json"))
+    K = C.K
+    D = C.D
+    print("Loaded camera parameters from " + os.path.join(imagedir, "params.json"))
 
-    cv.Remap( original, dewarped, mapx, mapy )
+    for f in file_list(imagedir, ['jpg', 'jpeg', 'png']):
+        print(f)
+        colour = cv2.imread(f)
+        grey = cv2.cvtColor(colour, cv2.COLOR_BGR2GRAY)
 
-    tmp1=cv.CreateImage((im_dims[0]/2,im_dims[1]/2),8,1)
-    cv.Resize(original,tmp1)
-    tmp2=cv.CreateImage((im_dims[0]/2,im_dims[1]/2),8,1)
-    cv.Resize(dewarped,tmp2)
+        h, w = grey.shape[:2]
+        newcameramtx, roi=cv2.getOptimalNewCameraMatrix(K, D, (w,h), 1, (w,h))
+        mapx, mapy = cv2.initUndistortRectifyMap(K, D, None, newcameramtx, (w,h), 5)
+        dewarped = cv2.remap(grey, mapx, mapy, cv2.INTER_LINEAR)
 
-    cv.ShowImage("Original", tmp1 )
-    cv.ShowImage("Dewarped", tmp2)
-    cv.WaitKey(-1)
+        x, y, w, h = roi
+        dewarped = dewarped[y:y+h, x:x+w]
+        grey = cv2.resize(grey, (0,0), fx=0.5, fy=0.5) 
+        dewarped = cv2.resize(dewarped, (0,0), fx=0.5, fy=0.5) 
 
+        cv2.imshow("Original", grey )
+        cv2.imshow("Dewarped", dewarped)
+        cv2.waitKey(-1)
 
-def gather(imagedir, debayer, im_w, im_h):
-  c=cv.CaptureFromCAM(0)
-  cv.SetCaptureProperty(c,cv.CV_CAP_PROP_FRAME_WIDTH,im_w)
-  cv.SetCaptureProperty(c,cv.CV_CAP_PROP_FRAME_HEIGHT,im_h)
-  #cv.SetCaptureProperty(c,cv.CV_CAP_PROP_FPS,3.75)
-  grey=cv.CreateImage((im_w,im_h),8,1)
-
-  im_cnt = 0
-  print 'position chess board then press space to find corners'
-  print 'when complete press q'
-  if not os.path.exists(imagedir):
-    os.mkdir(imagedir)
-
-  if not os.path.exists(imagedir):
-    print('failed to create image dir')
-    sys.exit()
-
-  while True:
-    f=cv.QueryFrame(c)
-    if (f == None):
-      print 'failed to capture'
-      continue
-    #print f.width, f.height
-    if (debayer):
-      bgr=cv.CreateImage((im_w,im_h),8,3)
-      cv.CvtColor(f,bgr,cv.CV_BayerGR2BGR)
-      f = bgr
-
-    if (f.channels==3):
-      cv.CvtColor(f,grey,cv.CV_BGR2GRAY)
-    elif (f.channels==1):
-      # convert to 8 bit pixel depth
-      cv.Convert(f,grey)
-    else:
-      print 'unsupported colourspace'
-      break
-    key = cv.WaitKey(100)
-    key = key & 255
-    if not key in range(128):
-      # show the image
-      if (im_w > 640):
-        tmp=cv.CreateImage((im_w/2,im_h/2),8,f.channels)
-        cv.Resize(f,tmp)
-        cv.ShowImage("calibrate", tmp)
-      else:
-        cv.ShowImage("calibrate", f)
-      continue
-    print 'key=0x%x(\'%c\')' % (key, chr(key))
-    key = chr(key)
-    if (key == ' '):
-      print 'looking for corners...'
-      found,points=cv.FindChessboardCorners(grey,dims,cv.CV_CALIB_CB_ADAPTIVE_THRESH)
-      if found == 0:
-        print 'Failed to find corners. Reposition and try again'
-      else:
-        cv.DrawChessboardCorners(f,dims,points,found)
-        #show the final image
-        if (im_w > 640):
-          tmp=cv.CreateImage((im_w/2,im_h/2),8,f.channels)
-          cv.Resize(f,tmp)
-          cv.ShowImage("calibrate", tmp)
-        else:
-          cv.ShowImage("calibrate", f)
-        #wait indefinitely
-        print 'Keep this image ? y/n'
-        key = chr(cv.WaitKey(0) & 255)
-        if (key == 'y'):
-          print 'Keeping image ', im_cnt
-          cv.SaveImage(imagedir+'/calib%05d.pgm' % (im_cnt), grey )
-          im_cnt+=1
-        else:
-          print 'discarding image'
-        print 'press any key to find next corners'
-    elif (key == 'q'):
-      print 'quit'
-      break
 
 if __name__ == '__main__':
-  from optparse import OptionParser
-  parser = OptionParser("calibrate.py [options] <imagedir>")
-  parser.add_option("--gather",dest="gather", action='store_true', default=False, help="gather calibration images")
-  parser.add_option("--width",dest="width", type='int', default=1280, help="capture width")
-  parser.add_option("--height",dest="height", type='int', default=960, help="capture height")
-  parser.add_option("--debayer",dest="debayer", action='store_true', default=False, help="debayer input images first")
-  parser.add_option("--dewarp",dest="dewarp", action='store_true', default=False, help="dewarp gathered images")
-  parser.add_option("--calibrate",dest="calibrate", action='store_true', default=False, help="calculate intrinsics")
-  (opts, args) = parser.parse_args()
+    parser = argparse.ArgumentParser("Camera Calibration via chessboard photos")
+    parser.add_argument("folder", default=None, help="Image folder or single file")
+    parser.add_argument("--dewarp",dest="dewarp", action='store_true', default=False, help="dewarp gathered images")
+    parser.add_argument("--calibrate",dest="calibrate", action='store_true', default=False, help="calculate intrinsics")
+    args = parser.parse_args()
 
-  if len(args) < 1:
-      print("Usage: calibrate.py [options] <imagedir>")
-      print("Use --help option for options")
-      sys.exit(1)
-
-  imagedir = args[0]
-  if (opts.gather):
-    gather(imagedir, opts.debayer, opts.width, opts.height)
-
-  if (opts.calibrate):
-    calibrate(imagedir)
-
-  if (opts.dewarp):
-    dewarp(imagedir)
+    imagedir = args.folder
+    if (args.calibrate):
+        calibrate(imagedir)
+    if (args.dewarp):
+        dewarp(imagedir)
 
 

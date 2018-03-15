@@ -37,9 +37,10 @@ class CameraParams:
 
     # compute focal length in pixels
     f_p = xresolution * self.lens / self.sensorwidth
-
-    self.K = array([[f_p, 0.0, xresolution/2],[0.0, f_p, yresolution/2], [0.0,0.0,1.0]])
-    self.D = array([[0.0, 0.0, 0.0, 0.0, 0.0]])
+    if self.K is None:
+      self.K = array([[f_p, 0.0, xresolution/2],[0.0, f_p, yresolution/2], [0.0,0.0,1.0]])
+    if self.D is None:
+      self.D = array([[0.0, 0.0, 0.0, 0.0, 0.0]])
 
   def __repr__(self):
       return json.dumps(self.todict(),indent=2)
@@ -57,6 +58,8 @@ class CameraParams:
     data['yresolution'] = self.yresolution
     if self.K is not None:
       data['K'] = self.K.tolist()
+      print("Set K to " + str(self.K))
+      print("Set K to " + str(data['K']))
     if self.D is not None:
       data['D'] = self.D.tolist()
     return data

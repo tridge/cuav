@@ -6,10 +6,10 @@ Created by Stephen Dade (stephen_dade@hotmail.com)
 '''
 
 import numpy, os, time, sys, xml.dom.minidom, math, numpy
+import argparse
 
 from cuav.lib import cuav_util
 from pymavlink import mavwp, mavutil
-from MAVProxy.modules.lib import mp_util
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 
 class MissionGenerator():
@@ -24,7 +24,7 @@ class MissionGenerator():
         self.entryPoints = []
         self.exitPoints = []
         self.SearchPattern = []
-        if opts.cmac:
+        if args.cmac:
             self.joePos = (-35.362748, 149.162257, 80)
             self.landingHeading = 353.0
             self.landingPt = (-35.362879, 149.165190)
@@ -464,7 +464,7 @@ class MissionGenerator():
         TargetComp = MAVpointLoader.target_component
 
         #WP0 - add landingPt as waypoint 0. This gets replaced when GPS gets lock
-        w = self.waypoint(*self.landingPt, alt=opts.basealt,
+        w = self.waypoint(*self.landingPt, alt=args.basealt,
                           frame=mavutil.mavlink.MAV_FRAME_GLOBAL)
         MAVpointLoader.add(w, comment='Airfield home')
 
@@ -618,7 +618,7 @@ class MissionGenerator():
 
         #export the waypoints to a MAVLink compatible format/file
         waytxt = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..',
-                              'data', opts.outname)
+                              'data', args.outname)
         MAVpointLoader.save(waytxt)
         print "Waypoints exported to %s" % waytxt
 
@@ -647,51 +647,50 @@ class MissionGenerator():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser("Generate a OBC mission, based on kml file")
+    parser.add_argument("file", default='..//data//OBC Waypoints 2014.kml', help="input file")
+    parser.add_argument("--searchAreaMask", default='SA-', help="name mask of search area waypoints")
+    parser.add_argument("--missionBoundaryMask", default='MB-', help="name mask of mission boundary waypoints")
+    parser.add_argument("--searchAreaOffset", type=int, default=150, help="distance waypoints will be placed outside search area")
+    parser.add_argument("--wobble", type=int, default=10, help="Make every second row slightly offset. Aids in viewing the overlaps")
+    parser.add_argument("--width", type=int, default=0, help="Width (m) of each scan row. 0 to use camera params")
+    parser.add_argument("--overlap", type=int, default=60, help="% overlap between rows")
+    parser.add_argument("--entryLane", default='EL-01,EL-02', help="csv list of waypoints before search")
+    parser.add_argument("--exitLane", default='EL-03,EL-04', help="csv list of waypoints after search")
+    parser.add_argument("--altitude", type=int, default=100, help="Altitude of waypoints")
+    parser.add_argument("--loiterInSearchArea", type=int, default=1, help="1 if UAV loiters in search area at end of search. 0 if it goes home")
+    parser.add_argument("--sutton", action='store_true', default=False, help="use sutton WP")
+    parser.add_argument("--cmac", action='store_true', default=False, help="use CMAC WP")
+    parser.add_argument("--outname", default='way.txt', help="name in data dir")
+    parser.add_argument("--basealt", default=0, type=int, help="base altitude")
+    parser.add_argument("--mpp100", default=0.098, type=float, help="camera meters per pixel at 100m")
+    parser.add_argument("--map", help="camera meters per pixel at 100m")
 
-    from optparse import OptionParser
-    parser = OptionParser("mp_missiongenerator.py [options]")
-    parser.add_option("--file", type='string', default='..//data//OBC Waypoints 2014.kml', help="input file")
-    parser.add_option("--searchAreaMask", type='string', default='SA-', help="name mask of search area waypoints")
-    parser.add_option("--missionBoundaryMask", type='string', default='MB-', help="name mask of mission boundary waypoints")
-    parser.add_option("--searchAreaOffset", type='int', default=150, help="distance waypoints will be placed outside search area")
-    parser.add_option("--wobble", type='int', default=10, help="Make every second row slightly offset. Aids in viewing the overlaps")
-    parser.add_option("--width", type='int', default=0, help="Width (m) of each scan row. 0 to use camera params")
-    parser.add_option("--overlap", type='int', default=60, help="% overlap between rows")
-    parser.add_option("--entryLane", type='string', default='EL-01,EL-02', help="csv list of waypoints before search")
-    parser.add_option("--exitLane", type='string', default='EL-03,EL-04', help="csv list of waypoints after search")
-    parser.add_option("--altitude", type='int', default=100, help="Altitude of waypoints")
-    parser.add_option("--loiterInSearchArea", type='int', default=1, help="1 if UAV loiters in search area at end of search. 0 if it goes home")
-    parser.add_option("--sutton", action='store_true', default=False, help="use sutton WP")
-    parser.add_option("--cmac", action='store_true', default=False, help="use CMAC WP")
-    parser.add_option("--outname", default='way.txt', help="name in data dir")
-    parser.add_option("--basealt", default=0, type='int', help="base altitude")
-    parser.add_option("--mpp100", default=0.098, type='float', help="camera meters per pixel at 100m")
+    args = parser.parse_args()
 
-    (opts, args) = parser.parse_args()
+    gen = MissionGenerator(args.file)
+    gen.Process(args.searchAreaMask, args.missionBoundaryMask)
+    gen.CreateEntryExitPoints(args.entryLane, args.exitLane)
 
-    gen = MissionGenerator(opts.file)
-    gen.Process(opts.searchAreaMask, opts.missionBoundaryMask)
-    gen.CreateEntryExitPoints(opts.entryLane, opts.exitLane)
-
-    groundWidth = opts.width
+    groundWidth = args.width
     #are we using the camera params to get the size of each search strip?
-    if opts.width == 0:
-        groundWidth = gen.getCameraWidth(opts.altitude, opts.mpp100)
+    if args.width == 0:
+        groundWidth = gen.getCameraWidth(args.altitude, args.mpp100)
     print "Strip width = " + str(groundWidth)
 
-    gen.CreateSearchPattern(width = groundWidth, overlap=opts.overlap, offset=opts.searchAreaOffset, wobble=opts.wobble, alt=opts.altitude)
+    gen.CreateSearchPattern(width = groundWidth, overlap=args.overlap, offset=args.searchAreaOffset, wobble=args.wobble, alt=args.altitude)
     
     gen.ExportSearchPattern()
 
     #start a map
-    sm = mp_slipmap.MPSlipMap(lat=gen.getMapPolygon(loiterInSearchArea=opts.loiterInSearchArea)[0][0], lon=gen.getMapPolygon(loiterInSearchArea=opts.loiterInSearchArea)[0][1], elevation=True, service='GoogleSat')
+    sm = mp_slipmap.MPSlipMap(lat=gen.getMapPolygon(loiterInSearchArea=args.loiterInSearchArea)[0][0], lon=gen.getMapPolygon(loiterInSearchArea=args.loiterInSearchArea)[0][1], elevation=True, service='GoogleSat')
     sm.add_object(mp_slipmap.SlipPolygon('Search Pattern', gen.getMapPolygon(), layer=1, linewidth=2, colour=(0,255,0)))
 
     #get the search pattern distance
     print "Total Distance = " + str(gen.getPolygonLength()) + "m"
 
     #and export to MAVProxy
-    gen.exportToMAVProxy(loiterInSearchArea=opts.loiterInSearchArea)
+    gen.exportToMAVProxy(loiterInSearchArea=args.loiterInSearchArea)
 
     #and to google earth
     gen.ExportSearchPattern()
