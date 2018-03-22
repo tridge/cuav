@@ -384,20 +384,19 @@ def OverlayImage(img, img2, x, y):
     img[y:y+img_height, x:x+img_width] = img2
 
 
-def SaturateImage(img, scale=2, brightness=2):
+def SaturateImage(img, scale=1, brightness=2):
     '''return a zoomed saturated image. Assumes a RGB image'''
     (w,h) = image_shape(img)
     (w2,h2) = (w//scale, h//scale)
     img2 = cv2.resize(img, (0,0), fx=scale, fy=scale)
-    img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2HSV)
-    h, s, v = cv2.split(img2)
-    v[:] = 255
-    if brightness != 1:
-        lim = 255 - brightness
-        v[v > lim] = 255
-        v[v <= lim] += brightness
-    final_hsv = cv2.merge((h, s, v))
-    return cv2.cvtColor(img2, cv2.COLOR_HSV2RGB)
+    hsv = cv2.cvtColor(img2, cv2.COLOR_RGB2HSV)
+    v = hsv[:, :, 2]
+    s = hsv[:, :, 1]
+    s[:] = 255
+    v = numpy.where(v <= 255 - (brightness * 10), v + (brightness * 10), 255)
+    hsv[:, :, 2] = v
+    hsv[:, :, 1] = s
+    return cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
 
 
 def set_system_clock(time_seconds):

@@ -231,31 +231,25 @@ class Mosaic():
         self.page = ridx / self.display_regions
         self.redisplay_mosaic()
 
-    def set_brightness(self, b):
-        '''set mosaic brightness'''
-        if b != self.brightness:
-            hsv = cv2.cvtColor(self.mosaic, cv2.COLOR_RGB2HSV)
-            h, s, v = cv2.split(hsv)
-
-            lim = 255 - b*10
-            v[v > lim] = 255
-            v[v <= lim] += b*10
-
-            final_hsv = cv2.merge((h, s, v))
-            self.mosaic = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
-            self.redisplay_mosaic()
-
     def show_region(self, ridx, view_the_image=False):
         '''display a region on the map'''
         region = self.regions[ridx]
-        thumbnail = region.full_thumbnail
+        thumbnail = cv2.cvtColor(region.full_thumbnail, cv2.COLOR_BGR2RGB)
+        
+        #do brightness
+        hsv = cv2.cvtColor(thumbnail, cv2.COLOR_RGB2HSV)
+        v = hsv[:, :, 2]
+        v = numpy.where(v <= 255 - (self.brightness * 10), v + (self.brightness * 10), 255)
+        hsv[:, :, 2] = v
+        thumbnail = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+        
         thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
         self.selected_region = ridx
         if region.score is None:
             region.score = 0
-        region_text = "Selected region %u score=%u/%u/%.2f %s\n%s alt=%u yaw=%d\n%s" % (ridx, region.score,
+        region_text = "Selected region %u score=%u/%u/%.2f %s\n%s alt=%u yaw=%d\n%s\t\t" % (ridx, region.score,
                                                                                         region.region.scan_score,
                                                                                         region.region.compactness,
                                                                                         region.region.center(),
@@ -492,9 +486,11 @@ class Mosaic():
         elif event.returnkey == 'previousPage':
             self.change_page(self.page - 1)
         elif event.returnkey == 'increaseBrightness':
-            self.set_brightness(self.brightness * 1.25)
+            self.brightness += 1
+            self.redisplay_mosaic()
         elif event.returnkey == 'decreaseBrightness':
-            self.set_brightness(self.brightness / 1.25)
+            self.brightness -= 1
+            self.redisplay_mosaic()
         elif event.returnkey == 'showImage':
             region = self.pos_to_region(event.popup_pos)
             self.popup_show_image(region)
@@ -570,10 +566,12 @@ class Mosaic():
     def menu_event_view(self, event):
         '''called on menu events on the view image'''
         if event.returnkey == 'increaseBrightness':
-            self.set_brightness(self.brightness * 1.25)
+            self.brightness += 1
+            self.redisplay_mosaic()
             self.view_image.set_brightness(self.brightness)
         elif event.returnkey == 'decreaseBrightness':
-            self.set_brightness(self.brightness / 1.25)
+            self.brightness -= 1
+            self.redisplay_mosaic()
             self.view_image.set_brightness(self.brightness)
         elif event.returnkey == 'fitWindow':
             self.view_image.fit_to_window()
@@ -716,6 +714,13 @@ class Mosaic():
             thumb = cv2.resize(region.small_thumbnail, (self.thumb_size, self.thumb_size))
         else:
             thumb = region.small_thumbnail
+            
+        #do brightness
+        hsv = cv2.cvtColor(thumb, cv2.COLOR_RGB2HSV)
+        v = hsv[:, :, 2]
+        v = numpy.where(v <= 255 - (self.brightness * 10), v + (self.brightness * 10), 255)
+        hsv[:, :, 2] = v
+        thumb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
 
         # overlay thumbnail on mosaic
         #print dest_x, dest_y, self.width, self.height, self.thumb_size, cuav_util.image_width(region.small_thumbnail)
@@ -731,8 +736,8 @@ class Mosaic():
         self.mosaic = numpy.zeros((height,width,3),dtype=numpy.uint8)
         for ridx in range(len(self.regions_sorted)):
             self.display_mosaic_region(ridx)
-        self.image_mosaic.set_image(self.mosaic, bgr=True)
         
+        self.image_mosaic.set_image(self.mosaic, bgr=True)
         max_page = (len(self.regions_sorted)-1) / self.display_regions
         self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
 

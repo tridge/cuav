@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import numpy, os, time, cv, sys, math, sys, glob, argparse
+import numpy, os, time, cv2, sys, math, sys, glob, argparse
 import multiprocessing
 
 from cuav.lib import cuav_util
@@ -16,37 +16,37 @@ slipmap = None
 mosaic = None
 
 def file_list(directory, extensions):
-  '''return file list for a directory'''
-  flist = []
-  for (root, dirs, files) in os.walk(directory):
-    for f in files:
-      extension = f.split('.')[-1]
-      if extension.lower() in extensions:
-        flist.append(os.path.join(root, f))
-  return flist
+    '''return file list for a directory'''
+    flist = []
+    for (root, dirs, files) in os.walk(directory):
+        for f in files:
+            extension = f.split('.')[-1]
+            if extension.lower() in extensions:
+                flist.append(os.path.join(root, f))
+    return flist
 
 
 def parse_gamma_log(gammalog):
-  '''parse gamma.log to process a mapping between frame_time string and GMT time of capture'''
-  f = open(gammalog)
-  lines = f.readlines()
-  f.close()
-  ret = {}
-  for line in lines:
-    a = line.split()
-    capture_time = float(a[2])
-    tstring = a[3]
-    ret[tstring] = capture_time
-  return ret
+    '''parse gamma.log to process a mapping between frame_time string and GMT time of capture'''
+    f = open(gammalog)
+    lines = f.readlines()
+    f.close()
+    ret = {}
+    for line in lines:
+        a = line.split()
+        capture_time = float(a[2])
+        tstring = a[3]
+        ret[tstring] = capture_time
+    return ret
 
 def parse_gamma_time(fname, gamma):
-  '''get GMT capture_time from filename and gamma hash'''
-  (root, ext) = os.path.splitext(os.path.basename(fname))
-  if root.lower().startswith("raw"):
-    root = root[3:]
-  if root in gamma:
-    return gamma[root]
-  return cuav_util.parse_frame_time(fname)
+    '''get GMT capture_time from filename and gamma hash'''
+    (root, ext) = os.path.splitext(os.path.basename(fname))
+    if root.lower().startswith("raw"):
+        root = root[3:]
+    if root in gamma:
+        return gamma[root]
+    return cuav_util.parse_frame_time(fname)
 
 def process(args):
   '''process a set of files'''
@@ -55,7 +55,7 @@ def process(args):
   scan_count = 0
   files = []
   if os.path.isdir(args.directory):
-    files.extend(file_list(args.directory, ['jpg', 'pgm', 'png']))
+    files.extend(file_list(args.directory, ['jpg', 'jpeg', 'png']))
   else:
     if args.directory.find('*') != -1:
       files.extend(glob.glob(args.directory))
@@ -121,7 +121,9 @@ def process(args):
   if args.camera_params:
     C_params = cam_params.CameraParams.fromfile(args.camera_params.name)
   else:
-    C_params = cam_params.CameraParams(lens=args.lens, sensorwidth=args.sensorwidth, xresolution=args.xresolution, yresolution=args.yresolution)
+    im_orig = cv2.imread(files[0])
+    (w,h) = cuav_util.image_shape(im_orig)
+    C_params = cam_params.CameraParams(lens=args.lens, sensorwidth=args.sensorwidth, xresolution=w, yresolution=h)
 
   if args.target:
     target = args.target.split(',')
@@ -135,7 +137,7 @@ def process(args):
       MPSetting('altitude', int, args.altitude, 'Altitude', range=(0,10000), increment=1),
       MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
       MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
-      MPSetting('rotate180', bool, args.rotate_180, 'rotate180'),
+      MPSetting('rotate180', bool, False, 'rotate180'),
       MPSetting('filter_type', str, 'compactness', 'Filter Type',
                 choice=['simple', 'compactness']),
       MPSetting('target_lattitude', float, float(target[0]), 'target latitude', increment=1.0e-7),
@@ -227,23 +229,17 @@ def process(args):
       slipmap.check_events()
       mosaic.check_events()
 
-      im_orig = cuav_util.LoadImage(f, rotate180=camera_settings.rotate180)
+      #im_orig = cuav_util.LoadImage(f, rotate180=camera_settings.rotate180)
+      im_orig = cv2.imread(f)
+
       if im_orig is None:
         continue
       (w,h) = cuav_util.image_shape(im_orig)
 
-      if False:
-        im_640 = cv.CreateImage((640, 480), 8, 3)
-        cv.Resize(im_full, im_640, cv.CV_INTER_NN)
-        im_640 = numpy.ascontiguousarray(cv.GetMat(im_640))
-
-      im_full = im_orig
-      im_full = numpy.ascontiguousarray(cv.GetMat(im_full))
-
       if args.downsample:
-        im_downsampled = numpy.zeros((h/2,w/2,3),dtype='uint8')
-        scanner.downsample(im_full, im_downsampled)
-        im_full = im_downsampled
+        im_full = cv2.resize(im_orig, (0,0), fx=0.5, fy=0.5)
+      else:
+        im_full = im_orig
 
       count = 0
       total_time = 0
@@ -282,8 +278,7 @@ def process(args):
                                                         camera_settings.target_longitude),
                                               camera_settings.target_radius)
 
-      regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time,
-                                           min_score=camera_settings.minscore,
+      regions = cuav_region.filter_regions(im_full, regions, min_score=camera_settings.minscore,
                                            filter_type=camera_settings.filter_type)
 
       scan_count += 1
@@ -300,22 +295,19 @@ def process(args):
       region_count += len(regions)
 
       if len(regions) > 0:
-          composite = cuav_mosaic.CompositeThumbnail(cv.GetImage(cv.fromarray(im_full)), regions)
+          composite = cuav_mosaic.CompositeThumbnail(im_full, regions)
           thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
           mosaic.add_regions(regions, thumbs, f, pos)
 
       if args.view:
         img_view = img_scan
         (wview,hview) = cuav_util.image_shape(img_view)
-        mat = cv.fromarray(img_view)
         for r in regions:
-          r.draw_rectangle(mat, (255,0,0))
-        cv.CvtColor(mat, mat, cv.CV_BGR2RGB)
+          r.draw_rectangle(img_view, (255,0,0))
+        #cv.CvtColor(mat, mat, cv.CV_BGR2RGB)
+        mat = cv2.cvtColor(mat, cv2.COLOR_BGR2RGB)
         viewer.set_image(mat)
         viewer.set_title('Image: ' + os.path.basename(f))
-        if args.saveview:
-          cv.CvtColor(mat, mat, cv.CV_RGB2BGR)
-          cv.SaveImage('view-' + os.path.basename(f), mat)
 
       total_time += (t1-t0)
       if t1 != t0:
@@ -331,97 +323,82 @@ def process(args):
       time.sleep(0.2)
 
 def parse_args():
-  '''parse command line arguments'''
-  parser = argparse.ArgumentParser(description='Search images for Joe')
-    
-  parser.add_argument("--vehicle-type",
-                      default="Plane",
-                      help="vehicle type",
-                      choices=('Plane','Copter'))
-  parser.add_argument("directory", default=None, help="directory containing image files")
-  parser.add_argument("--mission", default=None, type=file, help="mission file to display")
-  parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file")
-  parser.add_argument("--kmzlog", default=None, type=file, help="kmz file for image positions")
-  parser.add_argument("--triggerlog", default=None, type=file, help="robota trigger file for image positions")
-  parser.add_argument("--time-offset", type=float, default=0, help="offset between camera and mavlink log times (seconds)")
-  parser.add_argument("--view", action='store_true', default=False, help="show images")
-  parser.add_argument("--saveview", action='store_true', default=False, help="save image view")
-  parser.add_argument("--lens", default=28.0, type=float, help="lens focal length")
-  parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
-  parser.add_argument("--xresolution", default=1280, type=float, help="sensor width")
-  parser.add_argument("--yresolution", default=960, type=float, help="sensor width")
-  parser.add_argument("--service", default='MicrosoftSat', 
-    choices=('GoogleSat', 'MicrosoftSat', 'OviSat', 'OpenStreetMap', 'MicrosoftHyb', 'OviHybrid', 'GoogleMap'), help="map service")
-  parser.add_argument("--camera-params", default=None, type=file, help="camera calibration json file from OpenCV")
-  parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
-  parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
-  parser.add_argument("--pitch-stabilised", default=False, action='store_true', help="assume pitch stabilised camera")
-  parser.add_argument("--pitch-offset", default=0, type=float, help="pitch offset from autopilot pitch")
-  parser.add_argument("--rotate-180", default=False, action='store_true', help="rotate images 180 degrees")
-  parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
-  parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
-  parser.add_argument("--map-thumbsize", default=60, type=int, help="map thumbnail size")
-  parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")
-  parser.add_argument("--minscore", default=100, type=int, help="minimum score")
-  parser.add_argument("--gammalog", default=None, type=str, help="gamma.log from flight")
-  parser.add_argument("--target", default=None, type=str, help="lat,lon,radius target")
-  parser.add_argument("--categories", default=None, type=str, help="xml file containing categories for classification")
-  if 1 != len(sys.argv):
-    parser.add_argument("--flag", default=[], type=str, action='append', help="flag positions"),
-  parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
-  parser.add_argument("--start", default=False, action='store_true', help="start straight away")
-  parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
-  return parser.parse_args()
+    '''parse command line arguments'''
+    parser = argparse.ArgumentParser(description='Search images for Joe')
+    parser.add_argument("--vehicle-type", default="Plane", help="vehicle type", choices=('Plane','Copter'))
+    parser.add_argument("directory", default=None, help="directory containing image files")
+    parser.add_argument("--mission", default=None, type=file, help="mission file to display")
+    parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file")
+    parser.add_argument("--kmzlog", default=None, type=file, help="kmz file for image positions")
+    parser.add_argument("--triggerlog", default=None, type=file, help="robota trigger file for image positions")
+    parser.add_argument("--time-offset", type=float, default=0, help="offset between camera and mavlink log times (seconds)")
+    parser.add_argument("--view", action='store_true', default=False, help="show images")
+    parser.add_argument("--lens", default=28.0, type=float, help="lens focal length")
+    parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
+    parser.add_argument("--service", default='MicrosoftSat', choices=('GoogleSat', 'MicrosoftSat', 'OviSat', 'OpenStreetMap', 'MicrosoftHyb', 'OviHybrid', 'GoogleMap'), help="map service")
+    parser.add_argument("--camera-params", default=None, type=file, help="camera calibration json file from OpenCV")
+    parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
+    parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
+    parser.add_argument("--pitch-stabilised", default=False, action='store_true', help="assume pitch stabilised camera")
+    parser.add_argument("--pitch-offset", default=0, type=float, help="pitch offset from autopilot pitch")
+    parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
+    parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
+    parser.add_argument("--map-thumbsize", default=60, type=int, help="map thumbnail size")
+    parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")
+    parser.add_argument("--minscore", default=100, type=int, help="minimum score")
+    parser.add_argument("--gammalog", default=None, type=str, help="gamma.log from flight")
+    parser.add_argument("--target", default=None, type=str, help="lat,lon,radius target")
+    parser.add_argument("--categories", default=None, type=str, help="xml file containing categories for classification")
+    if 1 != len(sys.argv):
+        parser.add_argument("--flag", default=[], type=str, action='append', help="flag positions"),
+    parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
+    parser.add_argument("--start", default=False, action='store_true', help="start straight away")
+    parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
+    return parser.parse_args()
 
 @Gooey
 def parse_args_gooey():
-  '''parse command line arguments'''
-  parser = GooeyParser(description='Search images for Joe') 
+    '''parse command line arguments'''
+    parser = GooeyParser(description='Search images for Joe') 
 
-  parser.add_argument("--vehicle-type",
-                      default="Plane",
-                      help="vehicle type",
-                      choices=('Plane','Copter'))
-  parser.add_argument("directory", default=None, help="directory containing image files", widget='DirChooser')
-  parser.add_argument("--mission", default=None, type=file, help="mission file to display", widget='FileChooser')
-  parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file", widget='FileChooser')
-  parser.add_argument("--kmzlog", default=None, type=file, help="kmz file for image positions", widget='FileChooser')
-  parser.add_argument("--triggerlog", default=None, type=file, help="robota trigger file for image positions", widget='FileChooser')
-  parser.add_argument("--time-offset", type=float, default=0, help="offset between camera and mavlink log times (seconds)")
-  parser.add_argument("--view", action='store_true', default=False, help="show images")
-  parser.add_argument("--saveview", action='store_true', default=False, help="save image view")
-  parser.add_argument("--lens", default=28.0, type=float, help="lens focal length")
-  parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
-  parser.add_argument("--service", default='MicrosoftSat', 
-    choices=['GoogleSat', 'MicrosoftSat', 'OviSat', 'OpenStreetMap', 'MicrosoftHyb', 'OviHybrid', 'GoogleMap'], help="map service")
-  parser.add_argument("--camera-params", default=None, type=file, help="camera calibration json file from OpenCV", widget='FileChooser')
-  parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
-  parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
-  parser.add_argument("--pitch-stabilised", default=False, action='store_true', help="assume roll pitch camera")
-  parser.add_argument("--pitch-offset", default=0, type=float, help="pitch offset from autopilot pitch")
-  parser.add_argument("--rotate-180", default=False, action='store_true', help="rotate images 180 degrees")
-  parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
-  parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
-  parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")
-  parser.add_argument("--minscore", default=100, type=int, help="minimum score")
-  parser.add_argument("--gammalog", default=None, type=str, help="gamma.log from flight", widget='FileChooser')
-  parser.add_argument("--target", default=None, type=str, help="lat,lon,radius target")
-  parser.add_argument("--categories", default=None, type=str, help="xml file containing categories for classification", widget='FileChooser')
-  if 1 != len(sys.argv):
-    parser.add_argument("--flag", default=[], type=str, action='append', help="flag positions"),
-  parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
-  return parser.parse_args()
-  
+    parser.add_argument("--vehicle-type", default="Plane", help="vehicle type", choices=('Plane','Copter'))
+    parser.add_argument("directory", default=None, help="directory containing image files", widget='DirChooser')
+    parser.add_argument("--mission", default=None, type=file, help="mission file to display", widget='FileChooser')
+    parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file", widget='FileChooser')
+    parser.add_argument("--kmzlog", default=None, type=file, help="kmz file for image positions", widget='FileChooser')
+    parser.add_argument("--triggerlog", default=None, type=file, help="robota trigger file for image positions", widget='FileChooser')
+    parser.add_argument("--time-offset", type=float, default=0, help="offset between camera and mavlink log times (seconds)")
+    parser.add_argument("--view", action='store_true', default=False, help="show images")
+    parser.add_argument("--lens", default=28.0, type=float, help="lens focal length")
+    parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
+    parser.add_argument("--service", default='MicrosoftSat', choices=['GoogleSat', 'MicrosoftSat', 'OviSat', 'OpenStreetMap', 'MicrosoftHyb', 'OviHybrid', 'GoogleMap'], help="map service")
+    parser.add_argument("--camera-params", default=None, type=file, help="camera calibration json file from OpenCV", widget='FileChooser')
+    parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
+    parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
+    parser.add_argument("--pitch-stabilised", default=False, action='store_true', help="assume roll pitch camera")
+    parser.add_argument("--pitch-offset", default=0, type=float, help="pitch offset from autopilot pitch")
+    parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
+    parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
+    parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")
+    parser.add_argument("--minscore", default=100, type=int, help="minimum score")
+    parser.add_argument("--gammalog", default=None, type=str, help="gamma.log from flight", widget='FileChooser')
+    parser.add_argument("--target", default=None, type=str, help="lat,lon,radius target")
+    parser.add_argument("--categories", default=None, type=str, help="xml file containing categories for classification", widget='FileChooser')
+    if 1 != len(sys.argv):
+        parser.add_argument("--flag", default=[], type=str, action='append', help="flag positions"),
+    parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
+    return parser.parse_args()
+    
 if __name__ == '__main__':
-  multiprocessing.freeze_support()
-  if not len(sys.argv) > 1:
-    args = parse_args_gooey()
-  else:
-    args = parse_args()
+    multiprocessing.freeze_support()
+    if not len(sys.argv) > 1:
+        args = parse_args_gooey()
+    else:
+        args = parse_args()
 
-  # main program
-  process(args)
-  while True:
-    slipmap.check_events()
-    mosaic.check_events()
-    time.sleep(0.002)
+    # main program
+    process(args)
+    while True:
+        slipmap.check_events()
+        mosaic.check_events()
+        time.sleep(0.002)

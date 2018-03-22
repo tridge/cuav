@@ -83,8 +83,6 @@ def test_Mosaic():
     mosaic.add_regions(regions, thumbs, f, pos)
     mosaic.add_image(1478994408.76, f, pos)
     
-    mosaic.set_brightness(2)
-    
     mosaic.show_region(0)
 
     mosaic.view_imagefile(f)

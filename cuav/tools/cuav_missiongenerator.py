@@ -15,7 +15,7 @@ from MAVProxy.modules.mavproxy_map import mp_slipmap
 class MissionGenerator():
     '''Mission Generator Class'''
 
-    def __init__(self, inFile='obc.kml', altitude=90):
+    def __init__(self, inFile='obc.kml', altitude=90, cmac=True):
         self.inFile = inFile
         self.dom = xml.dom.minidom.parse(inFile)
 
@@ -24,7 +24,7 @@ class MissionGenerator():
         self.entryPoints = []
         self.exitPoints = []
         self.SearchPattern = []
-        if args.cmac:
+        if cmac:
             self.joePos = (-35.362748, 149.162257, 80)
             self.landingHeading = 353.0
             self.landingPt = (-35.362879, 149.165190)
@@ -444,7 +444,7 @@ class MissionGenerator():
         return self.waypoint(0,0,0, cmd=cmd, param=param)
                      
 
-    def exportToMAVProxy(self, loiterInSearchArea=1):
+    def exportToMAVProxy(self, loiterInSearchArea=1, basealt=100, outname="way.txt"):
         '''Exports the airfield home, entry points, search pattern and exit points to MAVProxy'''
 
         #make a fake waypoint loader for testing purposes, if we're not
@@ -464,7 +464,7 @@ class MissionGenerator():
         TargetComp = MAVpointLoader.target_component
 
         #WP0 - add landingPt as waypoint 0. This gets replaced when GPS gets lock
-        w = self.waypoint(*self.landingPt, alt=args.basealt,
+        w = self.waypoint(*self.landingPt, alt=basealt,
                           frame=mavutil.mavlink.MAV_FRAME_GLOBAL)
         MAVpointLoader.add(w, comment='Airfield home')
 
@@ -618,7 +618,7 @@ class MissionGenerator():
 
         #export the waypoints to a MAVLink compatible format/file
         waytxt = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..',
-                              'data', args.outname)
+                              'data', outname)
         MAVpointLoader.save(waytxt)
         print "Waypoints exported to %s" % waytxt
 
@@ -640,10 +640,10 @@ class MissionGenerator():
 
         #print strMAV
 
-    def getCameraWidth(self, alt, mpp100):
+    def getCameraWidth(self, alt, mpp100, camerares):
         '''Using the camera parameters, with the width of the
         ground strip that the camera can see from a particular altitude'''
-        return 1280 * mpp100 * alt / 100.0
+        return camerares * mpp100 * alt / 100.0
 
 
 if __name__ == "__main__":
@@ -664,18 +664,20 @@ if __name__ == "__main__":
     parser.add_argument("--outname", default='way.txt', help="name in data dir")
     parser.add_argument("--basealt", default=0, type=int, help="base altitude")
     parser.add_argument("--mpp100", default=0.098, type=float, help="camera meters per pixel at 100m")
+    parser.add_argument("--camerares", default=1280, type=float, help="Camera resolution")
     parser.add_argument("--map", help="camera meters per pixel at 100m")
+    
 
     args = parser.parse_args()
 
-    gen = MissionGenerator(args.file)
+    gen = MissionGenerator(args.file, args.cmac)
     gen.Process(args.searchAreaMask, args.missionBoundaryMask)
     gen.CreateEntryExitPoints(args.entryLane, args.exitLane)
 
     groundWidth = args.width
     #are we using the camera params to get the size of each search strip?
     if args.width == 0:
-        groundWidth = gen.getCameraWidth(args.altitude, args.mpp100)
+        groundWidth = gen.getCameraWidth(args.altitude, args.mpp100, args.camerares)
     print "Strip width = " + str(groundWidth)
 
     gen.CreateSearchPattern(width = groundWidth, overlap=args.overlap, offset=args.searchAreaOffset, wobble=args.wobble, alt=args.altitude)
@@ -690,7 +692,7 @@ if __name__ == "__main__":
     print "Total Distance = " + str(gen.getPolygonLength()) + "m"
 
     #and export to MAVProxy
-    gen.exportToMAVProxy(loiterInSearchArea=args.loiterInSearchArea)
+    gen.exportToMAVProxy(args.loiterInSearchArea, args.basealt, args.outname)
 
     #and to google earth
     gen.ExportSearchPattern()

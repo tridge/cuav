@@ -111,11 +111,13 @@ def image_whiteness(hsv):
         (height,width,d) = shape(hsv)
         score = 0
         count = 0
+        if height == 0 or width == 0:
+            return 0
         for x in range(width):
-                for y in range(height):
-                        (h,s,v) = hsv[y,x]
-                        if (s < 25 and v > 50):
-                                count += 1
+            for y in range(height):
+                (h,s,v) = hsv[y,x]
+                if (s < 25 and v > 50):
+                    count += 1
         return float(count)/float(width*height)
 
 def raw_hsv_score(hsv):
@@ -202,9 +204,9 @@ def hsv_score(r, hsv, use_whiteness=False):
         scorix = (scorix>0).astype(float)
 
         r.whiteness = image_whiteness(hsv)
-    if use_whiteness:
-        not_white = 1.0-r.whiteness
-        col_score *= not_white
+        if use_whiteness:
+            not_white = 1.0-r.whiteness
+            col_score *= not_white
     if r.compactness <= math.e:
         scaled_compactness = 1
     else:

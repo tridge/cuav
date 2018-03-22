@@ -229,9 +229,9 @@ def test_SaturateImage():
     subimage = SubImage(img, region)
     newimage = SaturateImage(subimage, 2, 3)
     assert newimage.shape == (60, 60, 3)
-    assert newimage[0,0,0] == 15
-    assert newimage[0,0,1] == 12
-    assert newimage[0,0,2] == 18
+    assert newimage[0,0,0] == 24
+    assert newimage[0,0,1] == 0
+    assert newimage[0,0,2] == 48
 
 def test_set_system_clock():
     pass
