@@ -1,0 +1,16 @@
+os:
+- linux
+language: python
+python:
+- 2.7
+addons:
+  apt:
+    packages:
+    - python-opencv
+    - python-wxgtk3.0
+install:
+- pip install pymavlink MAVProxy pytest future
+- python setup.py build install
+jobs:
+  include:
+    - script: python setup.py test
