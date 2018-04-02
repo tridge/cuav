@@ -2,6 +2,8 @@
 
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/CanberraUAV/cuav?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
+[![Build Status](https://travis-ci.org/CanberraUAV/cuav.svg?branch=master)](https://travis-ci.org/CanberraUAV/cuav)
+
 The CanberraUAV Image Processing (cuav) tools are designed to quickly and
 accurately locate objects of interest from a large set of photos. With the addition
 of flight logs or geo-tagging, it can also give the location of the objects.
