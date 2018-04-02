@@ -17,7 +17,7 @@ else:
  
 scanner = Extension('cuav.image.scanner',
                     sources = ['cuav/image/scanner.c', 'cuav/image/imageutil.c'],
-                    libraries = ['jpeg'],
+                    libraries = [],
                     extra_compile_args=extra_compile_args)
 #                    extra_compile_args=extra_compile_args + ['-O0'])
 ext_modules.append(scanner)
