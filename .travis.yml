@@ -11,9 +11,6 @@ addons:
     - python-numpy
     - libexiv2-dev
     - libboost-python-dev
-    - python-matplotlib #MAVProxy
-    - python-dev #MAVProxy
-    - python-lxml #MAVProxy
 before_install:
   # get Conda
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
@@ -31,6 +28,21 @@ before_install:
   #Download pyexiv2
   - wget https://launchpad.net/pyexiv2/0.3.x/0.3.2/+download/pyexiv2-0.3.2.tar.bz2
   - tar -xjvf pyexiv2-0.3.2.tar.bz2
+  #Download SRTM data, because MAVProxy fails without it cached
+  #It returns a None if needs to download in the background (need to fix this)
+  - mkdir -p $HOME/.tilecache/SRTM
+  - cp $TRAVIS_BUILD_DIR/tests/testdata/filelist_python $HOME/.tilecache/SRTM/filelist_python
+  - cd $HOME/.tilecache/SRTM
+  - wget http://firmware.ardupilot.org/SRTM/Africa/S16E011.hgt.zip
+  - wget http://firmware.ardupilot.org/SRTM/Australia/S21E145.hgt.zip
+  - wget http://firmware.ardupilot.org/SRTM/Africa/S28E020.hgt.zip
+  - wget http://firmware.ardupilot.org/SRTM/Australia/S35E148.hgt.zip
+  - wget http://firmware.ardupilot.org/SRTM/Australia/S35E149.hgt.zip
+  - wget http://firmware.ardupilot.org/SRTM/Australia/S36E148.hgt.zip
+  - wget http://firmware.ardupilot.org/SRTM/Australia/S36E149.hgt.zip
+  - wget http://firmware.ardupilot.org/SRTM/Australia/S37E148.hgt.zip
+  - wget http://firmware.ardupilot.org/SRTM/Islands/S47E037.hgt.zip
+  - cd $TRAVIS_BUILD_DIR
 install:
   - conda install -c https://conda.anaconda.org/travis wxpython
   - pip install scons opencv-python future
@@ -41,21 +53,6 @@ install:
   - cd ../
   - pip install pymavlink MAVProxy pytest pytest-mock 
   - python setup.py build install
-  #Download SRTM data, because MAVProxy fails without it cached
-  #It returns a None if needs to download in the background (need to fix this)
-  mkdir -p $HOME/.tilecache/SRTM
-  cp $HOME/cuav/tests/testdata/filelist_python $HOME/.tilecache/SRTM/filelist_python
-  cd $HOME/.tilecache/SRTM
-  wget http://firmware.ardupilot.org/SRTM/Africa/S16E011.hgt.zip
-  wget http://firmware.ardupilot.org/SRTM/Australia/S21E145.hgt.zip
-  wget http://firmware.ardupilot.org/SRTM/Africa/S28E020.hgt.zip
-  wget http://firmware.ardupilot.org/SRTM/Australia/S35E148.hgt.zip
-  wget http://firmware.ardupilot.org/SRTM/Australia/S35E149.hgt.zip
-  wget http://firmware.ardupilot.org/SRTM/Australia/S36E148.hgt.zip
-  wget http://firmware.ardupilot.org/SRTM/Australia/S36E149.hgt.zip
-  wget http://firmware.ardupilot.org/SRTM/Australia/S37E148.hgt.zip
-  wget http://firmware.ardupilot.org/SRTM/Islands/S47E037.hgt.zip
-  cd $HOME/cuav
 before_script:
   - ls
 script:

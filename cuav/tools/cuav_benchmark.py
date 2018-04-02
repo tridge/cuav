@@ -65,16 +65,16 @@ def process(filename, repeat):
     t1 = time.time()
     print('scan_full: %.1f fps' % (repeat/(t1-t0)))
 
-    if not hasattr(scanner, 'jpeg_compress'):
-        return
+    #if not hasattr(scanner, 'jpeg_compress'):
+    #    return
   
-    for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
-        t0 = time.time()
-        for i in range(repeat):
-            jpeg = cPickle.dumps(ImagePacket(time.time(), scanner.jpeg_compress(colour, quality)),
-                           protocol=cPickle.HIGHEST_PROTOCOL)
-        t1 = time.time()
-        print('jpeg full quality %u: %.1f fps  %u bytes' % (quality, repeat/(t1-t0), len(bytes(jpeg))))
+    #for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
+    #    t0 = time.time()
+    #    for i in range(repeat):
+    #        jpeg = cPickle.dumps(ImagePacket(time.time(), scanner.jpeg_compress(colour, quality)),
+    #                       protocol=cPickle.HIGHEST_PROTOCOL)
+    #    t1 = time.time()
+    #    print('jpeg full quality %u: %.1f fps  %u bytes' % (quality, repeat/(t1-t0), len(bytes(jpeg))))
 
     #for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
     #    t0 = time.time()
@@ -85,24 +85,24 @@ def process(filename, repeat):
     #    t1 = time.time()
     #    print('EncodeImage full quality %u: %.1f fps  %u bytes' % (quality, repeat/(t1-t0), len(bytes(jpeg))))
 
-    for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
-        t0 = time.time()
-        for i in range(repeat):
-            jpeg = cPickle.dumps(ImagePacket(time.time(), scanner.jpeg_compress(colour_half, quality)),
-                           protocol=cPickle.HIGHEST_PROTOCOL)
-        t1 = time.time()
-        print('jpeg half quality %u: %.1f fps  %u bytes' % (quality, repeat/(t1-t0), len(bytes(jpeg))))
+    #for quality in [30, 40, 50, 60, 70, 80, 90, 95]:
+    #    t0 = time.time()
+    #    for i in range(repeat):
+    #        jpeg = cPickle.dumps(ImagePacket(time.time(), scanner.jpeg_compress(colour_half, quality)),
+    #                       protocol=cPickle.HIGHEST_PROTOCOL)
+    #    t1 = time.time()
+    #    print('jpeg half quality %u: %.1f fps  %u bytes' % (quality, repeat/(t1-t0), len(bytes(jpeg))))
 
-    for thumb_size in [10, 20, 40, 60, 80, 100]:
-        thumb = numpy.zeros((thumb_size,thumb_size,3),dtype='uint8')
-        t0 = time.time()
-        for i in range(repeat):
-            scanner.rect_extract(colour, thumb, 0, 0)
-            jpeg = cPickle.dumps(ImagePacket(time.time(), scanner.jpeg_compress(thumb, 85)),
-                           protocol=cPickle.HIGHEST_PROTOCOL)
-        t1 = time.time()
-        print('thumb %u quality 85: %.1f fps  %u bytes' % (thumb_size, repeat/(t1-t0), len(bytes(jpeg))))
-    
+    #for thumb_size in [10, 20, 40, 60, 80, 100]:
+    #    thumb = numpy.zeros((thumb_size,thumb_size,3),dtype='uint8')
+    #    t0 = time.time()
+    #    for i in range(repeat):
+    #        scanner.rect_extract(colour, thumb, 0, 0)
+    #        jpeg = cPickle.dumps(ImagePacket(time.time(), scanner.jpeg_compress(thumb, 85)),
+    #                       protocol=cPickle.HIGHEST_PROTOCOL)
+    #    t1 = time.time()
+    #    print('thumb %u quality 85: %.1f fps  %u bytes' % (thumb_size, repeat/(t1-t0), len(bytes(jpeg))))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("cuav benchmarking test")

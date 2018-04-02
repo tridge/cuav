@@ -71,7 +71,7 @@ def test_TriggerPosition():
     pos = tpos.position(testpng)
     #Note all altitudes are AGL
     assert pos.lat == -20.1234 and pos.lon == 145.456
-    assert pos.altitude == 10 and pos.time == 1478954763.0
+    assert pos.altitude == 10 and (pos.time == 1478954763.0 or pos.time == 1478994363.0)
     assert pos.yaw == 0
     
 def test_get_ground_alt():
