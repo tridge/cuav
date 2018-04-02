@@ -331,9 +331,8 @@ def polygon_complete(V):
 
 def image_shape(img):
     '''return (w,h) of an image, coping with different image formats'''
-    if getattr(img, 'shape', None) is not None:
-        return (img.shape[1], img.shape[0])
-    return (getattr(img, 'width'), getattr(img, 'height'))
+    height, width = img.shape[:2]
+    return (width, height)
 
 def image_width(img):
     '''return width of an image, coping with different image formats'''
@@ -347,6 +346,8 @@ def SubImage(src, region):
     for the region going past the edges.
     region is of the form (x1,y1,width,height)'''
     (x1,y1,width,height) = region
+    #if src == None:
+    #    return numpy.zeros((height,width,3),dtype=numpy.uint16)
     ret = numpy.zeros((height,width,3),dtype=src.dtype)
     (img_width,img_height) = image_shape(src)
     if x1 < 0:

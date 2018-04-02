@@ -20,7 +20,7 @@ def test_MavInterpolator():
     try:
         pos = mpos.position(1478994416.95, 0,roll=None)
     except mav_position.MavInterpolatorException as e:
-        assert str(e) == "no msgs of type GLOBAL_POSITION_INT before Sun Nov 13 10:46:56 2016 last="
+        assert str(e) == "no msgs of type GLOBAL_POSITION_INT before Sun Nov 13 10:46:56 2016 last=" or "no msgs of type GLOBAL_POSITION_INT before Sun Nov 13 23:46:56 2016 last="
 
     pos = mpos.position(1478996416.95, 0,roll=None)
     assert pos.lat == -35.22516869821579 and pos.lon == 149.53864145448478

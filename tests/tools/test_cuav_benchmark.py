@@ -10,6 +10,6 @@ import cuav.tools.cuav_benchmark as cuav_benchmark
 
 
 def test_cuav_benchmark():
-    infile = os.path.join('.', 'tests', 'testdata', 'test-8bit.png')
+    infile = os.path.join(os.getcwd(), 'tests', 'testdata', 'test-8bit.png')
     cuav_benchmark.process(infile, 10)
 

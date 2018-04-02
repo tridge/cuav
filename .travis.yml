@@ -1,16 +1,62 @@
-os:
-- linux
+# http://travis-ci.org/#!/CanberraUAV/cuav
 language: python
 python:
-- 2.7
+  - 2.7
+cache:
+  pip: true
+  apt: true
 addons:
   apt:
     packages:
-    - python-opencv
-    - python-wxgtk3.0
+    - python-numpy
+    - libexiv2-dev
+    - libboost-python-dev
+    - python-matplotlib #MAVProxy
+    - python-dev #MAVProxy
+    - python-lxml #MAVProxy
+before_install:
+  # get Conda
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
+    else
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # Useful for debugging any issues with conda
+  - conda info -a
+  #Download pyexiv2
+  - wget https://launchpad.net/pyexiv2/0.3.x/0.3.2/+download/pyexiv2-0.3.2.tar.bz2
+  - tar -xjvf pyexiv2-0.3.2.tar.bz2
 install:
-- pip install pymavlink MAVProxy pytest future
-- python setup.py build install
-jobs:
-  include:
-    - script: python setup.py test
+  - conda install -c https://conda.anaconda.org/travis wxpython
+  - pip install scons opencv-python future
+  #Build pyexiv2, as the apt-get doesn't work in Travis (virtualenv issues)
+  - cd ./pyexiv2-0.3.2
+  - scons 
+  - scons install
+  - cd ../
+  - pip install pymavlink MAVProxy pytest pytest-mock 
+  - python setup.py build install
+  #Download SRTM data, because MAVProxy fails without it cached
+  #It returns a None if needs to download in the background (need to fix this)
+  mkdir -p $HOME/.tilecache/SRTM
+  cp $HOME/cuav/tests/testdata/filelist_python $HOME/.tilecache/SRTM/filelist_python
+  cd $HOME/.tilecache/SRTM
+  wget http://firmware.ardupilot.org/SRTM/Africa/S16E011.hgt.zip
+  wget http://firmware.ardupilot.org/SRTM/Australia/S21E145.hgt.zip
+  wget http://firmware.ardupilot.org/SRTM/Africa/S28E020.hgt.zip
+  wget http://firmware.ardupilot.org/SRTM/Australia/S35E148.hgt.zip
+  wget http://firmware.ardupilot.org/SRTM/Australia/S35E149.hgt.zip
+  wget http://firmware.ardupilot.org/SRTM/Australia/S36E148.hgt.zip
+  wget http://firmware.ardupilot.org/SRTM/Australia/S36E149.hgt.zip
+  wget http://firmware.ardupilot.org/SRTM/Australia/S37E148.hgt.zip
+  wget http://firmware.ardupilot.org/SRTM/Islands/S47E037.hgt.zip
+  cd $HOME/cuav
+before_script:
+  - ls
+script:
+  - py.test

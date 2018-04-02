@@ -23,17 +23,17 @@ def test_uavxfer():
     
     (l_w, scale) = xfer.imageToWorld(p_i[0], p_i[1])
     
-    assert l_w[0] == 499.99999999999989
-    assert l_w[1] == 1000
-    assert l_w[2] == -600
-    assert l_w[3] == 1
-    assert scale == 99.003328892062072
+    assert abs(500 - l_w[0]) < 0.01
+    assert abs(1000 - l_w[1]) < 0.01
+    assert abs(-600 - l_w[2]) < 0.01
+    assert abs(1 - l_w[3]) < 0.01
+    assert abs(99 - scale) < 0.01
 
 def test_rotationMatrix():
     Rc = rotationMatrix(45, 60, 30)
     
     assert Rc.shape == (3, 3)
-    assert Rc[0,0] == -0.14691108312079304
-    assert Rc[1,1] == 0.33729193922741485
-    assert Rc[2,2] == -0.50032348104751134
+    assert abs(-0.1469110 - Rc[0,0]) < 0.001
+    assert abs(0.3372919 - Rc[1,1]) < 0.001
+    assert abs(-0.5003234 - Rc[2,2]) < 0.001
     
