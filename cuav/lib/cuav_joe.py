@@ -38,7 +38,12 @@ class JoeLog():
   def __init__(self, filename, append=True):
     self.filename = filename
     if filename is not None:
-      self.log = open(filename, "a" if append else "w")
+      self.log = filename #open(filename, "ab" if append else "wb")
+      if not append:
+        try:
+          os.remove(self.filename)
+        except:
+          pass
     else:
       self.log = None
         
@@ -46,8 +51,9 @@ class JoeLog():
     '''add an entry to the log'''
     joe = JoePosition(latlon, frame_time, r, pos, image_filename, thumb_filename)
     if self.log is not None:
-      self.log.write(cPickle.dumps(joe, protocol=cPickle.HIGHEST_PROTOCOL))
-      self.log.flush()
+      with open(self.filename, "ab") as f:
+        f.write(cPickle.dumps(joe, protocol=cPickle.HIGHEST_PROTOCOL))
+        f.flush()
         
   def add_regions(self, frame_time, regions, pos, image_filename, thumb_filename=None, width=1280, height=960, altitude=None, C=None):
     '''add a set of regions to the log, applying geo-referencing.
@@ -69,16 +75,21 @@ class JoeLog():
 class JoeIterator():
   '''an iterator for a joe.log'''
   def __init__(self, filename):
-    self.log = open(filename, "r")
-
-  def __iter__(self):
-    return self
-
-  def next(self):
+    self.joes = []
+    
+    in_s = open(filename, 'rb')
     try:
-      joe = cPickle.load(self.log)
-    except Exception:
-      raise StopIteration
-    return joe
+      # Read the data
+      while True:
+        try:
+          o = cPickle.load(in_s)
+          self.joes.append(o)
+        except EOFError:
+          break
+    finally:
+      in_s.close()
+
+  def getjoes(self):
+    return self.joes
   
 

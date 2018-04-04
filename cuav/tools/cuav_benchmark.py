@@ -25,27 +25,38 @@ def process(filename, repeat):
     for i in range(repeat):
         cv2.cvtColor(colour, cv2.COLOR_RGB2HSV)
     t1 = time.time()
-    print('RGB2HSV_full: %.1f fps' % (repeat/(t1-t0)))
+    if t1 > t0:
+        print('RGB2HSV_full: %.1f fps' % (repeat/(t1-t0)))
+    else:
+        print('RGB2HSV_full: (inf) fps')
 
     t0 = time.time()
     for i in range(repeat):
         cv2.cvtColor(colour_half, cv2.COLOR_RGB2HSV)
     t1 = time.time()
-    print('RGB2HSV_half: %.1f fps' % (repeat/(t1-t0)))
-
+    if t1 > t0:
+        print('RGB2HSV_half: %.1f fps' % (repeat/(t1-t0)))
+    else:
+        print('RGB2HSV_half: (inf) fps')
+        
     t0 = time.time()
     for i in range(repeat):
         thumb = numpy.empty((100,100,3),dtype='uint8')
         scanner.rect_extract(colour, thumb, 120, 125)
     t1 = time.time()
-    print('rect_extract: %.1f fps' % (repeat/(t1-t0)))
-
+    if t1 > t0:
+        print('rect_extract: %.1f fps' % (repeat/(t1-t0)))
+    else:
+        print('rect_extract: (inf) fps')
+        
     t0 = time.time()
     for i in range(repeat):
         thumb = cuav_util.SubImage(colour, (120,125,100,100))
     t1 = time.time()
-    print('SubImage: %.1f fps' % (repeat/(t1-t0)))
-
+    if t1 > t0:
+        print('SubImage: %.1f fps' % (repeat/(t1-t0)))
+    else:
+        print('SubImage: (inf) fps')
 
     #t0 = time.time()
     #for i in range(repeat):
@@ -57,14 +68,20 @@ def process(filename, repeat):
     for i in range(repeat):
         scanner.scan(colour_half)
     t1 = time.time()
-    print('scan: %.1f fps' % (repeat/(t1-t0)))
-
+    if t1 > t0:
+        print('scan: %.1f fps' % (repeat/(t1-t0)))
+    else:
+        print('scan: (inf) fps')
+        
     t0 = time.time()
     for i in range(repeat):
         scanner.scan(colour)
     t1 = time.time()
-    print('scan_full: %.1f fps' % (repeat/(t1-t0)))
-
+    if t1 > t0:
+        print('scan_full: %.1f fps' % (repeat/(t1-t0)))
+    else:
+        print('scan_full: (inf) fps')
+        
     #if not hasattr(scanner, 'jpeg_compress'):
     #    return
   

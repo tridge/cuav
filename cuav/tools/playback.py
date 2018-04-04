@@ -5,6 +5,9 @@ play back a mavlink log and set of images as a
 realtime mavlink stream
 
 Useful for testing the ground station using previously logged data and images
+
+Due to Windows lacking symlinking (and funky timestamping for mavlink messages), this script 
+isn't compatible with Windows
 '''
 
 import sys, time, os, struct, glob
@@ -91,13 +94,19 @@ if __name__ == '__main__':
     parser = ArgumentParser(description="play back a mavlink log and set of images as a mavlink stream")
     parser.add_argument("imagedir", default=None, help='image directory')
     parser.add_argument("logdir", default=None, help='log file')
-    parser.add_argument("--out",   help="MAVLink output port (IP:port)", default='127.0.0.1:14550')
+    parser.add_argument("--out",   help="MAVLink output port (IP:port)", default='udpout:127.0.0.1:14550')
     parser.add_argument("--baudrate", type=int, default=57600, help='baud rate')
     parser.add_argument("--condition", default=None, help='condition on mavlink log')
     parser.add_argument("--speedup", type=float, default=1.0, help='playback speedup')
     parser.add_argument("--loop", action='store_true', default=False, help='playback in a loop')
     
     args = parser.parse_args()
+    
+    #Check if we're running under Windows:
+    if sys.platform.startswith('win'):
+        print("This script is not compatible with Windows")
+        sys.exit()
+    
     while True:
         images = scan_image_directory(args.imagedir)
         if len(images) == 0:

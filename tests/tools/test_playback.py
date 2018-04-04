@@ -10,6 +10,11 @@ import cuav.tools.playback as playback
 from cuav.lib import cuav_util
 
 def test_do_playback():
+    #Check if we're running under Windows:
+    if sys.platform.startswith('win'):
+        print("This script is not compatible with Windows")
+        return
+    
     logfile = os.path.join('.', 'tests', 'testdata', 'flight.tlog')
     outfile = os.path.join('.', 'cur_camera.png')
     images = []
