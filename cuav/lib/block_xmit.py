@@ -382,15 +382,15 @@ class BlockSender:
         self.outgoing.append(newblk)
         return newblk.blockid
 
-        def cancel(self, blockid):
-            '''cancel send of a block
-            blockid:    id of block returned from send()
-            '''
-            for i in range(len(self.outgoing)):
-                if self.outgoing[i].blockid == blockid:
-                    self.outgoing.pop(i)
-                    self._debug('Cancelled block %u' % blockid)
-                    return
+    def cancel(self, blockid):
+        '''cancel send of a block
+        blockid:    id of block returned from send()
+        '''
+        for i in range(len(self.outgoing)):
+            if self.outgoing[i].blockid == blockid:
+                self.outgoing.pop(i)
+                self._debug('Cancelled block %u' % blockid)
+                return
 
     def _crc(self, buffer):
         '''produce a 32 bit unsigned crc for a buffer'''

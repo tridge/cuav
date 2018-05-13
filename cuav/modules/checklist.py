@@ -15,7 +15,7 @@ class ChecklistModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(ChecklistModule, self).__init__(mpstate, "checklist", "checklist handling")
         self.checklist = libchecklist.UI()
-        
+
     def mavlink_packet(self, msg):
         '''handle an incoming mavlink packet'''
         if not isinstance(self.checklist, libchecklist.UI):
@@ -24,7 +24,7 @@ class ChecklistModule(mp_module.MPModule):
             self.libchecklist = None
             return
 
-        type = msg.get_type() 
+        type = msg.get_type()
         master = self.master
 
         '''beforeEngineList - Altitude lock'''
@@ -86,6 +86,10 @@ class ChecklistModule(mp_module.MPModule):
                 self.checklist.set_status("Airspeed > 10 m/s", 1)
             else:
                 self.checklist.set_status("Airspeed > 10 m/s", 0)
+
+    def unload(self):
+        if self.checklist:
+            self.checklist.close()
 
 def init(mpstate):
     '''initialise module'''

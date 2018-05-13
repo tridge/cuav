@@ -12,7 +12,7 @@ from MAVProxy.modules.lib import mp_util
 
 if mp_util.has_wxpython:
     from MAVProxy.modules.lib.mp_menu import *
-    
+
 class CUAVModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(CUAVModule, self).__init__(mpstate, "CUAV", "CUAV checks")
@@ -33,7 +33,7 @@ class CUAVModule(mp_module.MPModule):
         self.showLandingZone = 0
         self.showJoeZone = True
         self.target = None
-        
+
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.cuav_settings = MPSettings(
             [ MPSetting('rpm_threshold', int, 6000, 'RPM Threshold'),
@@ -43,12 +43,12 @@ class CUAVModule(mp_module.MPModule):
         self.add_command('cuavcheck', self.cmd_cuavcheck,
                          'cuav check control',
                          ['set (CUAVCHECKSETTING)'])
-                         
+
         #make the initial map menu
-        if mp_util.has_wxpython:
+        if mp_util.has_wxpython and self.module('map'):
             self.menu = MPMenuSubMenu('UAV Challenge', items=[MPMenuCheckbox('Show Landing Zone', 'Show Landing Zone', '# cuavcheck toggleLandingZone'), MPMenuCheckbox('Show Joe Zone', 'Show Joe Zone', '# cuavcheck toggleJoeZone')])
             self.module('map').add_menu(self.menu)
-            
+
     def toggle_LandingZone(self):
         '''show/hide the UAV Challenge landing zone around the clicked point'''
         from MAVProxy.modules.mavproxy_map import mp_slipmap
@@ -66,18 +66,21 @@ class CUAVModule(mp_module.MPModule):
     def toggle_JoeZone(self):
         '''show/hide the UAV Challenge landing zone around the clicked point'''
         from MAVProxy.modules.mavproxy_map import mp_slipmap
-        camera = self.module('camera')
+        camera = self.module('camera_ground')
+        if self.mpstate.map is None:
+            print("Map module not loaded")
+            return
         if camera is None:
-            print("camera module is not loaded")
+            print("camera_ground module is not loaded")
             return
         if camera.camera_settings.target_radius <= 0:
-            print("camera module target_radius is not set")
+            print("camera_ground module target_radius is not set")
             return
-        target = (camera.camera_settings.target_lattitude,
+        target = (camera.camera_settings.target_latitude,
                   camera.camera_settings.target_longitude,
                   camera.camera_settings.target_radius)
         self.target = target
-        
+
         'Create a new layer with given radius around the above point'
         if self.showJoeZone:
             self.mpstate.map.add_object(mp_slipmap.SlipClearLayer('JoeZone'))
@@ -86,7 +89,7 @@ class CUAVModule(mp_module.MPModule):
         else:
             self.mpstate.map.remove_object('JoeZoneCircle')
             self.mpstate.map.remove_object('JoeZone')
-                        
+
     def cmd_cuavcheck(self, args):
         '''handle cuavcheck commands'''
         usage = 'Usage: cuavcheck <set>'
@@ -103,7 +106,7 @@ class CUAVModule(mp_module.MPModule):
             self.toggle_JoeZone()
         else:
             print(usage)
-            return            
+            return
 
     def check_parms(self, parms, set=False):
         '''check parameter settings'''
@@ -174,9 +177,9 @@ class CUAVModule(mp_module.MPModule):
             self.last_rpm_update = 0
         if now - self.last_target_update > 1 and self.showJoeZone:
             self.last_target_update = now
-            camera = self.module('camera')
+            camera = self.module('camera_ground')
             if camera is not None and camera.camera_settings.target_radius > 0:
-                target = (camera.camera_settings.target_lattitude,
+                target = (camera.camera_settings.target_latitude,
                           camera.camera_settings.target_longitude,
                           camera.camera_settings.target_radius)
                 if target != self.target:
@@ -226,7 +229,7 @@ class CUAVModule(mp_module.MPModule):
         ground = Vector3(m.vx*0.01, m.vy*0.01, 0)
         airspeed = ground + wind
         self.console.set_status('AirspeedEstimate', 'AirspeedEstimate: %u m/s' % airspeed.length(), row=8)
-        
+
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -267,20 +270,12 @@ class CUAVModule(mp_module.MPModule):
             dist = m.distance * math.cos(a.roll) * math.cos(a.pitch)
             self.console.set_status('RFind', 'RFind: %.1fm %uft' % (dist, dist*3.28084), row=8)
 
-        if m.get_type() == "VFR_HUD":
-            flying = False
-            if self.status.flightmode == "AUTO" or m.airspeed > 20 or m.groundspeed > 10:
-                flying = True
-            #if flying and self.settings.mavfwd != 0:
-            #    print("Disabling mavfwd for flight")
-            #    self.settings.mavfwd = 0
-
         if m.get_type() == "GLOBAL_POSITION_INT":
             self.update_airspeed_estimate(m)
 
         if m.get_type() == 'NAMED_VALUE_FLOAT' and m.name == 'BAT3VOLT':
             self.console.set_status('BAT3', 'Bat3: %.2f' % m.value, row=8)
-            
+
 
         if self.rate_period.trigger():
             self.check_rates()

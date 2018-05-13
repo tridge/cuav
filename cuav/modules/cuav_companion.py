@@ -42,11 +42,11 @@ class CUAVCompanionModule(mp_module.MPModule):
             self.led_force = None
             self.led_state = None
             self.update_led_state()
-            
+
     def force_leds(self, state):
         self.led_force = state
         self.set_leds(state)
-            
+
 
     def set_relay(self, relaynum, value):
         self.master.mav.command_long_send(self.target_system,
@@ -54,7 +54,7 @@ class CUAVCompanionModule(mp_module.MPModule):
                                           mavutil.mavlink.MAV_CMD_DO_SET_RELAY, 0,
                                           relaynum, value,
                                           0, 0, 0, 0, 0)
-        
+
 
     def set_leds(self, state):
         '''set two LEDs via relays'''

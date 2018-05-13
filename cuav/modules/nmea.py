@@ -67,7 +67,7 @@ class NMEAModule(mp_module.MPModule):
                     print("Failed to open output port %s:%s" % (self.port, se.message))
             else:
                 self.serial = open(self.port, mode='w')
-            
+
 
     def format_date(self, utc_sec):
         import time
@@ -90,8 +90,8 @@ class NMEAModule(mp_module.MPModule):
         minutes = (deg - int(deg))*60
         return "%03d%08.5f,%c" % (int(deg), minutes, 'W' if lon < 0 else 'E')
 
-	# tst = "$GPRMC,225446,A,4916.45,N,12311.12,W,000.5,054.7,191194,020.3,E*68"
-	# print ("*%02X" % nmea_checksum(tst))
+    # tst = "$GPRMC,225446,A,4916.45,N,12311.12,W,000.5,054.7,191194,020.3,E*68"
+    # print ("*%02X" % nmea_checksum(tst))
 
     def nmea_checksum(self, msg):
         d = msg[1:]
@@ -124,7 +124,7 @@ class NMEAModule(mp_module.MPModule):
             self.hdop = m.eph/100.0
             self.altitude = m.alt/1000.0
             self.fix_quality = 1 if (m.fix_type > 1) else 0 # 0/1 for (in)valid or 2 DGPS
-            
+
         if m.get_type() == 'GLOBAL_POSITION_INT':
             if m.time_boot_ms <= self.last_time_boot_ms and self.last_time_boot_ms - m.time_boot_ms < 60000:
                 # time going backwards from multiple links
@@ -162,7 +162,7 @@ class NMEAModule(mp_module.MPModule):
                 self.serial.write(gga + '\r\n')
                 self.serial.write(rmc + '\r\n')
                 self.serial.flush()
-     
+
 
 def init(mpstate):
     '''initialise module'''
