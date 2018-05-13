@@ -12,9 +12,6 @@ import argparse
 import numpy
 from cuav.camera.cam_params import CameraParams
 
-# checkerboard Dimensions
-cbrow = 10
-cbcol = 7
 
 lens=4.0
 sensorwidth=5.0
@@ -29,7 +26,7 @@ def file_list(directory, extensions):
                 flist.append(os.path.join(root, f))
     return flist
     
-def calibrate(imagedir):
+def calibrate(imagedir, cbrow, cbcol):
     nimages = 0
     datapoints = []
     im_dims = (0,0)
@@ -62,8 +59,8 @@ def calibrate(imagedir):
     # storing results using CameraParams
     C = CameraParams(lens=lens, sensorwidth=sensorwidth, xresolution=im_dims[1], yresolution=im_dims[0])
     C.setParams(K, D)
-    C.save(os.path.join(imagedir, "params.json"))
-    print("Saved params in " + os.path.join(imagedir, "params.json"))
+    C.save(os.path.join(imagedir, "paramsout.json"))
+    print("Saved params in " + os.path.join(imagedir, "paramsout.json"))
     
 
 def dewarp(imagedir):
@@ -96,13 +93,15 @@ def dewarp(imagedir):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Camera Calibration via chessboard photos")
     parser.add_argument("folder", default=None, help="Image folder or single file")
+    parser.add_argument("--chessrow", default=10, help="Number of rows in the calibration chessboard")
+    parser.add_argument("--chesscol", default=7, help="Number of columns in the calibration chessboard")
     parser.add_argument("--dewarp",dest="dewarp", action='store_true', default=False, help="dewarp gathered images")
     parser.add_argument("--calibrate",dest="calibrate", action='store_true', default=False, help="calculate intrinsics")
     args = parser.parse_args()
 
     imagedir = args.folder
     if (args.calibrate):
-        calibrate(imagedir)
+        calibrate(imagedir, args.chessrow, args.chesscol)
     if (args.dewarp):
         dewarp(imagedir)
 
