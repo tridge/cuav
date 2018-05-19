@@ -1,0 +1,9 @@
+These scripts are for playing back an existing set of images and MAVLink tlog.
+
+There are 3 scripts:
+ImageLog.sh - for putting out the image and telemetry stream
+PlayUAV.sh - the cuav_air module running in MAVProxy on a UAV
+PlayGround.sh - the cuav_ground module running in MAVProxy in a GCS
+
+The MAVProxy instance in PlayGround should be where the user manages
+the images and processing.

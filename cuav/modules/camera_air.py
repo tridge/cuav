@@ -9,7 +9,6 @@ them in realtime, geotags and sends to the GCS'''
 
 # todo:
 #    - add ability to lower score and get past images sent
-#    - check bandwidth2 actual usage
 
 import time, threading, sys, os, numpy, Queue, cPickle, cStringIO
 import functools, cv2
@@ -49,6 +48,7 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('minspeed', int, 20, 'For airstart, minimum speed for capture to start'),
               MPSetting('minalt', int, 30, 'MinAltitude of images', range=(0,10000), increment=1),
               MPSetting('rotate180', bool, False, 'rotate images by 180', tab='Capture2'),
+              MPSetting('ignoretimestamps', bool, False, 'Ignore image timestamps', tab='Capture2'),
               MPSetting('camparms', str, None, 'camera parameters file (json)', tab='Imaging'),
               MPSetting('imagefile', str, None, 'latest captured image', tab='Imaging'),
               MPSetting('filter_type', str, 'compactness', 'Filter Type',
@@ -82,7 +82,6 @@ class CameraAirModule(mp_module.MPModule):
             title='Image Settings')
 
         self.capture_count = 0
-        self.process_counter = 0
         self.scan_count = 0
         self.error_count = 0
         self.error_msg = None
@@ -209,11 +208,14 @@ class CameraAirModule(mp_module.MPModule):
         link for changed linked filenames'''
         prev_image = None
         self.scan_queue = Queue.Queue()
-        while self.running:
+        while not self.unload_event.wait(0.02):
             time.sleep(0.1)
             try:
                 filename = os.path.realpath(self.camera_settings.imagefile)
-                filetime = cuav_util.parse_frame_time(filename)
+                if not self.camera_settings.ignoretimestamps:
+                    filetime = cuav_util.parse_frame_time(filename)
+                else:
+                    filetime = float(time.time())
             except Exception:
                 filename = None
                 pass
@@ -226,7 +228,7 @@ class CameraAirModule(mp_module.MPModule):
 
     def scan_threadfunc(self):
         '''image scanning thread'''
-        while self.running:
+        while not self.unload_event.wait(0.02):
             try:
                 (frame_time,im) = self.scan_queue.get(timeout=0.1)
             except Queue.Empty:
@@ -240,7 +242,10 @@ class CameraAirModule(mp_module.MPModule):
                 altitude = self.terrain_alt
                 if altitude < self.camera_settings.minalt:
                     altitude = self.camera_settings.minalt
-                scan_parms['MetersPerPixel'] = self.camera_settings.mpp100 * altitude / 100.0
+                scan_parms['MetersPerPixel'] = cuav_util.pixel_width(altitude,
+                                                                     self.c_params.xresolution,
+                                                                     self.c_params.lens,
+                                                                     self.c_params.sensorwidth)
 
             t1 = time.time()
             img_scan = cv2.imread(im, -1)
@@ -265,7 +270,6 @@ class CameraAirModule(mp_module.MPModule):
             regions = cuav_region.filter_regions(img_scan, regions,
                                                  min_score=self.camera_settings.minscore,
                                                  filter_type=self.camera_settings.filter_type)
-
             self.region_count += len(regions)
             if self.transmit_queue.qsize() < 100:
                 self.transmit_queue.put((frame_time, im, regions, img_scan))
@@ -309,7 +313,8 @@ class CameraAirModule(mp_module.MPModule):
         reg_count = 0
         self.start_aircraft_bsend()
 
-        while self.running or self.airstart_triggered:
+        while (not self.unload_event.wait(0.02)) or self.airstart_triggered:
+            time.sleep(0.01)
             for bsnd in self.bsend:
                 bsnd.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue)
                 self.check_commands(bsnd)
@@ -413,7 +418,7 @@ class CameraAirModule(mp_module.MPModule):
     def start_thread(self, fn):
         '''start a thread running'''
         t = threading.Thread(target=fn)
-        t.daemon = False
+        t.daemon = True
         t.start()
         return t
 

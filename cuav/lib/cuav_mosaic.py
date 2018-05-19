@@ -132,7 +132,7 @@ class Mosaic():
         self.has_started = not start_menu
         self.image_view_width = image_view_width # for image viewer
         import wx
-        self.image_mosaic = mp_image.MPImage(title='Mosaic', 
+        self.image_mosaic = mp_image.MPImage(title='Mosaic',
                                              mouse_events=True,
                                              key_events=True,
                                              auto_size=False,
@@ -167,7 +167,7 @@ class Mosaic():
             self.region_class = lxml.objectify.E.regions()
 
         self.add_menus()
-        
+
     def add_menus(self):
         '''add menus'''
         menu = MPMenuTop([])
@@ -207,8 +207,7 @@ class Mosaic():
 
         self.popup_menu = MPMenuSubMenu('Popup',
                                         items=[MPMenuItem('Show Image', returnkey='showImage'),
-                                               MPMenuItem('Fetch Image', returnkey='fetchImage'),
-                                               MPMenuItem('Fetch Image (full)', returnkey='fetchImageFull'),
+                                               MPMenuItem('Fetch Full Image', returnkey='fetchImageFull'),
                                                MPMenuItem('Hide Page', returnkey='hidePage'),
                                                MPMenuItem('Unhide All Pages', returnkey='unhideAll'),
                                                view_menu])
@@ -235,14 +234,14 @@ class Mosaic():
         '''display a region on the map'''
         region = self.regions[ridx]
         thumbnail = cv2.cvtColor(region.full_thumbnail, cv2.COLOR_BGR2RGB)
-        
+
         #do brightness
         hsv = cv2.cvtColor(thumbnail, cv2.COLOR_RGB2HSV)
         v = hsv[:, :, 2]
         v = numpy.where(v <= 255 - (self.brightness * 10), v + (self.brightness * 10), 255)
         hsv[:, :, 2] = v
         thumbnail = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-        
+
         thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
@@ -296,7 +295,6 @@ class Mosaic():
                 MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
                 MPMenuItem('Brightness -\tCtrl+Shift+B', 'Decrease Brightness', 'decreaseBrightness'),
                 MPMenuItem('Refresh Image\tCtrl+R', 'Refresh Image', 'refreshImage'),
-                MPMenuItem('Download Full\tCtrl+D', 'Download Full', 'downloadFull'),
                 MPMenuItem('Place Marker\tCtrl+M', 'Place Marker', 'placeMarker')])
             self.view_menu = MPMenuTop([vmenu])
             self.view_image.set_menu(self.view_menu)
@@ -338,7 +336,7 @@ class Mosaic():
         if os.path.exists(region.filename):
             self.view_imagefile(region.filename, focus_region=region)
             return True
-            
+
         return False
 
     def show_closest(self, latlon, selected):
@@ -369,7 +367,7 @@ class Mosaic():
         if menuitem.returnkey == 'showImage':
             region = self.objkey_to_region(event.selected[0].objkey)
             self.popup_show_image(region)
-        elif menuitem.returnkey in ['fetchImage', 'fetchImageFull']:
+        elif menuitem.returnkey == 'fetchImageFull':
             region = self.objkey_to_region(event.selected[0].objkey)
             self.popup_fetch_image(region, menuitem.returnkey)
 
@@ -406,7 +404,7 @@ class Mosaic():
             print("Invalid region %u selected" % ridx)
             return
         self.show_region(ridx)
-            
+
 
     def set_boundary(self, boundary):
         '''set a polygon search boundary'''
@@ -472,7 +470,7 @@ class Mosaic():
             self.regions_sorted.sort(key = lambda r : r.ridx, reverse=False)
         else:
             print("Unknown sort by '%s'" % sortby)
-            
+
     def menu_event(self, event):
         '''called on menu events on the mosaic'''
         if event.returnkey == 'setSort':
@@ -494,7 +492,7 @@ class Mosaic():
         elif event.returnkey == 'showImage':
             region = self.pos_to_region(event.popup_pos)
             self.popup_show_image(region)
-        elif event.returnkey in ['fetchImage', 'fetchImageFull']:
+        elif event.returnkey == 'fetchImageFull':
             region = self.pos_to_region(event.popup_pos)
             self.popup_fetch_image(region, event.returnkey)
         elif event.returnkey == 'menuCameraSettings':
@@ -553,9 +551,8 @@ class Mosaic():
         '''handle popup menu fetchImage'''
         if region is None:
             return
-        fullres = (returnkey == 'fetchImageFull')
         frame_time = cuav_util.parse_frame_time(region.filename)
-        self.image_requests[frame_time] = fullres
+        self.image_requests[frame_time] = True
 
     def get_image_requests(self):
         '''return and zero image_requests dictionary'''
@@ -610,7 +607,7 @@ class Mosaic():
                                                         layer='Markers',
                                                         img=icon,
                                                         follow=False))
-                
+
 
     def pos_to_region(self, pos):
         '''work out region for a clicked position on the mosaic'''
@@ -699,7 +696,7 @@ class Mosaic():
             # its not on this page
             return False
         return True
-    
+
     def display_mosaic_region(self, ridx):
         '''display a thumbnail on the mosaic'''
         if not self.region_on_page(ridx, self.page):
@@ -714,7 +711,7 @@ class Mosaic():
             thumb = cv2.resize(region.small_thumbnail, (self.thumb_size, self.thumb_size))
         else:
             thumb = region.small_thumbnail
-            
+
         #do brightness
         hsv = cv2.cvtColor(thumb, cv2.COLOR_RGB2HSV)
         v = hsv[:, :, 2]
@@ -736,7 +733,7 @@ class Mosaic():
         self.mosaic = numpy.zeros((height,width,3),dtype=numpy.uint8)
         for ridx in range(len(self.regions_sorted)):
             self.display_mosaic_region(ridx)
-        
+
         self.image_mosaic.set_image(self.mosaic, bgr=True)
         max_page = (len(self.regions_sorted)-1) / self.display_regions
         self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
@@ -781,7 +778,7 @@ class Mosaic():
             ridx = len(self.regions)
             self.regions.append(MosaicRegion(ridx, r, filename, pos, thumbs[i], thumb, latlon=(lat,lon)))
             self.regions_sorted.append(self.regions[-1])
-            
+
             max_page = (len(self.regions_sorted)-1) / self.display_regions
             self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
 
@@ -850,5 +847,5 @@ class Mosaic():
                     self.menu_event_view(event)
                 elif event.ClassName == 'wxMouseEvent':
                     self.mouse_event_view(event)
-            
-        
+
+

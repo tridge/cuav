@@ -63,7 +63,7 @@ def test_load_module(mpstate):
 def test_module_settings(mpstate):
     '''try changing module settings via MAVProxy CLI'''
     loadedModule = camera_ground.init(mpstate)
-    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'chameleon1_arecont0.json'))
+    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'ChameleonArecort', 'params.json'))
     loadedModule.cmd_camera(["set", "camparms", parms])
     assert loadedModule.camera_settings.camparms == parms
 
@@ -76,7 +76,7 @@ def test_camera_commands(mpstate):
     '''Initialise the camera view frame and boundary'''
     loadedModule = camera_ground.init(mpstate)
 
-    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'chameleon1_arecont0.json'))
+    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'ChameleonArecort', 'params.json'))
     bnd = str(os.path.join(os.getcwd(), 'tests', 'testdata', 'OBC_boundary.txt'))
     loadedModule.cmd_camera(["set", "camparms", parms])
 
@@ -95,7 +95,7 @@ def test_camera_commands(mpstate):
 def test_send_remote(mpstate):
     '''Send some remote commands to the camera_air module'''
     loadedModuleGround = camera_ground.init(mpstate)
-    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'chameleon1_arecont0.json'))
+    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'ChameleonArecort', 'params.json'))
     bnd = str(os.path.join(os.getcwd(), 'tests', 'testdata', 'OBC_boundary.txt'))
     loadedModuleGround.cmd_camera(["set", "camparms", parms])
     loadedModuleGround.cmd_camera(["set", "air_address", "127.0.0.1:15000:14000:45, 127.0.0.1:15500:14500:6000"])
@@ -123,7 +123,7 @@ def test_send_remote(mpstate):
 def test_camera_thumbs(mpstate, image_file):
     '''Send some thumbnails to the view via the camera_air module'''
     loadedModuleAir = camera_air.init(mpstate)
-    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'chameleon1_arecont0.json'))
+    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'ChameleonArecort', 'params.json'))
     loadedModuleAir.cmd_camera(["set", "camparms", parms])
     loadedModuleAir.cmd_camera(["set", "imagefile", image_file])
     loadedModuleAir.cmd_camera(["set", "minscore", "0"])

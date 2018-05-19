@@ -22,7 +22,6 @@ class CameraGroundModule(mp_module.MPModule):
                                                  "cuav camera control (ground)",
                                                  public=True)
 
-        self.running = False
         self.unload_event = threading.Event()
         self.unload_event.clear()
 
@@ -211,8 +210,6 @@ class CameraGroundModule(mp_module.MPModule):
         cuav_util.mkdir_p(self.view_dir)
         #cuav_util.mkdir_p(self.thumb_dir)
 
-        img_window = mp_image.MPImage(title='Camera')
-
         self.console.set_status('Images', 'Images %u' % self.image_count, row=6)
         self.console.set_status('Regions', 'Regions %u' % self.region_count, row=6)
         self.console.set_status('JPGSize', 'JPGSize %.0f' % 0.0, row=6)
@@ -246,8 +243,6 @@ class CameraGroundModule(mp_module.MPModule):
         #ensure the mosiac is closed at end of thread
         if self.mosaic.image_mosaic:
             self.mosaic.image_mosaic.terminate()
-        if img_window:
-            img_window.terminate()
 
 
     def send_heartbeats(self):
@@ -317,8 +312,8 @@ class CameraGroundModule(mp_module.MPModule):
             imagedec = cv2.imdecode(obj.jpeg, 1)
             ff = os.path.join(self.view_dir, cuav_util.frame_time(obj.frame_time)) + ".jpg"
             write_param = [int(cv2.IMWRITE_JPEG_QUALITY), 99]
-            #print("Saving " + ff)
             cv2.imwrite(ff, imagedec, write_param)
+            self.mosaic.tag_image(obj.frame_time)
 
             # update console
             self.image_count += 1
@@ -351,7 +346,6 @@ class CameraGroundModule(mp_module.MPModule):
 
     def unload(self):
         '''unload module'''
-        self.running = False
         self.unload_event.set()
         if self.view_thread is not None:
             self.view_thread.join(1.0)

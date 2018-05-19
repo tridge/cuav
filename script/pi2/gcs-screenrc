@@ -1,7 +1,0 @@
-source /home/pi/.screenrc
-screen -t RelayOptus
-stuff "mavproxy.py --mav20 --master=udpout:52.63.21.140:10404 --continue --nowait --out=udp:192.168.1.22:14451 --out=udp:192.168.1.20:14461 --aircraft=RelayPiOptus"
-screen -t RetrievalOptus
-stuff "mavproxy.py --mav20 --master=udpout:52.63.21.140:10402 --continue --nowait --out=udp:192.168.1.20:14451 --out=udp:192.168.1.22:14461 --aircraft=RetrievalPiOptus"
-screen -t bash
-

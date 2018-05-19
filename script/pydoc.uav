@@ -1,5 +1,0 @@
-#!/bin/bash
-
-UAV="$HOME/project/UAV"
-export PYTHONPATH="$UAV/cuav/lib:$UAV/cuav/image:$UAV/cuav/camera:$UAV/MAVProxy/modules/lib:$UAV/mavlink/pymavlink"
-pydoc "$*"

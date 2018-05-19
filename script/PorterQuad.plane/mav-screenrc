@@ -1,8 +1,0 @@
-source /root/.screenrc
-screen -t "camera"
-stuff "./start_cam.sh"
-screen -t "MAVProxy"
-stuff "./start_mav.sh"
-screen -t "bash"
-
-

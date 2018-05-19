@@ -1,0 +1,16 @@
+module load sensors
+speed
+set numcells 4
+set batwarncell 2.9
+set moddebug 1
+module load graph
+@graph timespan 30
+@alias add g graph
+@alias add gradio g RADIO.rssi RADIO.noise RADIO.remrssi RADIO.remnoise 
+@alias add galt g GLOBAL_POSITION_INT.relative_alt*0.001 altitude(SCALED_PRESSURE) RANGEFINDER.distance
+@alias add gthr g VFR_HUD.throttle
+@alias add gspeed g VFR_HUD.groundspeed VFR_HUD.airspeed
+gradio
+galt
+gthr
+gspeed

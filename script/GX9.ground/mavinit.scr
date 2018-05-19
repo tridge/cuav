@@ -1,9 +1,0 @@
-link add udpout:52.63.21.140:10402
-link add udpout:103.22.144.67:10402
-set streamrate -1
-set streamrate2 -1
-output sysid 2 127.0.0.1:14552
-module load cuav.modules.cuav_check
-
-set numcells 3
-

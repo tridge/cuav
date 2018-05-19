@@ -73,11 +73,11 @@ def playback(filename, images, argout, argbaudrate, argcondition, argspeedup):
             img = images.pop(0)
             filename, file_extension = os.path.splitext(img.filename)
             try:
-                os.unlink('cur_camera.tmp')
+                os.unlink('cur_camera.jpg')
             except Exception:
                 pass
-            os.symlink(img.filename, 'cur_camera.tmp')
-            os.rename('cur_camera.tmp', 'cur_camera' + file_extension)
+            os.symlink(img.filename, 'cur_camera.jpg')
+            os.rename('cur_camera.jpg', 'cur_camera' + file_extension)
             print(img.filename)
 
         # check for parameter fetch messages

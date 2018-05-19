@@ -1,7 +1,0 @@
-source /home/pi/.screenrc
-screen -t RelayTelstra
-stuff "mavproxy.py --master=udpout:103.22.144.67:10404 --continue --nowait --out=udp:192.168.1.22:14450 --out=udp:192.168.1.20:14460 --aircraft=RelayPiTelstra"
-screen -t RetrievalTelstra
-stuff "mavproxy.py --master=udpout:103.22.144.67:10402 --continue --nowait --out=udp:192.168.1.20:14450 --out=udp:192.168.1.22:14460 --aircraft=RetrievalPiTelstra"
-screen -t bash
-
