@@ -16,6 +16,11 @@ from pymavlink import mavparm
 import cuav.modules.cuav_check as cuav_check
 import cuav.modules.camera_ground as cuav_camera_ground
 
+class MPStatusMock(object):
+    '''hold status information about the mavproxy'''
+    def __init__(self):
+        self.logdir = None
+
 class mstatetmp(object):
     def __init__(self):
         self.public_modules = {}
@@ -25,6 +30,8 @@ class mstatetmp(object):
         self.map = None
         self.mav_param = mavparm.MAVParmDict()
         self.functions = mock.Mock()
+        self.status = MPStatusMock()
+        self.status.logdir = os.path.join(os.getcwd(), 'gnd')
 
     def module(self, name):
         '''Find a public module (most modules are private)'''

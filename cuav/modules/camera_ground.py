@@ -5,7 +5,7 @@ via a GUI'''
 
 
 import time, threading, os, cPickle
-import functools, cv2, tempfile, shutil
+import functools, cv2
 
 from MAVProxy.modules.lib import mp_module, mp_image
 from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
@@ -57,7 +57,8 @@ class CameraGroundModule(mp_module.MPModule):
 
         #just make a temp dir for the downloaded images and thumbs
         #this folder is deleted when the module is unloaded
-        self.camera_dir = tempfile.mkdtemp()
+        #self.camera_dir = tempfile.mkdtemp()
+        self.camera_dir = self.mpstate.status.logdir
 
         self.bsend = []
         #self.last_minscore = None
@@ -95,7 +96,7 @@ class CameraGroundModule(mp_module.MPModule):
             if not self.viewing:
                 print("Starting image viewer")
             self.joelog = cuav_joe.JoeLog(os.path.join(self.camera_dir,
-                                                       'joe.log'),
+                                                       'joe_ground.log'),
                                           append=self.continue_mode)
             if self.view_thread is None:
                 self.view_thread = self.start_thread(self.view_threadfunc)
@@ -332,7 +333,7 @@ class CameraGroundModule(mp_module.MPModule):
             self.say(obj.msg)
 
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
-        '''add to joe.log if possible, returning a list of (lat,lon) tuples
+        '''add to joe_ground.log if possible, returning a list of (lat,lon) tuples
         for the positions of the identified image regions'''
         return self.joelog.add_regions(frame_time, regions, pos, filename,
                                        thumb_filename, altitude=None, C=self.c_params)
@@ -349,7 +350,7 @@ class CameraGroundModule(mp_module.MPModule):
         self.unload_event.set()
         if self.view_thread is not None:
             self.view_thread.join(1.0)
-        shutil.rmtree(self.camera_dir)
+        #shutil.rmtree(self.camera_dir)
         print('camera unload OK')
 
     def mavlink_packet(self, m):

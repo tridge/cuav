@@ -24,6 +24,7 @@ def mpstate():
     mpstatetmp.command_map = {}
     mpstatetmp.completions = {}
     mpstatetmp.completion_functions = {}
+    mpstatetmp.status.logdir = os.path.join(os.getcwd(), 'gnd')
     return mpstatetmp
 
 

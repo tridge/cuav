@@ -133,7 +133,7 @@ class CameraAirModule(mp_module.MPModule):
                 return
             if self.running == False:
                 self.running = True
-                self.joelog = cuav_joe.JoeLog(os.path.join(os.path.dirname(self.camera_settings.imagefile), 'joe.log'), append=self.continue_mode)
+                self.joelog = cuav_joe.JoeLog(os.path.join(os.path.dirname(self.camera_settings.imagefile), 'joe_air.log'), append=self.continue_mode)
                 self.capture_thread = self.start_thread(self.capture_threadfunc)
                 self.scan_thread = self.start_thread(self.scan_threadfunc)
                 self.transmit_thread = self.start_thread(self.transmit_threadfunc)
@@ -179,7 +179,7 @@ class CameraAirModule(mp_module.MPModule):
                 return
             if self.airstart_triggered == False:
                 self.airstart_triggered = True
-                self.joelog = cuav_joe.JoeLog(os.path.join(os.path.dirname(self.camera_settings.imagefile), 'joe.log'), append=self.continue_mode)
+                self.joelog = cuav_joe.JoeLog(os.path.join(os.path.dirname(self.camera_settings.imagefile), 'joe_air.log'), append=self.continue_mode)
                 self.transmit_thread = self.start_thread(self.transmit_threadfunc)
                 time.sleep(0.1)
                 self.send_packet(cuav_command.CommandResponse("cuav airstart ready"))
@@ -478,7 +478,7 @@ class CameraAirModule(mp_module.MPModule):
             #if the airstart is triggered and we're flying, then start capture
             if m.airspeed > self.camera_settings.minspeed or m.groundspeed > self.camera_settings.minspeed:
                 self.running = True
-                self.joelog = cuav_joe.JoeLog(os.path.join(os.path.dirname(self.camera_settings.imagefile), 'joe.log'), append=self.continue_mode)
+                self.joelog = cuav_joe.JoeLog(os.path.join(os.path.dirname(self.camera_settings.imagefile), 'joe_air.log'), append=self.continue_mode)
                 self.capture_thread = self.start_thread(self.capture_threadfunc)
                 self.scan_thread = self.start_thread(self.scan_threadfunc)
                 self.send_packet(cuav_command.CommandResponse("Started cuav running"))
