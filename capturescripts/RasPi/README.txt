@@ -8,12 +8,12 @@ raw images, which are then compressed to jpeg files.
 -----------Install-----------
 The cuav git repo must be in the ~/ directory
 
-Also, the libjpeg library is required.
+Also, the libjpeg-turbo library is required.
 
 Install these via the following commands:
 cd ~/
 git clone https://github.com/CanberraUAV/cuav
-sudo apt-get install libjpeg8-dev screen
+sudo apt-get install libjpeg62-turbo-dev screen
 
 -----------APM Config--------
 Typically, the Ras Pi would be connected to the TELEM2 port 
@@ -31,7 +31,9 @@ Run ../clear_images.sh to delete all captured images from the Pi
 Note a telemetry stream will be available over the Zerotier IP.
 Connect to it via "mavproxy.py --master=udpout:<Pi Zerotier IP>:14550"
 
-Images are stored in png format in the ~/images_captured/<start datetime> folder
+Images are stored in jpg format in the ~/images_captured/<start datetime> folder.
+
+A link to the latest image will be stored in ~/images_captured/current.jpg
 
 Run the "joeenter.py" file to enter in known Joe locations after an image collection flight.
 The coordinates will be stored in ~/images_captured/<start datetime>/joe.txt
