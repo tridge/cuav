@@ -273,6 +273,9 @@ class CameraAirModule(mp_module.MPModule):
             self.region_count += len(regions)
             if self.transmit_queue.qsize() < 100:
                 self.transmit_queue.put((frame_time, im, regions, img_scan))
+            else:
+                self.send_packet(cuav_command.CommandResponse("Warning: image Tx queue too long"))
+                print("Warning: image Tx queue too long")
 
     def get_plane_position(self, frame_time,roll=None):
         '''get a MavPosition object for the planes position if possible'''
