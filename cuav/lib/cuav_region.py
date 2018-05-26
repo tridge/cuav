@@ -35,11 +35,11 @@ class Region:
         x2 = x2*wview//w
         y1 = y1*hview//h
         y2 = y2*hview//h
-        cv2.rectangle(img, (max(x1-offset,0),max(y1-offset,0)), (x2+offset,y2+offset), colour, linewidth) 
+        cv2.rectangle(img, (max(x1-offset,0),max(y1-offset,0)), (x2+offset,y2+offset), colour, linewidth)
 
     def __str__(self):
         return '%s latlon=%s score=%s' % (str(self.tuple()), str(self.latlon), self.score)
-        
+
 def RegionsConvert(rlist, scan_shape, full_shape, calculate_compactness=True):
     '''convert a region list from tuple to Region format,
     also mapping to the shape of the full image'''
@@ -49,60 +49,58 @@ def RegionsConvert(rlist, scan_shape, full_shape, calculate_compactness=True):
     full_w = full_shape[0]
     full_h = full_shape[1]
     for r in rlist:
-        (x1,y1,x2,y2,score,pixscore) = r
+        (x1,y1,x2,y2,score,compactness) = r
         x1 = (x1 * full_w) // scan_w
         x2 = (x2 * full_w) // scan_w
         y1 = (y1 * full_h) // scan_h
         y2 = (y2 * full_h) // scan_h
-        if calculate_compactness:
-            compactness = array_compactness(pixscore)
-        else:
-            compactness = 0
+
         ret.append(Region(x1,y1,x2,y2, scan_shape, score, compactness))
     return ret
 
-def array_compactness(im):
-        '''
-        calculate the compactness of a 2D array. Each element of the 2D array
-        should be proportional to the score of that pixel in the overall scoring scheme
-        . '''
-        from numpy import array,meshgrid,arange,shape,mean,zeros
-        from numpy import outer,sum,max,linalg
-        from numpy import sqrt
-        from math import exp
-        (h,w) = shape(im)
-        # make sure we don't try to process really big arrays, as the CPU cost
-        # rises very rapidly
-        maxsize = 15
-        if h > maxsize or w > maxsize:
-                reduction_h = (h+(maxsize-1))//maxsize
-                reduction_w = (w+(maxsize-1))//maxsize
-                im = im[::reduction_h, ::reduction_w]
-                (h,w) = shape(im)
-        (X,Y) = meshgrid(arange(w),arange(h))
-        x = X.flatten()
-        y = Y.flatten()
-        wgts = im[y,x]
-        sw = sum(wgts)
-        if sw == 0:
-                return 1
-        wgts /= sw
-        wpts = array([wgts*x, wgts*y])
-        wmean = sum(wpts, 1)
-        N = len(x)
-        s = array([x,y])
-        P = zeros((2,2))
-        for i in range(0,N):
-                P += wgts[i]*outer(s[:,i],s[:,i])
-        P = P - outer(wmean,wmean);
-
-        det = abs(linalg.det(P))
-        if (det <= 0):
-                return 0.0
-        v = linalg.eigvalsh(P)
-        v = abs(v)
-        r = min(v)/max(v)
-        return 100.0*sqrt(r/det)
+# Moved to scanner.c
+#def array_compactness(im):
+#        '''
+#        calculate the compactness of a 2D array. Each element of the 2D array
+#        should be proportional to the score of that pixel in the overall scoring scheme
+#        . '''
+#        from numpy import array,meshgrid,arange,shape,mean,zeros
+#        from numpy import outer,sum,max,linalg
+#        from numpy import sqrt
+#        from math import exp
+#        (h,w) = shape(im)
+#        # make sure we don't try to process really big arrays, as the CPU cost
+#        # rises very rapidly
+#        maxsize = 15
+#        if h > maxsize or w > maxsize:
+#                reduction_h = (h+(maxsize-1))//maxsize
+#                reduction_w = (w+(maxsize-1))//maxsize
+#                im = im[::reduction_h, ::reduction_w]
+#                (h,w) = shape(im)
+#        (X,Y) = meshgrid(arange(w),arange(h))
+#        x = X.flatten()
+#        y = Y.flatten()
+#        wgts = im[y,x]
+#        sw = sum(wgts)
+#        if sw == 0:
+#                return 1
+#        wgts /= sw
+#        wpts = array([wgts*x, wgts*y])
+#        wmean = sum(wpts, 1)
+#        N = len(x)
+#        s = array([x,y])
+#        P = zeros((2,2))
+#        for i in range(0,N):
+#                P += wgts[i]*outer(s[:,i],s[:,i])
+#        P = P - outer(wmean,wmean);
+#
+#        det = abs(linalg.det(P))
+#        if (det <= 0):
+#                return 0.0
+#        v = linalg.eigvalsh(P)
+#        v = abs(v)
+#        r = min(v)/max(v)
+#        return 100.0*sqrt(r/det)
 
 def image_whiteness(hsv):
         ''' a measure of the whiteness of an HSV image 0 to 1'''
@@ -136,7 +134,7 @@ def raw_hsv_score(hsv):
     s_max = 0
     v_min = 255
     v_max = 0
-    
+
     from numpy import zeros
     scorix = zeros((height,width))
     for x in range(width):
@@ -272,4 +270,4 @@ def filter_radius(regions, latlon, radius):
           r.score = 0
         ret.append(r)
     return ret
-    
+
