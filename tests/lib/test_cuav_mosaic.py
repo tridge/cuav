@@ -39,22 +39,13 @@ def test_MosaicImage():
     im = cuav_mosaic.MosaicImage(int(time.time()), "nofile.png", pos)
     assert "nofile.png" in str(im)
     
-def test_CompositeThumbnail():
-    regions = []
-    regions.append(cuav_region.Region(1020, 658, 1050, 678, (30, 30), compactness=5.4, scan_score=20))
-    regions.append(cuav_region.Region(30, 54, 50, 74, (20, 20), compactness=2.1, scan_score=15))
-    regions.append(cuav_region.Region(60, 24, 170, 134, (110, 110), compactness=0, scan_score=0))
-    im_orig = cv2.imread(os.path.join(os.getcwd(), 'tests', 'testdata', 'test-8bit.png'))
-    composite = cuav_mosaic.CompositeThumbnail(im_orig, regions)
-    assert cuav_util.image_shape(composite) == (300, 100)
-    
 def test_ExtractThumbs():
     regions = []
     regions.append(cuav_region.Region(1020, 658, 1050, 678, (30, 30), compactness=5.4, scan_score=20))
     regions.append(cuav_region.Region(30, 54, 50, 74, (20, 20), compactness=2.1, scan_score=15))
     regions.append(cuav_region.Region(60, 24, 170, 134, (110, 110), compactness=0, scan_score=0))
     im_orig = cv2.imread(os.path.join(os.getcwd(), 'tests', 'testdata', 'test-8bit.png'))
-    composite = cuav_mosaic.CompositeThumbnail(im_orig, regions)
+    composite = cuav_region.CompositeThumbnail(im_orig, regions)
     thumbs = cuav_mosaic.ExtractThumbs(composite, 3)
     assert len(thumbs) == 3
     assert cuav_util.image_shape(thumbs[0]) == (100,100)
@@ -78,7 +69,7 @@ def test_Mosaic():
     regions.append(cuav_region.Region(30, 54, 55, 79, (25, 25), compactness=3.1, scan_score=10))
     for i in range(40):
         regions.append(cuav_region.Region(200, 600, 220, 620, (20, 20), compactness=2.2, scan_score=45))
-    composite = cuav_mosaic.CompositeThumbnail(img, regions)
+    composite = cuav_region.CompositeThumbnail(img, regions)
     thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
     mosaic.add_regions(regions, thumbs, f, pos)
     mosaic.add_image(1478994408.76, f, pos)

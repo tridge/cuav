@@ -128,3 +128,11 @@ def test_filter_radius():
     assert ret[0].score == 0
     assert ret[1].score == 32
 
+def test_CompositeThumbnail():
+    regions = []
+    regions.append(cuav_region.Region(1020, 658, 1050, 678, (30, 30), compactness=5.4, scan_score=20))
+    regions.append(cuav_region.Region(30, 54, 50, 74, (20, 20), compactness=2.1, scan_score=15))
+    regions.append(cuav_region.Region(60, 24, 170, 134, (110, 110), compactness=0, scan_score=0))
+    im_orig = cv2.imread(os.path.join(os.getcwd(), 'tests', 'testdata', 'test-8bit.png'))
+    composite = cuav_region.CompositeThumbnail(im_orig, regions)
+    assert cuav_util.image_shape(composite) == (300, 100)

@@ -9,8 +9,6 @@ import numpy, os, cv2, sys, cuav_util, time, math, functools, cuav_region
 
 from MAVProxy.modules.lib import mp_image
 from MAVProxy.modules.mavproxy_map import mp_slipmap
-from cuav.image import scanner
-from cuav.camera.cam_params import CameraParams
 from MAVProxy.modules.lib.mp_menu import *
 from MAVProxy.modules.lib.wxsettings import WXSettings
 
@@ -50,32 +48,6 @@ class MosaicImage:
 
     def __str__(self):
         return '%s %s' % (self.filename, str(self.pos))
-
-def CompositeThumbnail(img, regions, thumb_size=100):
-    '''extract a composite thumbnail for the regions of an image
-
-    The composite will consist of N thumbnails side by side
-    '''
-    composite = []
-    for i in range(len(regions)):
-        (x1,y1,x2,y2) = regions[i].tuple()
-        midx = (x1+x2)/2
-        midy = (y1+y2)/2
-
-        if (x2-x1) > thumb_size or (y2-y1) > thumb_size:
-            # we need to shrink the region
-            rsize = max(x2+1-x1, y2+1-y1)
-            src = cuav_util.SubImage(img, (midx-rsize/2,midy-rsize/2,rsize,rsize))
-            thumb = cv2.resize(src, (thumb_size, thumb_size))
-        else:
-            x1 = midx - thumb_size/2
-            y1 = midy - thumb_size/2
-            thumb = cuav_util.SubImage(img, (x1, y1, thumb_size, thumb_size))
-        if composite == []:
-            composite = thumb
-        else:
-            composite = numpy.concatenate((composite, thumb), axis=1)
-    return composite
 
 def ExtractThumbs(img, count):
     '''extract thumbnails from a composite thumbnail image'''
@@ -248,6 +220,8 @@ class Mosaic():
         self.selected_region = ridx
         if region.score is None:
             region.score = 0
+        if region.pos.altitude is None:
+            region.pos.altitude = 0
         region_text = "Selected region %u score=%u/%u/%.2f %s\n%s alt=%u yaw=%d\n%s\t\t" % (ridx, region.score,
                                                                                         region.region.scan_score,
                                                                                         region.region.compactness,

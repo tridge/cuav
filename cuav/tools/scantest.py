@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import numpy, os, time, cv2, sys, math, sys, glob
+import numpy, os, time, cv2, sys, sys, glob
 from argparse import ArgumentParser
 
 from cuav.image import scanner
@@ -164,7 +164,7 @@ def process(args):
         region_count += len(regions)
 
         if args.mosaic and len(regions) > 0 and pos:
-            composite = cuav_mosaic.CompositeThumbnail(im_full, regions)
+            composite = cuav_region.CompositeThumbnail(im_full, regions)
             thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
             mosaic.add_regions(regions, thumbs, f, pos)
 

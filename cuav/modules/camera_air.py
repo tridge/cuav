@@ -16,7 +16,7 @@ import functools, cv2
 from MAVProxy.modules.lib import mp_module
 
 from cuav.image import scanner
-from cuav.lib import cuav_mosaic, mav_position, cuav_util, cuav_joe, block_xmit, cuav_region, cuav_command
+from cuav.lib import mav_position, cuav_util, cuav_joe, block_xmit, cuav_region, cuav_command
 from MAVProxy.modules.lib import mp_settings
 from cuav.camera.cam_params import CameraParams
 
@@ -129,7 +129,7 @@ class CameraAirModule(mp_module.MPModule):
             self.error_msg = None
             #check cam params
             if not self.check_camera_parms():
-                print("Error - incorrect camera params")
+                print("Error - incorrect camera params " + str(self.camera_settings.camparms))
                 return
             if self.running == False:
                 self.running = True
@@ -175,7 +175,7 @@ class CameraAirModule(mp_module.MPModule):
             self.error_msg = None
             #check cam params
             if not self.check_camera_parms():
-                print("Error - incorrect camera params")
+                print("Error - incorrect camera params " + str(self.camera_settings.camparms))
                 return
             if self.airstart_triggered == False:
                 self.airstart_triggered = True
@@ -375,7 +375,7 @@ class CameraAirModule(mp_module.MPModule):
 
                 if self.camera_settings.transmit:
                     # send a region message with thumbnails to the ground station
-                    thumb_img = cuav_mosaic.CompositeThumbnail(im_full, regions,
+                    thumb_img = cuav_region.CompositeThumbnail(im_full, regions,
                                                                thumb_size=self.camera_settings.thumbsize)
                     encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
                     (result, thumb) = cv2.imencode('.jpg', thumb_img, encode_param)
