@@ -131,6 +131,9 @@ class CameraAirModule(mp_module.MPModule):
             if not self.check_camera_parms():
                 print("Error - incorrect camera params " + str(self.camera_settings.camparms))
                 return
+            if not os.path.isabs(self.camera_settings.camparms):
+                print("Error - camera params must use absolute path")
+                return
             if self.running == False:
                 self.running = True
                 self.joelog = cuav_joe.JoeLog(os.path.join(os.path.dirname(self.camera_settings.imagefile), 'joe_air.log'), append=self.continue_mode)
@@ -174,6 +177,9 @@ class CameraAirModule(mp_module.MPModule):
             self.error_count = 0
             self.error_msg = None
             #check cam params
+            if not os.path.isabs(self.camera_settings.camparms):
+                print("Error - camera params must use absolute path")
+                return
             if not self.check_camera_parms():
                 print("Error - incorrect camera params " + str(self.camera_settings.camparms))
                 return

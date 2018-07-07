@@ -87,6 +87,9 @@ class CameraGroundModule(mp_module.MPModule):
             print("Cap imgs: regions:%u" % (self.region_count))
         elif args[0] == "view":
             #check cam params
+            if not os.path.isabs(self.camera_settings.camparms):
+                print("Error - camera params must use absolute path")
+                return
             if not self.check_camera_parms():
                 print("Error - incorrect camera params")
                 return
@@ -135,7 +138,6 @@ class CameraGroundModule(mp_module.MPModule):
         if self.camera_settings.camparms is None:
             return False
         if os.path.isfile(self.camera_settings.camparms):
-            print(self.camera_settings.camparms)
             try:
                 self.c_params = CameraParams.fromfile(self.camera_settings.camparms)
                 return True
