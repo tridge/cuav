@@ -7,6 +7,9 @@
 *.yuv
 *.pyc
 *.lst
+*.log
+*.tlog
+*.parm
 build/
 dist/
 MANIFEST
