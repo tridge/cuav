@@ -205,10 +205,9 @@ class Mosaic():
     def show_region(self, ridx, view_the_image=False):
         '''display a region on the map'''
         region = self.regions[ridx]
-        thumbnail = cv2.cvtColor(region.full_thumbnail, cv2.COLOR_BGR2RGB)
 
         #do brightness
-        hsv = cv2.cvtColor(thumbnail, cv2.COLOR_RGB2HSV)
+        hsv = cv2.cvtColor(region.full_thumbnail, cv2.COLOR_RGB2HSV)
         v = hsv[:, :, 2]
         v = numpy.where(v <= 255 - (self.brightness * 10), v + (self.brightness * 10), 255)
         hsv[:, :, 2] = v
@@ -216,7 +215,7 @@ class Mosaic():
 
         thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
-        self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', thumbnail))
+        self.slipmap.add_object(mp_slipmap.SlipInfoImage('region detail', region.full_thumbnail))
         self.selected_region = ridx
         if region.score is None:
             region.score = 0
@@ -228,16 +227,16 @@ class Mosaic():
                                                                                             region.region.compactness,
                                                                                             region.region.center(),
                                                                                             str(region.latlon),
-                                                                                            region.pos.altitude, region.pos.yaw,
+                                                                                            region.pos.altitude,
+                                                                                            region.pos.yaw,
                                                                                             os.path.basename(region.filename))
         else:
-            region_text = "Selected region %u score=%u/%u/%.2f %s\n%s alt=%u yaw=%d\n%s\t\t" % (ridx, region.score,
-                                                                                            region.region.scan_score,
-                                                                                            region.region.compactness,
-                                                                                            region.region.center(),
-                                                                                            str(0),
-                                                                                            0, 0,
-                                                                                            os.path.basename(region.filename))
+            region_text = "Selected region %u score=%u/%u/%.2f %s\n%s alt=N/A yaw=N/A\n%s\t\t" % (ridx, region.score,
+                                                                                    region.region.scan_score,
+                                                                                    region.region.compactness,
+                                                                                    region.region.center(),
+                                                                                    str(region.latlon),
+                                                                                    os.path.basename(region.filename))
         self.slipmap.add_object(mp_slipmap.SlipInfoText('region detail text', region_text))
         if view_the_image and os.path.exists(region.filename):
             self.view_imagefile(region.filename, focus_region=region.region)
@@ -245,6 +244,7 @@ class Mosaic():
     def view_imagefile(self, filename, focus_region=None):
         '''view an image in a zoomable window'''
         img = cv2.imread(filename)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         (w,h) = cuav_util.image_shape(img)
         for i in range(len(self.images)):
             if filename == self.images[i].filename:
@@ -283,7 +283,7 @@ class Mosaic():
             self.view_image.set_menu(self.view_menu)
             self.view_image.set_popup_menu(vmenu)
         self.view_filename = filename
-        self.view_image.set_image(img, bgr=True)
+        self.view_image.set_image(img)
         if focus_region is not None:
             try:
                 self.view_image.center(focus_region.center())
@@ -694,13 +694,12 @@ class Mosaic():
             thumb = cv2.resize(region.small_thumbnail, (self.thumb_size, self.thumb_size))
         else:
             thumb = region.small_thumbnail
-
+        
         #do brightness
         hsv = cv2.cvtColor(thumb, cv2.COLOR_RGB2HSV)
         v = hsv[:, :, 2]
         v = numpy.where(v <= 255 - (self.brightness * 10), v + (self.brightness * 10), 255)
         hsv[:, :, 2] = v
-        thumb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
 
         # overlay thumbnail on mosaic
         #print dest_x, dest_y, self.width, self.height, self.thumb_size, cuav_util.image_width(region.small_thumbnail)
@@ -717,7 +716,7 @@ class Mosaic():
         for ridx in range(len(self.regions_sorted)):
             self.display_mosaic_region(ridx)
 
-        self.image_mosaic.set_image(self.mosaic, bgr=True)
+        self.image_mosaic.set_image(self.mosaic)
         max_page = (len(self.regions_sorted)-1) / self.display_regions
         self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
 
@@ -788,7 +787,7 @@ class Mosaic():
                                                  popup_menu=self.popup_menu)
                 self.slipmap.add_object(slobj)
 
-        self.image_mosaic.set_image(self.mosaic, bgr=False)
+        self.image_mosaic.set_image(self.mosaic)
 
     def add_image(self, frame_time, filename, pos):
         '''add a camera image'''

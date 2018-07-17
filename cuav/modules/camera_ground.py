@@ -288,7 +288,12 @@ class CameraGroundModule(mp_module.MPModule):
             if thumbdec is None:
                 pass
             thumbs = cuav_mosaic.ExtractThumbs(thumbdec, len(obj.regions))
+            thumbsRGB = []
 
+            #colour space conversion
+            for thumb in thumbs:
+                thumbsRGB.append(cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB))
+                
             # log the joe positions
             # note the filename is where the fullsize image would be downloaded
             # to, if requested
@@ -296,7 +301,7 @@ class CameraGroundModule(mp_module.MPModule):
             self.log_joe_position(obj.pos, obj.frame_time, obj.regions, filename, None)
 
             # update the mosaic and map
-            self.mosaic.add_regions(obj.regions, thumbs, filename, obj.pos)
+            self.mosaic.add_regions(obj.regions, thumbsRGB, filename, obj.pos)
 
             # update console display
             self.region_count += len(obj.regions)
