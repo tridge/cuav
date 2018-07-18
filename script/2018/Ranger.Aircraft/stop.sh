@@ -3,5 +3,4 @@
 set -e
 set -x
 
-screen -S image_capture -X quit
-screen -S mavproxy -X quit
+screen -S mav_shell -X quit
