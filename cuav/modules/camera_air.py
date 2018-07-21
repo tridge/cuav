@@ -395,7 +395,7 @@ class CameraAirModule(mp_module.MPModule):
 
             #self.send_image(im_full, frame_time, pos, 0)
 
-    def send_image(self, img, frame_time, priority):
+    def send_image(self, img, frame_time, priority, linktosend=None):
         '''send an image object to the GCS'''
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.camera_settings.qualitysend]
         (result, jpeg) = cv2.imencode('.jpg', img, encode_param)
@@ -404,7 +404,7 @@ class CameraAirModule(mp_module.MPModule):
         self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)
 
         pkt = cuav_command.ImagePacket(frame_time, jpeg, priority)
-        self.send_object(pkt, priority=priority)
+        self.send_object(pkt, priority, linktosend)
 
     def start_aircraft_bsend(self):
         '''start bsend for aircraft side'''
@@ -513,18 +513,8 @@ class CameraAirModule(mp_module.MPModule):
         print("Changed system time by %.2f seconds" % (t2-t1))
         self.have_set_gps_time = True
 
-    def check_requested_images(self, mosaic):
-        '''check if the user has requested download of an image'''
-        requests = mosaic.get_image_requests()
-        for frame_time in requests.keys():
-            fullres = requests[frame_time]
-            pkt = ImageRequest(frame_time, fullres)
-            self.start_gcs_bsend()
-            print("Requesting image %s" % frame_time)
-            self.send_object(pkt, priority=10000)
-
     def handle_image_request(self, obj, bsend):
-        '''handle ImageRequest from GCS'''
+        '''handle ImageRequest from GCS. Only sends to the requesting GCS'''
         filename = self.imagefilenamemapping[str(obj.frame_time)]
         if not os.path.exists(filename):
             print("No file: %s" % filename)
@@ -537,11 +527,11 @@ class CameraAirModule(mp_module.MPModule):
             im_small = cv2.resize(img, (0,0), fx=0.5, fy=0.5)
             img = im_small
         print("Sending image %s" % filename)
-        self.send_image(img, obj.frame_time, 10000)
+        self.send_image(img, obj.frame_time, 10000, bsend)
 
-    def send_packet(self, pkt):
+    def send_packet(self, pkt, linktosend=None):
         '''send a packet from GCS'''
-        self.send_object(pkt, priority=10000)
+        self.send_object(pkt, 10000, linktosend)
 
     def camera_settings_callback(self, setting):
         '''called on a changed camera setting'''
@@ -564,18 +554,25 @@ class CameraAirModule(mp_module.MPModule):
         self.send_packet(pkt)
 
     def send_object_complete(self, obj):
-        '''called on complete of an send_object, cancelling send on other link'''
-        if obj.blockid is not None:
-            for bsnd in self.bsend:
-                bsnd.cancel(obj.blockid)
+        '''called on complete of an send_object, cancelling send on other link
+        Not used for now, as we're assuming some links are to different GCS'''
+        pass
+        #if obj.blockid is not None:
+        #    for bsnd in self.bsend:
+        #        bsnd.cancel(obj.blockid)
 
-    def send_object(self, obj, priority):
-        '''send an object'''
+    def send_object(self, obj, priority, linktosend=None):
+        '''send an object to all links if linktosend is none
+        otherwise just send to the specified link'''
         buf = cPickle.dumps(obj, cPickle.HIGHEST_PROTOCOL)
         #only send if the queue is not clogged
-        for bsnd in self.bsend:
-            if bsnd.sendq_size() < self.camera_settings.maxqueue:
-                obj.blockid = bsnd.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj))
+        if not linktosend:
+            for bsnd in self.bsend:
+                if bsnd.sendq_size() < self.camera_settings.maxqueue:
+                    obj.blockid = bsnd.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj))
+        else:
+            if linktosend.sendq_size() < self.camera_settings.maxqueue:
+                obj.blockid = linktosend.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj))
 
 def init(mpstate):
     '''initialise module'''

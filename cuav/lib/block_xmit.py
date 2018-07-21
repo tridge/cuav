@@ -458,6 +458,8 @@ class BlockSender:
         if blk.callback:
                         #print("Callback %s" % blk.callback)
             blk.callback()
+        if blk.sends == 0:
+            return
         efficiency = blk.num_chunks / float(blk.sends)
         #print("_complete_send: efficiency=%.2f sends=%u recvs=%u" % (efficiency, self.send_count, self.recv_count))
         self.efficiency = 0.95 * self.efficiency + 0.05 * efficiency
