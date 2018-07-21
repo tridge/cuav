@@ -69,7 +69,7 @@ class Mosaic():
                  image_settings = None,
                  start_menu=False,
                  classify=None,
-                 image_view_width=1280):
+                 image_view_width=700):
         if C is None:
             raise ValueError("camera parameters must be supplied")
         self.thumb_size = thumb_size
@@ -290,6 +290,7 @@ class Mosaic():
             except Exception:
                 pass
         self.view_image.set_title('View: ' + os.path.basename(filename))
+        self.view_image.fit_to_window()
 
     def find_image_idx(self, filename):
         '''find index of image'''
