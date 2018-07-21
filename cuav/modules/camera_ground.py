@@ -84,7 +84,12 @@ class CameraGroundModule(mp_module.MPModule):
             print(usage)
             return
         elif args[0] == "status":
-            print("Cap imgs: regions:%u" % (self.region_count))
+            #print("Cap imgs: regions:%u" % (self.region_count))
+            #request status update from air module
+            pkt = cuav_command.CommandPacket('status')
+            self.send_packet(pkt)
+            pkt = cuav_command.CommandPacket('queue')
+            self.send_packet(pkt)
         elif args[0] == "view":
             #check cam params
             if not os.path.isabs(self.camera_settings.camparms):

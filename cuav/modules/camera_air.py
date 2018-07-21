@@ -471,7 +471,7 @@ class CameraAirModule(mp_module.MPModule):
             self.image_settings.set(obj.name, obj.value)
 
         if isinstance(obj, cuav_command.CommandPacket):
-            self.cmd_camera(obj.command)
+            self.cmd_camera([obj.command])
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
