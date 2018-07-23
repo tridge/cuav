@@ -25,7 +25,7 @@ sudo apt upgrade -y
 
 ## Add required packages for cuav and MAVProxy
 sudo apt install git screen python python-dev libxml2-dev libxslt-dev python-pip python-matplotlib -y
-sudo apt install python-opencv libjpeg62-turbo-dev
+sudo apt install python-opencv libjpeg62-turbo-dev -y
 pip install pyserial future --user
 pip install pymavlink pytest pytest-mock --user
 
