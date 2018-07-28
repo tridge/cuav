@@ -152,7 +152,7 @@ def test_camera_remote_response(mpstate, image_file):
     loadedModule.cmd_camera(["set", "minscore", "0"])
     loadedModule.cmd_camera(["set", "gcs_address", "127.0.0.1:14550:14560:90000"])
 
-    pkt = cuav_command.CommandPacket(["status"])
+    pkt = cuav_command.CommandPacket("status")
     b1 = block_xmit.BlockSender(dest_ip='127.0.0.1', port = 14550, dest_port = 14560)
     buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
 
