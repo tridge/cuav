@@ -1,3 +1,8 @@
+#!/bin/bash
+
+# need to run from home directory
+cd ~/
+
 ## Raspi-Config
 sudo raspi-config nonint do_expand_rootfs
 sudo raspi-config nonint do_camera 0
@@ -29,15 +34,23 @@ echo "PATH=\$PATH:~/.local/bin" >> ~/.profile
 source ~/.profile
 
 ## Git clone MAVProxy and cuav
-git clone https://github.com/ardupilot/mavproxy.git
-git clone https://github.com/CanberraUAV/cuav.git
+
+[ -d mavproxy ] || {
+    git clone https://github.com/ardupilot/mavproxy.git
+}
 
 ## and build them
-cd ~/mavproxy
+pushd ~/mavproxy
 python setup.py build install --user
-cd ~/cuav
+popd
+
+[ -d cuav ] || {
+    git clone https://github.com/ardupilot/mavproxy.git
+}
+
+pushd ~/cuav
 python setup.py build install --user
-cd ~/
+popd
 
 ## Install zerotier (https://www.zerotier.com/download.shtml)
 curl -s 'https://pgp.mit.edu/pks/lookup?op=get&search=0x1657198823E52A61' | gpg --import && \
