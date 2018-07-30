@@ -214,8 +214,7 @@ class CameraAirModule(mp_module.MPModule):
         link for changed linked filenames'''
         prev_image = None
         self.scan_queue = Queue.Queue()
-        while not self.unload_event.wait(0.02):
-            time.sleep(0.1)
+        while not self.unload_event.wait(0.05):
             try:
                 filename = os.path.realpath(self.camera_settings.imagefile)
                 if not self.camera_settings.ignoretimestamps:
@@ -234,9 +233,9 @@ class CameraAirModule(mp_module.MPModule):
 
     def scan_threadfunc(self):
         '''image scanning thread'''
-        while not self.unload_event.wait(0.02):
+        while not self.unload_event.wait(0.05):
             try:
-                (frame_time,im) = self.scan_queue.get(timeout=0.1)
+                (frame_time,im) = self.scan_queue.get()
             except Queue.Empty:
                 continue
             scan_parms = {}
@@ -322,8 +321,7 @@ class CameraAirModule(mp_module.MPModule):
         reg_count = 0
         self.start_aircraft_bsend()
 
-        while (not self.unload_event.wait(0.02)) or self.airstart_triggered:
-            time.sleep(0.01)
+        while (not self.unload_event.wait(0.05)) or self.airstart_triggered:
             for bsnd in self.bsend:
                 bsnd.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue)
                 self.check_commands(bsnd)
@@ -333,7 +331,7 @@ class CameraAirModule(mp_module.MPModule):
                 continue
 
             try:
-                (frame_time, filename, regions, im_full) = self.transmit_queue.get(timeout=0.1)
+                (frame_time, filename, regions, im_full) = self.transmit_queue.get()
             except Queue.Empty:
                 continue
 

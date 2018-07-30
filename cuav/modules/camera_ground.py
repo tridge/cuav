@@ -134,10 +134,6 @@ class CameraGroundModule(mp_module.MPModule):
             self.send_packet(pkt)
 
 
-    def transmit_thread(self):
-        '''thread for send/recieve to air side'''
-        pass
-
     def check_camera_parms(self):
         '''check for change in camera parameters'''
         if self.camera_settings.camparms is None:
@@ -231,8 +227,7 @@ class CameraGroundModule(mp_module.MPModule):
                                          image_settings=None,
                                          thumb_size=self.camera_settings.mosaic_thumbsize)
 
-        while not self.unload_event.wait(0.02):
-
+        while not self.unload_event.wait(0.05):
             if self.boundary_polygon is not None:
                 self.mosaic.set_boundary(self.boundary_polygon)
             if self.continue_mode:
