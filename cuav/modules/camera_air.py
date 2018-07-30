@@ -103,7 +103,6 @@ class CameraAirModule(mp_module.MPModule):
         self.bandwidth_used = []
         self.rtt_estimate = []
         self.bsend = [] #note this is an array of bsends
-        self.last_minscore = None
         self.last_heartbeat = time.time()
 
         self.mpos = mav_position.MavInterpolator(backlog=5000, gps_lag=0.0)
@@ -276,11 +275,54 @@ class CameraAirModule(mp_module.MPModule):
                                                  min_score=self.camera_settings.minscore,
                                                  filter_type=self.camera_settings.filter_type)
             self.region_count += len(regions)
-            if self.transmit_queue.qsize() < 100:
-                self.transmit_queue.put((frame_time, im, regions, img_scan))
+            
+            if self.camera_settings.roll_stabilised:
+                roll=0
             else:
-                self.send_packet(cuav_command.CommandResponse("Warning: image Tx queue too long"))
-                print("Warning: image Tx queue too long")
+                roll=None
+            pos = self.get_plane_position(frame_time, roll=roll)
+
+            # this adds the latlon field to the regions
+            if self.joelog:
+                self.log_joe_position(pos, frame_time, regions)
+
+            # filter out any regions outside the target radius
+            if self.camera_settings.target_radius > 0 and pos is not None:
+                regions = cuav_region.filter_radius(regions,
+                                                    (self.camera_settings.target_latitude,
+                                                     self.camera_settings.target_longitude),
+                                                    self.camera_settings.target_radius)
+
+            # filter out any regions outside the boundary
+            if self.boundary_polygon:
+                regions = cuav_region.filter_boundary(regions, self.boundary_polygon, pos)
+                regions = cuav_region.filter_regions(img_scan, regions, min_score=self.camera_settings.minscore,
+                                                     filter_type=self.camera_settings.filter_type)
+
+            if len(regions) > 0:
+                lowscore = 0
+                highscore = 0
+                for r in regions:
+                    lowscore = min(lowscore, r.score)
+                    highscore = max(highscore, r.score)
+
+                if self.camera_settings.transmit:
+                    # send a region message with thumbnails to the ground station
+                    thumb_img = cuav_region.CompositeThumbnail(img_scan, regions,
+                                                               thumb_size=self.camera_settings.thumbsize)
+                    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                    (result, thumb) = cv2.imencode('.jpg', thumb_img, encode_param)
+                    pkt = cuav_command.ThumbPacket(frame_time, regions, thumb, pos, highscore)
+
+                    # keep all thumbs so we can send more on score change
+                    self.add_all_thumbs(pkt)
+
+                    if self.camera_settings.transmit and highscore >= self.camera_settings.minscore:
+                        if self.transmit_queue.qsize() < 100:
+                            self.transmit_queue.put((pkt, highscore))
+                        else:
+                            self.send_packet(cuav_command.CommandResponse("Warning: image Tx queue too long"))
+                            print("Warning: image Tx queue too long")
 
     def get_plane_position(self, frame_time,roll=None):
         '''get a MavPosition object for the planes position if possible'''
@@ -304,11 +346,6 @@ class CameraAirModule(mp_module.MPModule):
             # don't save ground photos
             return
 
-    def check_send_newscore(self):
-        '''check if requested scores have changed, and send missing thumbs if needed'''
-        if self.last_minscore is None:
-            self.last_minscore = self.camera_settings.minscore
-
     def send_heartbeats(self):
         '''possibly send heartbeat msgs'''
         now = time.time()
@@ -318,7 +355,6 @@ class CameraAirModule(mp_module.MPModule):
 
     def transmit_threadfunc(self):
         '''thread for image transmit to GCS'''
-        reg_count = 0
         self.start_aircraft_bsend()
         self.spacewarning = False
 
@@ -327,43 +363,24 @@ class CameraAirModule(mp_module.MPModule):
                 bsnd.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue)
                 self.check_commands(bsnd)
             self.send_heartbeats()
-            if self.transmit_queue.empty():
-                self.check_send_newscore()
-                continue
 
             #check remaining disk space and warn user if required
-            stat = os.statvfs(os.path.dirname(self.camera_settings.imagefile))
-            if not self.spacewarning and stat.f_bfree*stat.f_bsize < 20971520:
-                self.send_packet(cuav_command.CommandResponse("Warning: <200Mb disk space left on cuav_air"))
-                self.spacewarning = True
-
             try:
-                (frame_time, filename, regions, im_full) = self.transmit_queue.get()
-            except Queue.Empty:
+                stat = os.statvfs(os.path.dirname(self.camera_settings.imagefile))
+                if not self.spacewarning and stat.f_bfree*stat.f_bsize < 20971520:
+                    self.send_packet(cuav_command.CommandResponse("Warning: <200Mb disk space left on cuav_air"))
+                    self.spacewarning = True
+            except OSError:
+                pass
+
+            if self.transmit_queue.empty():
                 continue
 
-            if self.camera_settings.roll_stabilised:
-                roll=0
-            else:
-                roll=None
-            pos = self.get_plane_position(frame_time, roll=roll)
-
-            # this adds the latlon field to the regions
-            if self.joelog:
-                self.log_joe_position(pos, frame_time, regions)
-
-            # filter out any regions outside the target radius
-            if self.camera_settings.target_radius > 0 and pos is not None:
-                regions = cuav_region.filter_radius(regions,
-                                                    (self.camera_settings.target_latitude,
-                                                     self.camera_settings.target_longitude),
-                                                    self.camera_settings.target_radius)
-
-            # filter out any regions outside the boundary
-            if self.boundary_polygon:
-                regions = cuav_region.filter_boundary(regions, self.boundary_polygon, pos)
-                regions = cuav_region.filter_regions(im_full, regions, min_score=self.camera_settings.minscore,
-                                                     filter_type=self.camera_settings.filter_type)
+            try:
+                (pkt, priority) = self.transmit_queue.get()
+                self.send_object(pkt, priority)
+            except Queue.Empty:
+                continue
 
             #update the stats
             self.xmit_queue = []
@@ -375,28 +392,6 @@ class CameraAirModule(mp_module.MPModule):
                 self.efficiency.append(bsnd.get_efficiency())
                 self.bandwidth_used.append(bsnd.get_bandwidth_used())
                 self.rtt_estimate.append(bsnd.get_rtt_estimate())
-
-            if len(regions) > 0:
-                reg_count += 1
-                lowscore = 0
-                highscore = 0
-                for r in regions:
-                    lowscore = min(lowscore, r.score)
-                    highscore = max(highscore, r.score)
-
-                if self.camera_settings.transmit:
-                    # send a region message with thumbnails to the ground station
-                    thumb_img = cuav_region.CompositeThumbnail(im_full, regions,
-                                                               thumb_size=self.camera_settings.thumbsize)
-                    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-                    (result, thumb) = cv2.imencode('.jpg', thumb_img, encode_param)
-                    pkt = cuav_command.ThumbPacket(frame_time, regions, thumb, pos, highscore)
-
-                    # keep all thumbs so we can send more on score change
-                    self.add_all_thumbs(pkt)
-
-                    if self.camera_settings.transmit and highscore >= self.camera_settings.minscore:
-                        self.send_object(pkt, priority=highscore)
 
             #self.send_image(im_full, frame_time, pos, 0)
 
