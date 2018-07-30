@@ -320,6 +320,7 @@ class CameraAirModule(mp_module.MPModule):
         '''thread for image transmit to GCS'''
         reg_count = 0
         self.start_aircraft_bsend()
+        self.spacewarning = False
 
         while (not self.unload_event.wait(0.05)) or self.airstart_triggered:
             for bsnd in self.bsend:
@@ -329,6 +330,12 @@ class CameraAirModule(mp_module.MPModule):
             if self.transmit_queue.empty():
                 self.check_send_newscore()
                 continue
+
+            #check remaining disk space and warn user if required
+            stat = os.statvfs(os.path.dirname(self.camera_settings.imagefile))
+            if not self.spacewarning and stat.f_bfree*stat.f_bsize < 20971520:
+                self.send_packet(cuav_command.CommandResponse("Warning: <200Mb disk space left on cuav_air"))
+                self.spacewarning = True
 
             try:
                 (frame_time, filename, regions, im_full) = self.transmit_queue.get()
