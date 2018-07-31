@@ -140,13 +140,13 @@ class CameraAirModule(mp_module.MPModule):
                 self.scan_thread = self.start_thread(self.scan_threadfunc)
                 self.transmit_thread = self.start_thread(self.transmit_threadfunc)
                 time.sleep(0.1)
-                self.send_packet(cuav_command.CommandResponse("Started cuav running"))
+                self.send_message("Started cuav running")
                 print("Started cuav running")
             else:
-                self.send_packet(cuav_command.CommandResponse("cuav already running"))
+                self.send_message("cuav already running")
                 print("cuav already running")
         elif args[0] == "stop":
-            self.send_packet(cuav_command.CommandResponse("Stopped cuav"))
+            self.send_message("Stopped cuav")
             self.running = False
             self.airstart_triggered = False
             print("Stopped cuav")
@@ -158,7 +158,7 @@ class CameraAirModule(mp_module.MPModule):
                 self.xmit_queue, self.scan_queue.qsize(),
                 self.efficiency)
             print(ret)
-            self.send_packet(cuav_command.CommandResponse(ret))
+            self.send_message(ret)
         elif args[0] == "queue":
             ret = "scan %u  transmit %u  eff %s  bw %s  rtt %s" % (
                 self.scan_queue.qsize(),
@@ -167,7 +167,7 @@ class CameraAirModule(mp_module.MPModule):
                 self.bandwidth_used,
                 self.rtt_estimate)
             print(ret)
-            self.send_packet(cuav_command.CommandResponse(ret))
+            self.send_message(ret)
         elif args[0] == "set":
             self.camera_settings.command(args[1:])
         elif args[0] == "airstart":
@@ -187,10 +187,10 @@ class CameraAirModule(mp_module.MPModule):
                 self.joelog = cuav_joe.JoeLog(os.path.join(os.path.dirname(self.camera_settings.imagefile), 'joe_air.log'), append=self.continue_mode)
                 self.transmit_thread = self.start_thread(self.transmit_threadfunc)
                 time.sleep(0.1)
-                self.send_packet(cuav_command.CommandResponse("cuav airstart ready"))
+                self.send_message("cuav airstart ready")
                 print("cuav airstart ready")
             else:
-                self.send_packet(cuav_command.CommandResponse("cuav airstart already running"))
+                self.send_message("cuav airstart already running")
                 print("cuav airstart already running")
         else:
             print(usage)
@@ -256,7 +256,7 @@ class CameraAirModule(mp_module.MPModule):
             if self.camera_settings.rotate180:
                 M = cv2.getRotationMatrix2D(center, angle180, scale)
                 (h, w) = img_scan.shape[:2]
-                im_full = cv2.warpAffine(im_full, M, (w, h))
+                img_scan = cv2.warpAffine(img_scan, M, (w, h))
             im_numpy = numpy.ascontiguousarray(img_scan)
             regions = scanner.scan(im_numpy, scan_parms)
             if self.camera_settings.filter_type=='compactness':
@@ -319,9 +319,9 @@ class CameraAirModule(mp_module.MPModule):
 
                     if self.camera_settings.transmit and highscore >= self.camera_settings.minscore:
                         if self.transmit_queue.qsize() < 100:
-                            self.transmit_queue.put((pkt, highscore))
+                            self.transmit_queue.put((pkt, None, None))
                         else:
-                            self.send_packet(cuav_command.CommandResponse("Warning: image Tx queue too long"))
+                            self.send_message("Warning: image Tx queue too long")
                             print("Warning: image Tx queue too long")
 
     def get_plane_position(self, frame_time,roll=None):
@@ -354,7 +354,8 @@ class CameraAirModule(mp_module.MPModule):
             self.send_heartbeat()
 
     def transmit_threadfunc(self):
-        '''thread for image transmit to GCS'''
+        '''thread for image and message transmit to camera_ground
+        in addition to reading commands from the camera_ground'''
         self.start_aircraft_bsend()
         self.spacewarning = False
 
@@ -368,19 +369,14 @@ class CameraAirModule(mp_module.MPModule):
             try:
                 stat = os.statvfs(os.path.dirname(self.camera_settings.imagefile))
                 if not self.spacewarning and stat.f_bfree*stat.f_bsize < 20971520:
-                    self.send_packet(cuav_command.CommandResponse("Warning: <200Mb disk space left on cuav_air"))
+                    self.send_message("Warning: <200Mb disk space left on cuav_air")
                     self.spacewarning = True
             except OSError:
                 pass
 
-            if self.transmit_queue.empty():
-                continue
-
-            try:
-                (pkt, priority) = self.transmit_queue.get()
-                self.send_object(pkt, priority)
-            except Queue.Empty:
-                continue
+            while not self.transmit_queue.empty():
+                (pkt, priority, linktosend) = self.transmit_queue.get()
+                self.send_object(pkt, priority, linktosend)
 
             #update the stats
             self.xmit_queue = []
@@ -393,8 +389,6 @@ class CameraAirModule(mp_module.MPModule):
                 self.bandwidth_used.append(bsnd.get_bandwidth_used())
                 self.rtt_estimate.append(bsnd.get_rtt_estimate())
 
-            #self.send_image(im_full, frame_time, pos, 0)
-
     def send_image(self, img, frame_time, priority, linktosend=None):
         '''send an image object to the GCS'''
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.camera_settings.qualitysend]
@@ -404,7 +398,7 @@ class CameraAirModule(mp_module.MPModule):
         self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)
 
         pkt = cuav_command.ImagePacket(frame_time, jpeg, priority)
-        self.send_object(pkt, priority, linktosend)
+        self.transmit_queue.put((pkt, priority, linktosend))
 
     def start_aircraft_bsend(self):
         '''start bsend for aircraft side'''
@@ -421,7 +415,7 @@ class CameraAirModule(mp_module.MPModule):
 
 
         # send an initial packet to open the link
-        self.send_packet(cuav_command.CommandPacket(''))
+        self.send_message("")
         self.send_heartbeats()
 
     def start_thread(self, fn):
@@ -466,9 +460,11 @@ class CameraAirModule(mp_module.MPModule):
 
         if isinstance(obj, cuav_command.ChangeCameraSetting):
             self.camera_settings.set(obj.name, obj.value)
+            self.camera_settings_callback(obj)
 
         if isinstance(obj, cuav_command.ChangeImageSetting):
             self.image_settings.set(obj.name, obj.value)
+            self.image_settings_callback(obj)
 
         if isinstance(obj, cuav_command.CommandPacket):
             self.cmd_camera([obj.command])
@@ -490,7 +486,7 @@ class CameraAirModule(mp_module.MPModule):
                 self.joelog = cuav_joe.JoeLog(os.path.join(os.path.dirname(self.camera_settings.imagefile), 'joe_air.log'), append=self.continue_mode)
                 self.capture_thread = self.start_thread(self.capture_threadfunc)
                 self.scan_thread = self.start_thread(self.scan_threadfunc)
-                self.send_packet(cuav_command.CommandResponse("Started cuav running"))
+                self.send_message("Started cuav running")
                 print("Started cuav running")
         if m.get_type() == "TERRAIN_REPORT":
             self.terrain_alt = m.current_height
@@ -529,29 +525,25 @@ class CameraAirModule(mp_module.MPModule):
         print("Sending image %s" % filename)
         self.send_image(img, obj.frame_time, 10000, bsend)
 
-    def send_packet(self, pkt, linktosend=None):
-        '''send a packet from GCS'''
-        self.send_object(pkt, 10000, linktosend)
-
     def camera_settings_callback(self, setting):
         '''called on a changed camera setting'''
         pkt = cuav_command.ChangeCameraSetting(setting.name, setting.value)
-        self.send_packet(pkt)
+        self.transmit_queue.put((pkt, None, None))
 
     def image_settings_callback(self, setting):
         '''called on a changed image setting'''
         pkt = cuav_command.ChangeImageSetting(setting.name, setting.value)
-        self.send_packet(pkt)
+        self.transmit_queue.put((pkt, None, None))
 
     def send_heartbeat(self):
         '''send a heartbeat'''
         pkt = cuav_command.HeartBeat()
-        self.send_packet(pkt)
+        self.transmit_queue.put((pkt, None, None))
 
     def send_message(self, msg):
         '''send a message'''
         pkt = cuav_command.CameraMessage(msg)
-        self.send_packet(pkt)
+        self.transmit_queue.put((pkt, None, None))
 
     def send_object_complete(self, obj):
         '''called on complete of an send_object, cancelling send on other link
@@ -561,10 +553,12 @@ class CameraAirModule(mp_module.MPModule):
         #    for bsnd in self.bsend:
         #        bsnd.cancel(obj.blockid)
 
-    def send_object(self, obj, priority, linktosend=None):
+    def send_object(self, obj, priority=None, linktosend=None):
         '''send an object to all links if linktosend is none
         otherwise just send to the specified link'''
         buf = cPickle.dumps(obj, cPickle.HIGHEST_PROTOCOL)
+        if priority is None:
+            priority = 10000
         #only send if the queue is not clogged
         if not linktosend:
             for bsnd in self.bsend:

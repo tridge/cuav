@@ -174,8 +174,9 @@ def test_camera_remote_response(mpstate, image_file):
     loadedModule.unload()
 
     assert len(blkret) > 0
-    assert isinstance(blkret[-1], cuav_command.CommandResponse)
-    assert blkret[-1].response == "Cap imgs:0 err:0 scan:0 regions:0 jsize:0 xmitq:[] sq:0.0 eff:[]"
+    assert isinstance(blkret[-1], cuav_command.CameraMessage)
+    assert "Cap imgs:0 err:0 scan:0 regions:0 jsize:0 xmitq:[0] sq:0.0 eff:[" in blkret[-1].msg
+    assert blkret[-1].msg[-1] == "]"
 
 def test_camera_image_request(mpstate, image_file):
     '''image request via the block_xmit'''
@@ -249,7 +250,7 @@ def test_camera_airstart(mpstate, image_file):
         try:
             b1.tick()
             blk = cPickle.loads(str(b1.recv(0.01, True)))
-            if isinstance(blk, cuav_command.CommandResponse):
+            if isinstance(blk, cuav_command.CameraMessage):
                 blkret.append(blk)
             time.sleep(0.05)
         except cPickle.UnpicklingError:
@@ -257,9 +258,9 @@ def test_camera_airstart(mpstate, image_file):
     loadedModule.cmd_camera(["stop"])
     loadedModule.unload()
 
-    assert len(blkret) == 2
-    assert isinstance(blkret[0], cuav_command.CommandResponse)
-    assert isinstance(blkret[1], cuav_command.CommandResponse)
-    assert blkret[0].response == "cuav airstart ready"
-    assert blkret[1].response == "Started cuav running"
+    assert len(blkret) == 3
+    assert isinstance(blkret[0], cuav_command.CameraMessage)
+    assert isinstance(blkret[1], cuav_command.CameraMessage)
+    assert blkret[1].msg == "cuav airstart ready"
+    assert blkret[2].msg == "Started cuav running"
 

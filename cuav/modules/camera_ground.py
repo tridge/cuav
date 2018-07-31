@@ -333,11 +333,8 @@ class CameraGroundModule(mp_module.MPModule):
         if isinstance(obj, cuav_command.CommandPacket):
             pass
 
-        if isinstance(obj, cuav_command.CommandResponse):
-            print('REMOTE: %s' % obj.response)
-
         if isinstance(obj, cuav_command.CameraMessage):
-            self.say(obj.msg)
+            print('CUAV AIR REMOTE: %s' % obj.msg)
 
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
         '''add to joe_ground.log if possible, returning a list of (lat,lon) tuples
