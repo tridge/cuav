@@ -193,10 +193,6 @@ class CameraGroundModule(mp_module.MPModule):
                     print("Bad Air endpoint (must be remIP:remport:localport:bw): " + str(lnk))
                     pass
 
-        # send an initial packet to open the link
-        self.send_packet(cuav_command.CommandPacket(''))
-        self.send_heartbeat()
-
     def view_threadfunc(self):
         '''image viewing thread - this runs on the ground station'''
         self.start_gcs_bsend()

@@ -413,11 +413,6 @@ class CameraAirModule(mp_module.MPModule):
                     print("Bad GCS endpoint (must be remIP:remport:localport:bw): " + str(lnk))
                     pass
 
-
-        # send an initial packet to open the link
-        self.send_message("")
-        self.send_heartbeats()
-
     def start_thread(self, fn):
         '''start a thread running'''
         t = threading.Thread(target=fn)

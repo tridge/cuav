@@ -211,9 +211,10 @@ def test_camera_image_request(mpstate, image_file):
             #only want paricular packets - discard all the heartbeats, etc
             if isinstance(blk, cuav_command.ImagePacket):
                 blkret.append(blk)
+                break
             time.sleep(0.05)
         except cPickle.UnpicklingError:
-            break
+            continue
 
     loadedModule.cmd_camera(["stop"])
     loadedModule.unload()
@@ -258,9 +259,9 @@ def test_camera_airstart(mpstate, image_file):
     loadedModule.cmd_camera(["stop"])
     loadedModule.unload()
 
-    assert len(blkret) == 3
+    assert len(blkret) == 2
     assert isinstance(blkret[0], cuav_command.CameraMessage)
     assert isinstance(blkret[1], cuav_command.CameraMessage)
-    assert blkret[1].msg == "cuav airstart ready"
-    assert blkret[2].msg == "Started cuav running"
+    assert blkret[0].msg == "cuav airstart ready"
+    assert blkret[1].msg == "Started cuav running"
 
