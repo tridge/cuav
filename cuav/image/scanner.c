@@ -86,7 +86,6 @@ struct regions {
 		uint16_t maxx, maxy;
 	} bounds[MAX_REGIONS];
 	float region_score[MAX_REGIONS];
-        float compactness_score[MAX_REGIONS];
         // data is a 2D array of image dimensions. Each value is the
         // assigned region number or REGION_NONE
         int16_t **data;
@@ -736,42 +735,6 @@ static void prune_small_regions(const struct scan_params *scan_params, struct re
 	}
 }
 
-/*
- * Calculate the compactness of a region
- */
-static float region_compactness(double ** pixel_scores, int dims[2])
-{
-    //float score = 0.0;
-    float sw = 0.0;
-    float wmean = 0.0;
-
-    for (int i = 0; i < dims[0]; i++)
-    {
-        for (int j = 0; j < dims[1]; j++)
-        {
-            sw += i * j;
-        }
-    }
-
-    if (sw == 0.0)
-    {
-        return 0.0;
-    }
-
-    for (int i = 0; i < dims[0]; i++)
-    {
-        for (int j = 0; j < dims[1]; j++)
-        {
-            sw += i * j;
-            pixel_scores[i][j] = (pixel_scores[i][j] / sw) * i * j;
-            wmean += pixel_scores[i][j];
-        }
-    }
-
-    return wmean;
-
-}
-
 
 /*
   score one region in an image
@@ -782,20 +745,13 @@ static float region_compactness(double ** pixel_scores, int dims[2])
 static float score_one_region(const struct scan_params *scan_params,
                               const struct region_bounds *bounds,
                               const struct bgr_image *quantised,
-                              const struct histogram *histogram,
-                              float *compactness_score)
+                              const struct histogram *histogram)
 {
     float score = 0;
     uint16_t count = 0;
     uint16_t width, height;
     width  = 1 + bounds->maxx - bounds->minx;
     height = 1 + bounds->maxy - bounds->miny;
-    int dims[2] = { height, width };
-    //printf("Dims are %u, %u", height, width);
-    //Need to calculate compactness score here, rather than pass the image
-    //region to Python code, as this results in large memory usage in high-res
-    //images
-    //(*compactness_score) = 0.0;
 
     //malloc the 2D array
     double **pixel_scores = malloc(sizeof *pixel_scores * height);
@@ -826,9 +782,6 @@ static float score_one_region(const struct scan_params *scan_params,
         return 0;
     }
 
-    //calculate compactness
-    *compactness_score = region_compactness(pixel_scores, dims);
-
     //free the pixel_scores array
     if (pixel_scores)
     {
@@ -856,8 +809,7 @@ static void score_regions(const struct scan_params *scan_params,
 	unsigned i;
 	for (i=0; i<in->num_regions; i++) {
                 in->region_score[i] = score_one_region(scan_params,
-                                                       &in->bounds[i], quantised, histogram,
-                                                       &in->compactness_score[i]);
+                                                       &in->bounds[i], quantised, histogram);
         }
 }
 
@@ -1160,13 +1112,12 @@ scanner_scan(PyObject *self, PyObject *args)
 
 	PyObject *list = PyList_New(regions->num_regions);
 	for (unsigned i=0; i<regions->num_regions; i++) {
-		PyObject *t = Py_BuildValue("(iiiiff)",
+		PyObject *t = Py_BuildValue("(iiiif)",
 					    regions->bounds[i].minx,
 					    regions->bounds[i].miny,
 					    regions->bounds[i].maxx,
 					    regions->bounds[i].maxy,
-                                            regions->region_score[i],
-                                            regions->compactness_score[i]);
+                                            regions->region_score[i]);
 		PyList_SET_ITEM(list, i, t);
 	}
 

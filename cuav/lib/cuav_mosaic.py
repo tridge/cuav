@@ -153,7 +153,6 @@ class Mosaic():
                                                      selected=self.sort_type,
                                                      items=['Score\tAlt+S',
                                                             'ScoreReverse\tAlt+R',
-                                                            'Compactness\tAlt+C',
                                                             'Distinctiveness\tAlt+D',
                                                             'Whiteness\tAlt+W',
                                                             'Time\tAlt+T']),
@@ -222,18 +221,16 @@ class Mosaic():
         if region.pos is not None:
             if region.pos.altitude is None:
                 region.pos.altitude = 0
-            region_text = "Selected region %u score=%u/%u/%.2f %s\n%s alt=%u yaw=%d\n%s\t\t" % (ridx, region.score,
+            region_text = "Selected region %u score=%u/%.2f %s\n%s alt=%u yaw=%d\n%s\t\t" % (ridx, region.score,
                                                                                             region.region.scan_score,
-                                                                                            region.region.compactness,
                                                                                             region.region.center(),
                                                                                             str(region.latlon),
                                                                                             region.pos.altitude,
                                                                                             region.pos.yaw,
                                                                                             os.path.basename(region.filename))
         else:
-            region_text = "Selected region %u score=%u/%u/%.2f %s\n%s alt=N/A yaw=N/A\n%s\t\t" % (ridx, region.score,
+            region_text = "Selected region %u score=%u/%.2f %s\n%s alt=N/A yaw=N/A\n%s\t\t" % (ridx, region.score,
                                                                                     region.region.scan_score,
-                                                                                    region.region.compactness,
                                                                                     region.region.center(),
                                                                                     str(region.latlon),
                                                                                     os.path.basename(region.filename))
@@ -444,8 +441,6 @@ class Mosaic():
             self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
         elif sortby == 'ScoreReverse':
             self.regions_sorted.sort(key = lambda r : r.score, reverse=False)
-        elif sortby == 'Compactness':
-            self.regions_sorted.sort(key = lambda r : r.region.compactness, reverse=True)
         elif sortby == 'Distinctiveness':
             self.regions_sorted.sort(key = lambda r : r.region.scan_score, reverse=True)
         elif sortby == 'Whiteness':

@@ -14,8 +14,8 @@ def test_JoeLog_JoeIterator():
     regions = []
     frame_time = 1478954763.0
     C = CameraParams(lens=4.0, sensorwidth=5.0, xresolution=1024, yresolution=768)
-    regions.append(cuav_region.Region(10, 10, 25, 23, None, scan_score=450, compactness=10))
-    regions.append(cuav_region.Region(200, 205, 252, 236, None, scan_score=420, compactness=8))
+    regions.append(cuav_region.Region(10, 10, 25, 23, None, scan_score=450))
+    regions.append(cuav_region.Region(200, 205, 252, 236, None, scan_score=420))
     pos = mav_position.MavPosition(-30, 145, 34.56, 20, -56.67, 345, frame_time)
     joelog.add_regions(frame_time, regions, pos, 'img2017111312451230Z.png', width=1024, height=768, altitude=None, C=C)
     

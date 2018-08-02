@@ -49,7 +49,7 @@ def process(folderfile):
         MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
         MPSetting('RegionMergeSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
         MPSetting('minscore', int, 0, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
-        MPSetting('filter_type', str, 'simple', 'Filter Type', choice=['simple', 'compactness']),
+        MPSetting('filter_type', str, 'simple', 'Filter Type', choice=['simple']),
         MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
                 digits=2, tab='Display')
     ],

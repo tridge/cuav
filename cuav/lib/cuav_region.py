@@ -5,7 +5,7 @@ import numpy, sys, os, time, cuav_util, cv2, math
 
 class Region:
     '''a object representing a recognised region in an image'''
-    def __init__(self, x1, y1, x2, y2, scan_shape, scan_score=0, compactness=0):
+    def __init__(self, x1, y1, x2, y2, scan_shape, scan_score=0):
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
@@ -13,7 +13,6 @@ class Region:
         self.latlon = None
         self.score = None
         self.scan_score = scan_score
-        self.compactness = compactness
         self.whiteness = None
         self.blue_score = None
         self.scan_shape = scan_shape
@@ -40,7 +39,7 @@ class Region:
     def __str__(self):
         return '%s latlon=%s score=%s' % (str(self.tuple()), str(self.latlon), self.score)
 
-def RegionsConvert(rlist, scan_shape, full_shape, calculate_compactness=True):
+def RegionsConvert(rlist, scan_shape, full_shape):
     '''convert a region list from tuple to Region format,
     also mapping to the shape of the full image'''
     ret = []
@@ -49,58 +48,14 @@ def RegionsConvert(rlist, scan_shape, full_shape, calculate_compactness=True):
     full_w = full_shape[0]
     full_h = full_shape[1]
     for r in rlist:
-        (x1,y1,x2,y2,score,compactness) = r
+        (x1,y1,x2,y2,score) = r
         x1 = (x1 * full_w) // scan_w
         x2 = (x2 * full_w) // scan_w
         y1 = (y1 * full_h) // scan_h
         y2 = (y2 * full_h) // scan_h
 
-        ret.append(Region(x1,y1,x2,y2, scan_shape, score, compactness))
+        ret.append(Region(x1,y1,x2,y2, scan_shape, score))
     return ret
-
-# Moved to scanner.c
-#def array_compactness(im):
-#        '''
-#        calculate the compactness of a 2D array. Each element of the 2D array
-#        should be proportional to the score of that pixel in the overall scoring scheme
-#        . '''
-#        from numpy import array,meshgrid,arange,shape,mean,zeros
-#        from numpy import outer,sum,max,linalg
-#        from numpy import sqrt
-#        from math import exp
-#        (h,w) = shape(im)
-#        # make sure we don't try to process really big arrays, as the CPU cost
-#        # rises very rapidly
-#        maxsize = 15
-#        if h > maxsize or w > maxsize:
-#                reduction_h = (h+(maxsize-1))//maxsize
-#                reduction_w = (w+(maxsize-1))//maxsize
-#                im = im[::reduction_h, ::reduction_w]
-#                (h,w) = shape(im)
-#        (X,Y) = meshgrid(arange(w),arange(h))
-#        x = X.flatten()
-#        y = Y.flatten()
-#        wgts = im[y,x]
-#        sw = sum(wgts)
-#        if sw == 0:
-#                return 1
-#        wgts /= sw
-#        wpts = array([wgts*x, wgts*y])
-#        wmean = sum(wpts, 1)
-#        N = len(x)
-#        s = array([x,y])
-#        P = zeros((2,2))
-#        for i in range(0,N):
-#                P += wgts[i]*outer(s[:,i],s[:,i])
-#        P = P - outer(wmean,wmean);
-#
-#        det = abs(linalg.det(P))
-#        if (det <= 0):
-#                return 0.0
-#        v = linalg.eigvalsh(P)
-#        v = abs(v)
-#        r = min(v)/max(v)
-#        return 100.0*sqrt(r/det)
 
 def image_whiteness(hsv):
         ''' a measure of the whiteness of an HSV image 0 to 1'''
@@ -205,10 +160,6 @@ def hsv_score(r, hsv, use_whiteness=False):
         if use_whiteness:
             not_white = 1.0-r.whiteness
             col_score *= not_white
-    if r.compactness <= math.e:
-        scaled_compactness = 1
-    else:
-        scaled_compactness = math.log(r.compactness)
 
     r.col_score = col_score
     if col_score <= math.e:
@@ -217,7 +168,7 @@ def hsv_score(r, hsv, use_whiteness=False):
         scaled_col_score = math.log(col_score)
 
     # combine all the scoring systems
-    r.score = r.scan_score*(s_range/128.0)*log_scaling(r.compactness,0.2)*log_scaling(col_score,0.3)
+    r.score = r.scan_score*(s_range/128.0)*log_scaling(col_score,0.3)
 
 def score_region(img, r, filter_type='simple'):
     '''filter a list of regions using HSV values'''
@@ -230,11 +181,7 @@ def score_region(img, r, filter_type='simple'):
     y1 = max(y-10,0)
     y2 = min(y+10,h)
     hsv = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_RGB2HSV)
-    if filter_type == 'compactness':
-        use_compactness = True
-    else:
-        use_compactness = False
-    hsv_score(r, hsv, use_compactness)
+    hsv_score(r, hsv)
 
 def filter_regions(img, regions, min_score=4, filter_type='simple'):
     '''filter a list of regions using HSV values'''

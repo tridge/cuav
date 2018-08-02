@@ -51,8 +51,8 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('ignoretimestamps', bool, False, 'Ignore image timestamps', tab='Capture2'),
               MPSetting('camparms', str, None, 'camera parameters file (json)', tab='Imaging'),
               MPSetting('imagefile', str, None, 'latest captured image', tab='Imaging'),
-              MPSetting('filter_type', str, 'compactness', 'Filter Type',
-                        choice=['simple', 'compactness'], tab='Imaging'),
+              MPSetting('filter_type', str, 'simple', 'Filter Type',
+                        choice=['simple'], tab='Imaging'),
               MPSetting('blue_emphasis', bool, False, 'BlueEmphasis', tab='Imaging'),
               MPSetting('use_capture_time', bool, True, 'Use Capture Time (false for sim)', tab='Simulation'),
               MPSetting('target_latitude', float, 0, 'filter detected images to latitude', tab='Filter to Location'),
@@ -259,14 +259,9 @@ class CameraAirModule(mp_module.MPModule):
                 img_scan = cv2.warpAffine(img_scan, M, (w, h))
             im_numpy = numpy.ascontiguousarray(img_scan)
             regions = scanner.scan(im_numpy, scan_parms)
-            if self.camera_settings.filter_type=='compactness':
-                calculate_compactness = True
-            else:
-                calculate_compactness = False
             regions = cuav_region.RegionsConvert(regions,
                                                  cuav_util.image_shape(img_scan),
-                                                 cuav_util.image_shape(img_scan),
-                                                 calculate_compactness)
+                                                 cuav_util.image_shape(img_scan))
             t2 = time.time()
             self.scan_fps = 1.0 / (t2-t1)
             self.scan_count += 1

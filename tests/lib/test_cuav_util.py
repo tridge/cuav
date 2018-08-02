@@ -119,7 +119,7 @@ def test_meters_per_pixel():
 def test_gps_position_from_image_region():
     frame_time = 1478954763.0
     pos = mav_position.MavPosition(-50, 145, 120, 0, 0, 90, frame_time)
-    region = cuav_region.Region(10, 10, 25, 23, None, scan_score=450, compactness=10)
+    region = cuav_region.Region(10, 10, 25, 23, None, scan_score=450)
     C = CameraParams(lens=4.0, sensorwidth=5.0, xresolution=1024, yresolution=800)
     (lat, lon) = gps_position_from_image_region(region, pos, width=1024, height=800, C=C, altitude=None)
     assert abs(-49.99934 - lat) < 0.00001

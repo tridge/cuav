@@ -41,9 +41,9 @@ def test_MosaicImage():
     
 def test_ExtractThumbs():
     regions = []
-    regions.append(cuav_region.Region(1020, 658, 1050, 678, (30, 30), compactness=5.4, scan_score=20))
-    regions.append(cuav_region.Region(30, 54, 50, 74, (20, 20), compactness=2.1, scan_score=15))
-    regions.append(cuav_region.Region(60, 24, 170, 134, (110, 110), compactness=0, scan_score=0))
+    regions.append(cuav_region.Region(1020, 658, 1050, 678, (30, 30), scan_score=20))
+    regions.append(cuav_region.Region(30, 54, 50, 74, (20, 20), scan_score=15))
+    regions.append(cuav_region.Region(60, 24, 170, 134, (110, 110), scan_score=0))
     im_orig = cv2.imread(os.path.join(os.getcwd(), 'tests', 'testdata', 'test-8bit.png'))
     composite = cuav_region.CompositeThumbnail(im_orig, regions)
     thumbs = cuav_mosaic.ExtractThumbs(composite, 3)
@@ -64,11 +64,11 @@ def test_Mosaic():
     img = cv2.imread(f)
     pos = mav_position.MavPosition(-30, 145, 34.56, 20, -56.67, 345, frame_time=1478994408.76)
     regions = []
-    regions.append(cuav_region.Region(1020, 658, 1050, 678, (30, 30), compactness=5.4, scan_score=20))
-    regions.append(cuav_region.Region(30, 54, 50, 74, (20, 20), compactness=2.1, scan_score=15))
-    regions.append(cuav_region.Region(30, 54, 55, 79, (25, 25), compactness=3.1, scan_score=10))
+    regions.append(cuav_region.Region(1020, 658, 1050, 678, (30, 30), scan_score=20))
+    regions.append(cuav_region.Region(30, 54, 50, 74, (20, 20), scan_score=15))
+    regions.append(cuav_region.Region(30, 54, 55, 79, (25, 25), scan_score=10))
     for i in range(40):
-        regions.append(cuav_region.Region(200, 600, 220, 620, (20, 20), compactness=2.2, scan_score=45))
+        regions.append(cuav_region.Region(200, 600, 220, 620, (20, 20), scan_score=45))
     composite = cuav_region.CompositeThumbnail(img, regions)
     thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
     mosaic.add_regions(regions, thumbs, f, pos)
@@ -103,7 +103,7 @@ def test_Mosaic():
     mosaic.unhide_all()
     assert len(mosaic.regions_sorted) == 43
     
-    for i in ['Score', 'ScoreReverse', 'Compactness', 'Distinctiveness', 'Whiteness', 'Time']:
+    for i in ['Score', 'ScoreReverse', 'Distinctiveness', 'Whiteness', 'Time']:
         mosaic.sort_type = i
         mosaic.re_sort()
     

@@ -91,12 +91,6 @@ def process(args):
         'MetersPerPixel' : args.meters_per_pixel
     }
 
-    if args.filter_type == 'compactness':
-        calculate_compactness = True
-        print("Using compactness filter")
-    else:
-      calculate_compactness = False
-
     for f in files:
         if mpos:
             frame_time = cuav_util.parse_frame_time(f)
@@ -135,7 +129,7 @@ def process(args):
         t0=time.time()
         for i in range(args.repeat):
             regions = scanner.scan(img_scan, scan_parms)
-            regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full), calculate_compactness)
+            regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full))
             count += 1
         t1=time.time()
 
@@ -206,7 +200,7 @@ if __name__ == '__main__':
     parser.add_argument("--filter", default=False, action='store_true', help="filter using HSV")
     parser.add_argument("--minscore", default=3, type=int, help="minimum score")
     parser.add_argument("--altitude", type=int, default=None, help="camera assumed altitude")
-    parser.add_argument("--filter-type", default='simple', choices=['simple', 'compactness'], help="object filter type")
+    parser.add_argument("--filter-type", default='simple', choices=['simple'], help="object filter type")
     parser.add_argument("--min-region-area", default=0.05, type=float, help="minimum region area (m^2)")
     parser.add_argument("--max-region-area", default=4.0, type=float, help="maximum region area (m^2)")
     parser.add_argument("--min-region-size", default=0.02, type=float, help="minimum region size (m)")
