@@ -45,7 +45,7 @@ python setup.py build install --user
 popd
 
 [ -d cuav ] || {
-    git clone https://github.com/ardupilot/mavproxy.git
+    git clone https://github.com/canberrauav/cuav.git
 }
 
 pushd ~/cuav
