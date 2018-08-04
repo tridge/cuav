@@ -84,6 +84,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <semaphore.h>
 
+#include <stdbool.h>
 #include "cuav_util.h"
 #include <sys/time.h>
 
@@ -113,6 +114,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define FRAME_NEXT_SIGNAL        5
 #define FRAME_NEXT_IMMEDIATELY   6
 
+static bool halfres;
 
 int mmal_status_to_int(MMAL_STATUS_T status);
 static void signal_handler(int signal_number);
@@ -215,6 +217,7 @@ static void store_exif_tag(RASPISTILL_STATE *state, const char *exif_tag);
 #define CommandTimeStamp    24
 #define CommandFrameStart   25
 #define CommandRestartInterval 26
+#define CommandHalfRes      27
 
 static COMMAND_LIST cmdline_commands[] =
 {
@@ -225,6 +228,7 @@ static COMMAND_LIST cmdline_commands[] =
    { CommandRaw,     "-raw",        "r",  "Add raw bayer data to jpeg metadata", 0 },
    { CommandOutput,  "-output",     "o",  "Output filename <filename> (to write to stdout, use '-o -'). If not specified, no file is saved", 1 },
    { CommandLink,    "-latest",     "l",  "Link latest complete image to filename <filename>", 1},
+   { CommandHalfRes, "-halfres",    "H",  "use half resolution", 0},
    { CommandVerbose, "-verbose",    "v",  "Output verbose information during run", 0 },
    { CommandTimeout, "-timeout",    "t",  "Time (in ms) before takes picture and shuts down (if not specified, set to 5s)", 1 },
    { CommandThumbnail,"-thumb",     "th", "Set thumbnail parameters (x:y:quality) or none", 1},
@@ -586,6 +590,12 @@ static int parse_cmdline(int argc, const char **argv, RASPISTILL_STATE *state)
 
       }
 
+      case CommandHalfRes: {
+          halfres = true;
+          break;
+      }
+          
+      
       case CommandFrameStart:  // use a staring value != 0
       {
          if (sscanf(argv[i + 1], "%d", &state->frameStart) == 1)
@@ -1756,7 +1766,8 @@ static int wait_for_next_frame(RASPISTILL_STATE *state, int *frame)
 
 static void finalise_file(RASPISTILL_STATE *state, PORT_USERDATA *callback_data)
 {
-    cuav_process(callback_data->buffer->data, callback_data->buffer->offset, callback_data->filename, state->linkname, &callback_data->tv);
+    cuav_process(callback_data->buffer->data, callback_data->buffer->offset, callback_data->filename, state->linkname,
+                 &callback_data->tv, halfres);
     free(callback_data->buffer);
     callback_data->buffer = NULL;
 }
