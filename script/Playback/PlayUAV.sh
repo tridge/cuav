@@ -10,4 +10,4 @@
 #Also note the "camera set ignoretimestamps True", in order to ensure the camera timestamps are "live" and match
 #the telemetry timestamps
 
-mavproxy.py --master=udpin:127.0.0.1:14550 --out=udpout:127.0.0.1:14650 --load-module=cuav.modules.camera_air --cmd="set moddebug 3; camera set gcs_address 127.0.0.1:14670:14680:600000; camera set camparms ../../cuav/data/PiCamV2/params.json; camera set imagefile cur_camera.jpg; camera set minscore 100; camera set ignoretimestamps True; camera airstart;"
+mavproxy.py --master=udpin:127.0.0.1:14550 --out=udpout:127.0.0.1:14650 --load-module=cuav.modules.camera_air --cmd="set moddebug 3; camera set gcs_address 127.0.0.1:14670:14680:60000; camera set camparms /data/PiCamV2/params.json; camera set imagefile cur_camera.jpg; camera set minscore 100; camera set ignoretimestamps True; camera airstart;"

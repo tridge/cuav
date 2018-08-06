@@ -5,7 +5,7 @@ via a GUI'''
 
 
 import time, threading, os, cPickle
-import functools, cv2
+import functools, cv2, pkg_resources
 
 from MAVProxy.modules.lib import mp_module, mp_image
 from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
@@ -39,7 +39,7 @@ class CameraGroundModule(mp_module.MPModule):
                        range=(0.1, 10), increment=0.1,
                        digits=2, tab='Display'),
              MPSetting('debug', bool, False, 'debug enable'),
-             MPSetting('camparms', str, None, 'camera parameters file (json)'),
+             MPSetting('camparms', str, None, 'camera parameters file (json) in cuav package'),
              MPSetting('mosaic_thumbsize', int, 35, 'Mosaic Thumbnail Size',
                        range=(10, 200), increment=1),
              MPSetting('maxqueue', int, 100, 'Maximum images queue'),
@@ -92,9 +92,6 @@ class CameraGroundModule(mp_module.MPModule):
             self.send_packet(pkt)
         elif args[0] == "view":
             #check cam params
-            if not os.path.isabs(self.camera_settings.camparms):
-                print("Error - camera params must use absolute path")
-                return
             if not self.check_camera_parms():
                 print("Error - incorrect camera params")
                 return
@@ -136,15 +133,14 @@ class CameraGroundModule(mp_module.MPModule):
 
     def check_camera_parms(self):
         '''check for change in camera parameters'''
+        #dir is rel to this python file:
         if self.camera_settings.camparms is None:
             return False
-        if os.path.isfile(self.camera_settings.camparms):
-            try:
-                self.c_params = CameraParams.fromfile(self.camera_settings.camparms)
-                return True
-            except:
-                return False
-        else:
+        camfiletxt = pkg_resources.resource_string("cuav", self.camera_settings.camparms)
+        try:
+            self.c_params = CameraParams.fromstring(camfiletxt)
+            return True
+        except:
             return False
 
     def reload_mosaic(self, mosaic):

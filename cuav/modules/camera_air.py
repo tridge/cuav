@@ -11,7 +11,7 @@ them in realtime, geotags and sends to the GCS'''
 #    - add ability to lower score and get past images sent
 
 import time, threading, sys, os, numpy, Queue, cPickle, cStringIO
-import functools, cv2
+import functools, cv2, pkg_resources
 
 from MAVProxy.modules.lib import mp_module
 
@@ -49,7 +49,7 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('minalt', int, 30, 'MinAltitude of images', range=(0,10000), increment=1),
               MPSetting('rotate180', bool, False, 'rotate images by 180', tab='Capture2'),
               MPSetting('ignoretimestamps', bool, False, 'Ignore image timestamps', tab='Capture2'),
-              MPSetting('camparms', str, None, 'camera parameters file (json)', tab='Imaging'),
+              MPSetting('camparms', str, None, 'camera parameters file (json) in cuav package', tab='Imaging'),
               MPSetting('imagefile', str, None, 'latest captured image', tab='Imaging'),
               MPSetting('filter_type', str, 'simple', 'Filter Type',
                         choice=['simple'], tab='Imaging'),
@@ -130,9 +130,6 @@ class CameraAirModule(mp_module.MPModule):
             if not self.check_camera_parms():
                 print("Error - incorrect camera params " + str(self.camera_settings.camparms))
                 return
-            if not os.path.isabs(self.camera_settings.camparms):
-                print("Error - camera params must use absolute path")
-                return
             if self.running == False:
                 self.running = True
                 self.joelog = cuav_joe.JoeLog(os.path.join(os.path.dirname(self.camera_settings.imagefile), 'joe_air.log'), append=self.continue_mode)
@@ -176,9 +173,6 @@ class CameraAirModule(mp_module.MPModule):
             self.error_count = 0
             self.error_msg = None
             #check cam params
-            if not os.path.isabs(self.camera_settings.camparms):
-                print("Error - camera params must use absolute path")
-                return
             if not self.check_camera_parms():
                 print("Error - incorrect camera params " + str(self.camera_settings.camparms))
                 return
@@ -197,15 +191,14 @@ class CameraAirModule(mp_module.MPModule):
 
     def check_camera_parms(self):
         '''check for change in camera parameters'''
+        #dir is rel to this python file:
         if self.camera_settings.camparms is None:
             return False
-        if os.path.isfile(self.camera_settings.camparms):
-            try:
-                self.c_params = CameraParams.fromfile(self.camera_settings.camparms)
-                return True
-            except:
-                return False
-        else:
+        camfiletxt = pkg_resources.resource_string("cuav", self.camera_settings.camparms)
+        try:
+            self.c_params = CameraParams.fromstring(camfiletxt)
+            return True
+        except:
             return False
 
     def capture_threadfunc(self):

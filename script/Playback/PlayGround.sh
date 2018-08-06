@@ -10,4 +10,4 @@
 
 #Type in "camera status" to see the queues of captured/processed/transmitted images
 
-mavproxy.py --master=udpin:127.0.0.1:14650 --console --map --load-module=cuav.modules.camera_ground --cmd="set moddebug 3; camera set air_address 127.0.0.1:14680:14670:600000; camera set camparms ../../cuav/data/PiCamV2/params.json; camera view;"
+mavproxy.py --master=udpin:127.0.0.1:14650 --console --map --load-module=cuav.modules.camera_ground --cmd="set moddebug 3; camera set air_address 127.0.0.1:14680:14670:60000; camera set camparms /data/PiCamV2/params.json; camera view;"

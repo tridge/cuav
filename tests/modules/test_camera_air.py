@@ -61,7 +61,7 @@ def test_load_module(mpstate):
 def test_module_settings(mpstate):
     '''try changing module settings via MAVProxy CLI'''
     loadedModule = camera_air.init(mpstate)
-    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'ChameleonArecort', 'params.json'))
+    parms = "/data/ChameleonArecort/params.json"
     loadedModule.cmd_camera(["set", "camparms", parms])
     assert loadedModule.camera_settings.camparms == parms
 
@@ -78,7 +78,7 @@ def test_camera_start(mpstate, image_file):
     '''put a few images through the module and check they come
     out via the block xmit'''
     loadedModule = camera_air.init(mpstate)
-    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'ChameleonArecort', 'params.json'))
+    parms = "/data/ChameleonArecort/params.json"
     loadedModule.cmd_camera(["set", "camparms", parms])
     loadedModule.cmd_camera(["set", "imagefile", image_file])
     loadedModule.cmd_camera(["set", "minscore", "0"])
@@ -122,7 +122,7 @@ def test_camera_start(mpstate, image_file):
 def test_camera_command(mpstate, image_file):
     '''send some commands via the block_xmit'''
     loadedModule = camera_air.init(mpstate)
-    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'ChameleonArecort', 'params.json'))
+    parms = "/data/ChameleonArecort/params.json"
     loadedModule.cmd_camera(["set", "camparms", parms])
     loadedModule.cmd_camera(["set", "imagefile", image_file])
     loadedModule.cmd_camera(["set", "minscore", "0"])
@@ -146,7 +146,7 @@ def test_camera_command(mpstate, image_file):
 def test_camera_remote_response(mpstate, image_file):
     '''get some status responses via the block_xmit (remote)'''
     loadedModule = camera_air.init(mpstate)
-    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'ChameleonArecort', 'params.json'))
+    parms = "/data/ChameleonArecort/params.json"
     loadedModule.cmd_camera(["set", "camparms", parms])
     loadedModule.cmd_camera(["set", "imagefile", image_file])
     loadedModule.cmd_camera(["set", "minscore", "0"])
@@ -181,7 +181,7 @@ def test_camera_remote_response(mpstate, image_file):
 def test_camera_image_request(mpstate, image_file):
     '''image request via the block_xmit'''
     loadedModule = camera_air.init(mpstate)
-    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'ChameleonArecort', 'params.json'))
+    parms = "/data/ChameleonArecort/params.json"
     loadedModule.cmd_camera(["set", "camparms", parms])
     loadedModule.cmd_camera(["set", "imagefile", image_file])
     loadedModule.cmd_camera(["set", "minscore", "0"])
@@ -228,7 +228,7 @@ def test_camera_image_request(mpstate, image_file):
 def test_camera_airstart(mpstate, image_file):
     '''test the airstart - that cauv auto starts after vehicle has taken off'''
     loadedModule = camera_air.init(mpstate)
-    parms = str(os.path.join(os.getcwd(), 'cuav', 'data', 'ChameleonArecort', 'params.json'))
+    parms = "/data/ChameleonArecort/params.json"
     loadedModule.cmd_camera(["set", "camparms", parms])
     loadedModule.cmd_camera(["set", "imagefile", image_file])
     loadedModule.cmd_camera(["set", "minspeed", "20"])
