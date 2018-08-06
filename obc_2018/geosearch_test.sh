@@ -7,5 +7,4 @@ FLAGS="--flag=-35.362669,149.164242,barrell"
 FLAGS="$FLAGS --flag=-35.362846,149.164272,barrell"
 FLAGS="$FLAGS --flag=-35.363027,149.164295,barrell"
 
-geosearch.py --minscore=1000 $FLAGS $*
-
+geosearch.py --minscore=500 $FLAGS $*
