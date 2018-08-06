@@ -17,6 +17,8 @@ def scan_image_directory(dirname):
     '''scan a image directory, extracting frame_time and filename
     as a list of tuples'''
     ret = []
+    if os.path.isfile(dirname):
+        return [dirname]
     types = ('*.png', '*.jpeg', '*.jpg')
     for tp in types:
         for f in glob.iglob(os.path.join(dirname, tp)):
