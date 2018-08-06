@@ -1,0 +1,4 @@
+set moddebug 3
+camera set air_address 172.27.116.44:14680:14670:60000
+camera set camparms /data/PiCamV2/params.json
+camera view

@@ -1,0 +1,6 @@
+set moddebug 3
+camera set gcs_address 172.27.234.170:14670:14680:60000
+camera set camparms /data/PiCamV2/params.json
+camera set imagefile ~/images_captured/capture.jpg
+camera set minscore 1000
+camera start
