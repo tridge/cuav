@@ -65,7 +65,7 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('maxqueue', int, 100, 'Maximum images queue', tab='GCS'),
 
               MPSetting('thumbsize', int, 60, 'Thumbnail Size', range=(10, 200), increment=1),
-              MPSetting('minscore', int, 100, 'Min Score to pass detection', range=(0,5000), increment=1, tab='Imaging'),
+              MPSetting('minscore', int, 400, 'Min Score to pass detection', range=(0,5000), increment=1, tab='Imaging'),
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),
               ],
             title='Camera Settings'
@@ -73,9 +73,9 @@ class CameraAirModule(mp_module.MPModule):
 
         self.image_settings = MPSettings(
             [ MPSetting('MinRegionArea', float, 0.15, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
-              MPSetting('MaxRegionArea', float, 0.7, range=(0,100), increment=0.1, digits=1, tab='Image Processing'),
+              MPSetting('MaxRegionArea', float, 1.0, range=(0,100), increment=0.1, digits=1, tab='Image Processing'),
               MPSetting('MinRegionSize', float, 0.2, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
-              MPSetting('MaxRegionSize', float, 0.7, range=(0,100), increment=0.1, digits=1, tab='Image Processing'),
+              MPSetting('MaxRegionSize', float, 1.0, range=(0,100), increment=0.1, digits=1, tab='Image Processing'),
               MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2, tab='Image Processing'),
               MPSetting('RegionMergeSize', float, 1.0, range=(0,100), increment=0.1, digits=1, tab='Image Processing'),
               ],
