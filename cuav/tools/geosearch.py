@@ -68,7 +68,7 @@ def process(args):
 
   slipmap = mp_slipmap.MPSlipMap(service=args.service, elevation=True, title='Map')
   if args.vehicle_type == "Copter":
-    icon = slipmap.icon('redcopter.png')
+      icon = slipmap.icon('redcopter.png')
   else:
       icon = slipmap.icon('redplane.png')
   slipmap.add_object(mp_slipmap.SlipIcon('plane', (0,0), icon, layer=3, rotation=0,
@@ -82,8 +82,8 @@ def process(args):
     icon = 'flag.png'
     if len(a) > 2:
       icon = a[2] + '.png'
-      icon = slipmap.icon(icon)
-      slipmap.add_object(mp_slipmap.SlipIcon('icon - %s' % str(flag), (float(lat),float(lon)), icon, layer=3, rotation=0, follow=False))
+    icon = slipmap.icon(icon)
+    slipmap.add_object(mp_slipmap.SlipIcon('icon - %s' % str(flag), (float(lat),float(lon)), icon, layer=3, rotation=0, follow=False))
 
   if args.mission:
     from pymavlink import mavwp
@@ -154,10 +154,10 @@ def process(args):
     )
 
   image_settings = MPSettings(
-    [ MPSetting('MinRegionArea', float, 0.05, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
-      MPSetting('MaxRegionArea', float, 4.0, range=(0,100), increment=0.1, digits=1),
-      MPSetting('MinRegionSize', float, 0.02, range=(0,100), increment=0.05, digits=2),
-      MPSetting('MaxRegionSize', float, 3.0, range=(0,100), increment=0.1, digits=1),
+    [ MPSetting('MinRegionArea', float, 0.15, range=(0,100), increment=0.05, digits=2, tab='Image Processing'),
+      MPSetting('MaxRegionArea', float, 0.7, range=(0,100), increment=0.1, digits=1),
+      MPSetting('MinRegionSize', float, 0.2, range=(0,100), increment=0.05, digits=2),
+      MPSetting('MaxRegionSize', float, 0.7, range=(0,100), increment=0.1, digits=1),
       MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
       MPSetting('RegionMergeSize', float, 1.0, range=(0,100), increment=0.1, digits=1),
       MPSetting('BlueEmphasis', bool, args.blue_emphasis),
