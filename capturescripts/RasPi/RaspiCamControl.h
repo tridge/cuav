@@ -213,9 +213,6 @@ int raspicamcontrol_zoom_in_zoom_out(MMAL_COMPONENT_T *camera, ZOOM_COMMAND_T zo
 int raspicamcontrol_set_shutter_speed(MMAL_COMPONENT_T *camera, int speed_ms);
 int raspicamcontrol_set_DRC(MMAL_COMPONENT_T *camera, MMAL_PARAMETER_DRC_STRENGTH_T strength);
 int raspicamcontrol_set_stats_pass(MMAL_COMPONENT_T *camera, int stats_pass);
-int raspicamcontrol_set_annotate(MMAL_COMPONENT_T *camera, const int bitmask, const char *string,
-                                 const int text_size, const int text_colour, const int bg_colour,
-                                 const unsigned int justify, const unsigned int x, const unsigned int y);
 int raspicamcontrol_set_stereo_mode(MMAL_PORT_T *port, MMAL_PARAMETER_STEREOSCOPIC_MODE_T *stereo_mode);
 int raspicamcontrol_set_gains(MMAL_COMPONENT_T *camera, float analog, float digital);
 

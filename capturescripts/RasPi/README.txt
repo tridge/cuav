@@ -6,22 +6,35 @@ It uses a custom capture software "cuavraw", which is derived from the
 This provides high-resolution timestamps (to within 100ms) to
 raw images, which are then compressed to jpeg files.
 
+The output images have the filename YYYYMMDDHHmmSSllZ.jpg, which 
+is the time of capture
+Where:
+YYYY = year
+MM = month
+DD = day
+HH = 24 hour time
+mm = minute
+SS = second
+ll = milliseconds x10
+
+All times are in the UTC0 timezone
+
 -----------Build-----------
-Note this will only build on a Pi.
+This assumes that you are building on a Raspberry Pi, using a
+release of Raspian from August 2017 or later.
 
-The libjpeg-turbo library is required.
-
-Install it via the following command:
-sudo apt-get install libjpeg62-turbo-dev
+Install the required packages via the following command:
+sudo apt-get install cmake libjpeg62-turbo-dev
 
 Then build:
 ./cmake
 make
 
 -----------Running-----------
-Run start_rpi_capture.sh to start the capture
+See start_rpi_capture.sh for an example of running cuavraw
 
-Images are stored in jpg format in the ~/images_captured/<start datetime> folder.
-
-A link to the latest image will be stored in ~/images_captured/current.jpg
+The commonly used options are:
+-o <folder>      Save output images in this folder
+-l <filename>    Create this file as a symlink to the latest captured image
+-halfres         Reduce saved images to half resolution to reduce CPU/IO usage
 
