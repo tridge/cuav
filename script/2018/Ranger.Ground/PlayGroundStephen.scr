@@ -1,5 +1,5 @@
 set moddebug 3
 module load cuav.modules.camera_ground
 camera set air_address 172.27.72.161:14680:14670:60000
-camera set camparms /data/PiCamV2/params.json
+camera set camparms /data/PiCamV2/params_half.json
 camera view
