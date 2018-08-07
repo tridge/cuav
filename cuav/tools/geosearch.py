@@ -10,7 +10,6 @@ from cuav.camera import cam_params
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 from MAVProxy.modules.lib import mp_image
 from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
-from gooey import Gooey, GooeyParser
 
 slipmap = None
 mosaic = None
@@ -297,7 +296,12 @@ def process(args):
       if len(regions) > 0:
           composite = cuav_region.CompositeThumbnail(im_full, regions)
           thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
-          mosaic.add_regions(regions, thumbs, f, pos)
+          thumbsRGB = []
+
+          #colour space conversion
+          for thumb in thumbs:
+              thumbsRGB.append(cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB))
+          mosaic.add_regions(regions, thumbsRGB, f, pos)
 
       if args.view:
         img_view = img_scan
@@ -305,8 +309,8 @@ def process(args):
         for r in regions:
           r.draw_rectangle(img_view, (255,0,0))
         #cv.CvtColor(mat, mat, cv.CV_BGR2RGB)
-        mat = cv2.cvtColor(mat, cv2.COLOR_BGR2RGB)
-        viewer.set_image(mat)
+        img_view = cv2.cvtColor(img_view, cv2.COLOR_BGR2RGB)
+        viewer.set_image(img_view)
         viewer.set_title('Image: ' + os.path.basename(f))
 
       total_time += (t1-t0)
@@ -356,45 +360,11 @@ def parse_args():
     parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
     return parser.parse_args()
 
-@Gooey
-def parse_args_gooey():
-    '''parse command line arguments'''
-    parser = GooeyParser(description='Search images for Joe') 
 
-    parser.add_argument("--vehicle-type", default="Plane", help="vehicle type", choices=('Plane','Copter'))
-    parser.add_argument("directory", default=None, help="directory containing image files", widget='DirChooser')
-    parser.add_argument("--mission", default=None, type=file, help="mission file to display", widget='FileChooser')
-    parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file", widget='FileChooser')
-    parser.add_argument("--kmzlog", default=None, type=file, help="kmz file for image positions", widget='FileChooser')
-    parser.add_argument("--triggerlog", default=None, type=file, help="robota trigger file for image positions", widget='FileChooser')
-    parser.add_argument("--time-offset", type=float, default=0, help="offset between camera and mavlink log times (seconds)")
-    parser.add_argument("--view", action='store_true', default=False, help="show images")
-    parser.add_argument("--lens", default=28.0, type=float, help="lens focal length")
-    parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
-    parser.add_argument("--service", default='MicrosoftSat', choices=['GoogleSat', 'MicrosoftSat', 'OviSat', 'OpenStreetMap', 'MicrosoftHyb', 'OviHybrid', 'GoogleMap'], help="map service")
-    parser.add_argument("--camera-params", default=None, type=file, help="camera calibration json file from OpenCV", widget='FileChooser')
-    parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
-    parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
-    parser.add_argument("--pitch-stabilised", default=False, action='store_true', help="assume roll pitch camera")
-    parser.add_argument("--pitch-offset", default=0, type=float, help="pitch offset from autopilot pitch")
-    parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
-    parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
-    parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")
-    parser.add_argument("--minscore", default=100, type=int, help="minimum score")
-    parser.add_argument("--gammalog", default=None, type=str, help="gamma.log from flight", widget='FileChooser')
-    parser.add_argument("--target", default=None, type=str, help="lat,lon,radius target")
-    parser.add_argument("--categories", default=None, type=str, help="xml file containing categories for classification", widget='FileChooser')
-    if 1 != len(sys.argv):
-        parser.add_argument("--flag", default=[], type=str, action='append', help="flag positions"),
-    parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
-    return parser.parse_args()
     
 if __name__ == '__main__':
     multiprocessing.freeze_support()
-    if not len(sys.argv) > 1:
-        args = parse_args_gooey()
-    else:
-        args = parse_args()
+    args = parse_args()
 
     # main program
     process(args)
