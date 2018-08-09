@@ -93,8 +93,8 @@ def dewarp(imagedir):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Camera Calibration via chessboard photos")
     parser.add_argument("folder", default=None, help="Image folder or single file")
-    parser.add_argument("--chessrow", default=10, help="Number of rows in the calibration chessboard")
-    parser.add_argument("--chesscol", default=7, help="Number of columns in the calibration chessboard")
+    parser.add_argument("--chessrow", default=10, type=int, help="Number of rows in the calibration chessboard")
+    parser.add_argument("--chesscol", default=7, type=int, help="Number of columns in the calibration chessboard")
     parser.add_argument("--dewarp",dest="dewarp", action='store_true', default=False, help="dewarp gathered images")
     parser.add_argument("--calibrate",dest="calibrate", action='store_true', default=False, help="calculate intrinsics")
     args = parser.parse_args()
