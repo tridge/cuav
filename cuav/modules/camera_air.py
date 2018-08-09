@@ -105,7 +105,7 @@ class CameraAirModule(mp_module.MPModule):
         self.bsend = [] #note this is an array of bsends
         self.last_heartbeat = time.time()
 
-        self.mpos = mav_position.MavInterpolator(backlog=5000, gps_lag=0.0)
+        self.mpos = mav_position.MavInterpolator(backlog=500, gps_lag=0.0)
         self.joelog = None #cuav_joe.JoeLog(os.path.join(self.settings.imagefile, '..', 'joe.log'), append=self.continue_mode)
 
         self.add_command('camera', self.cmd_camera,
