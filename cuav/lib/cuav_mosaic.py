@@ -776,7 +776,7 @@ class Mosaic():
                                                 self.map_thumb_size)
 
                 slobj = mp_slipmap.SlipThumbnail("region %u" % ridx, (lat,lon),
-                                                 img=mapthumb,
+                                                 img=cv2.cvtColor(mapthumb, cv2.COLOR_RGB2BGR),
                                                  layer=2,
                                                  border_width=1,
                                                  border_colour=(255,0,0),
