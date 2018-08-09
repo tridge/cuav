@@ -44,7 +44,7 @@ class CameraAirModule(mp_module.MPModule):
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.camera_settings = MPSettings(
             [ MPSetting('roll_stabilised', bool, False, 'Roll Stabilised'),
-              MPSetting('roll_limit', float, 30, 'Roll stabilisation limit'),
+              MPSetting('roll_limit', float, 0, 'Roll stabilisation limit'),
               MPSetting('minspeed', int, 20, 'For airstart, minimum speed for capture to start'),
               MPSetting('minalt', int, 30, 'MinAltitude of images', range=(0,10000), increment=1),
               MPSetting('rotate180', bool, False, 'rotate images by 180', tab='Capture2'),
