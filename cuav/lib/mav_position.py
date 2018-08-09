@@ -241,11 +241,12 @@ class MavInterpolator():
         ret = v1 + ((t-t1)/(t2-t1))*(v2-v1)
         if ret > math.pi:
             ret -= 2*math.pi
+        #print(t1, t2, t, math.degrees(v1), math.degrees(v2), math.degrees(ret))
         return ret
 
-        # maxroll and maxpitch represent the maximum roll and pitch
-        # that can be stabilised by the stabilisation system
-    def position(self, t, max_deltat=0,roll=None, pitch=None, maxroll=0, maxpitch=0, pitch_offset=0):
+    # maxroll and maxpitch represent the maximum roll and pitch
+    # that can be stabilised by the stabilisation system
+    def position(self, t, max_deltat=0,roll=None, pitch=None, maxroll=0, maxpitch=0, pitch_offset=0, roll_offset=0):
         '''return a MavPosition estimate given a time'''
         self.advance_log(t)
             
@@ -295,8 +296,9 @@ class MavInterpolator():
         else:
             pitch = pitch + maxpitch
 
-        # add pitch offset
+        # add pitch and roll offset
         pitch += pitch_offset
+        roll += roll_offset
 
         yaw   = math.degrees(self.interpolate_angle('ATTITUDE', 'yaw', t, max_deltat))
 
