@@ -23,13 +23,13 @@ def test_MavInterpolator():
         assert str(e) == "no msgs of type GLOBAL_POSITION_INT before Sun Nov 13 10:46:56 2016 last=" or "no msgs of type GLOBAL_POSITION_INT before Sun Nov 13 23:46:56 2016 last="
 
     pos = mpos.position(1478996416.95, 0,roll=None)
-    assert pos.lat == -35.22516869821579 and pos.lon == 149.53864145448478
+    assert pos.lat == -35.22515214612007 and pos.lon == 149.53868537397852
     
     poss = mpos.position(1478996416.00, 0,roll=None)
-    assert poss.lat == -35.225237547927435 and poss.lon == 149.53845876733806
+    assert poss.lat == -35.225220995897715 and poss.lon == 149.53850268690633
     
     posss = mpos.position(1478998416.34, 0,roll=None)
-    assert posss.lat == -35.07965982860702 and posss.lon == 149.92244188357913
+    assert posss.lat == -35.07964313826459 and posss.lon == 149.92248564626732
 
 def test_Fraction():
     fr = mav_position.Fraction(0.3)

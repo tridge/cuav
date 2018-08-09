@@ -243,7 +243,8 @@ def test_camera_airstart(mpstate, image_file):
     #send a mavlink packet of VFR_HUD that the airspeed is above the threshold
     #See "common.py" in pymavlink dialects for message classes
     msg = common.MAVLink_vfr_hud_message(airspeed=21, groundspeed=15, heading=90, throttle=80, alt=30, climb=3.2)
-
+    msg._timestamp = time.time()
+    
     loadedModule.mavlink_packet(msg)
     #get the packets
     time.sleep(0.1)
