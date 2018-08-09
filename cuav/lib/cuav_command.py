@@ -18,13 +18,12 @@ class ImagePacket(StampedCommand):
 
 class ThumbPacket(StampedCommand):
     '''a thumbnail region sent to the ground station'''
-    def __init__(self, frame_time, regions, thumb, pos, highscore):
+    def __init__(self, frame_time, regions, thumb, pos):
         StampedCommand.__init__(self)
         self.frame_time = frame_time
         self.regions = regions
         self.thumb = thumb
         self.pos = pos
-        self.highscore = highscore
 
 class CommandPacket(StampedCommand):
     '''a command to run on the plane'''

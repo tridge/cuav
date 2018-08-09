@@ -270,7 +270,7 @@ class CameraAirModule(mp_module.MPModule):
                 roll=None
             pos = self.get_plane_position(frame_time, roll=roll)
 
-            # this adds the latlon field to the regions
+            # this adds the latlon field to the regions (georeferencing)
             if self.joelog:
                 self.log_joe_position(pos, frame_time, regions)
 
@@ -284,33 +284,24 @@ class CameraAirModule(mp_module.MPModule):
             # filter out any regions outside the boundary
             if self.boundary_polygon:
                 regions = cuav_region.filter_boundary(regions, self.boundary_polygon, pos)
-                regions = cuav_region.filter_regions(img_scan, regions, min_score=self.camera_settings.minscore,
+                
+            #filter by minscore
+            regions = cuav_region.filter_regions(img_scan, regions, min_score=self.camera_settings.minscore,
                                                      filter_type=self.camera_settings.filter_type)
 
-            if len(regions) > 0:
-                lowscore = 0
-                highscore = 0
-                for r in regions:
-                    lowscore = min(lowscore, r.score)
-                    highscore = max(highscore, r.score)
+            if len(regions) > 0 and self.camera_settings.transmit:
+                # send a region message with thumbnails to the ground station
+                thumb_img = cuav_region.CompositeThumbnail(img_scan, regions,
+                                                           thumb_size=self.camera_settings.thumbsize)
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                (result, thumb) = cv2.imencode('.jpg', thumb_img, encode_param)
+                pkt = cuav_command.ThumbPacket(frame_time, regions, thumb, pos)
 
-                if self.camera_settings.transmit:
-                    # send a region message with thumbnails to the ground station
-                    thumb_img = cuav_region.CompositeThumbnail(img_scan, regions,
-                                                               thumb_size=self.camera_settings.thumbsize)
-                    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-                    (result, thumb) = cv2.imencode('.jpg', thumb_img, encode_param)
-                    pkt = cuav_command.ThumbPacket(frame_time, regions, thumb, pos, highscore)
-
-                    # keep all thumbs so we can send more on score change
-                    self.add_all_thumbs(pkt)
-
-                    if self.camera_settings.transmit and highscore >= self.camera_settings.minscore:
-                        if self.transmit_queue.qsize() < 100:
-                            self.transmit_queue.put((pkt, None, None))
-                        else:
-                            self.send_message("Warning: image Tx queue too long")
-                            print("Warning: image Tx queue too long")
+                if self.transmit_queue.qsize() < 100:
+                    self.transmit_queue.put((pkt, None, None))
+                else:
+                    self.send_message("Warning: image Tx queue too long")
+                    print("Warning: image Tx queue too long")
 
     def get_plane_position(self, frame_time,roll=None):
         '''get a MavPosition object for the planes position if possible'''
@@ -326,13 +317,6 @@ class CameraAirModule(mp_module.MPModule):
         for the positions of the identified image regions'''
         return self.joelog.add_regions(frame_time, regions, pos, filename,
                                        thumb_filename, altitude=None, C=self.c_params)
-
-
-    def add_all_thumbs(self, pkt):
-        '''add to all_thumbs list'''
-        if pkt.pos is None or pkt.pos.altitude > 20:
-            # don't save ground photos
-            return
 
     def send_heartbeats(self):
         '''possibly send heartbeat msgs'''
