@@ -37,6 +37,67 @@ class MavPosition():
             self.lat, self.lon, self.altitude,
             self.roll, self.pitch, self.yaw)
 
+class JitterCorrection():
+    def __init__(self):
+        self.max_lag_s = 3.0
+        self.convergence_loops = 0
+        self.link_offset_s = 0.0
+        self.min_sample_s = 0.0
+        self.initialised = False
+        self.min_sample_counter = 0
+        self.last_corrected_s = None
+
+    def correct_local(self, local_s):
+        if self.last_corrected_s is None:
+            return local_s
+        return self.last_corrected_s
+    
+    def correct_timestamp(self, offboard_s, local_s):
+        '''correct an offboard timestamp into local time'''
+        diff_s = local_s - offboard_s
+
+        if not self.initialised or diff_s < self.link_offset_s:
+            '''this message arrived from the remote system with a timestamp
+               that would imply the message was from the future. We know that
+               isn't possible, so we adjust down the correction value'''
+            self.link_offset_s = diff_s;
+            #print("link_offset_s=%f" % self.link_offset_s)
+            self.initialised = True
+
+        estimate_s = offboard_s + self.link_offset_s
+        if estimate_s > local_s:
+            # this should be impossible, just check it under SITL
+            printf("ERR: msg from future %f" % (estimate_s - local_s))
+
+        if estimate_s + self.max_lag_s < local_s:
+            '''this implies the message came from too far in the past. Clamp
+            the lag estimate to assume the message had maximum lag'''
+            estimate_s = local_s - self.max_lag_s
+            self.link_offset_s = estimate_s - offboard_s
+            print("ERR: offboard timestammp too old %f" % (local_s - estimate_s))
+
+        if self.min_sample_counter == 0:
+            self.min_sample_s = diff_s
+
+        self.min_sample_counter += 1
+        if diff_s < self.min_sample_s:
+            self.min_sample_s = diff_s
+
+        if self.min_sample_counter == 1000:
+            '''we have 1000 samples of the transport lag. To account for long
+            term clock drift we set the diff we will use in future to this
+            value '''
+            self.link_offset_s = self.min_sample_s
+            self.min_sample_counter = 0
+            #print("new link_offset_s=%f" % self.min_sample_s)
+
+        if self.last_corrected_s is not None and estimate_s < self.last_corrected_s:
+            # don't allow time to go backwards
+            estimate_s = self.last_corrected_s
+        self.last_corrected_s = estimate_s
+        return estimate_s
+    
+    
 class MavInterpolator():
     '''a class to interpolate position and attitude from a
     series of mavlink messages'''
@@ -44,13 +105,11 @@ class MavInterpolator():
         self.backlog = backlog
         self.attitude = []
         self.global_position_int = []
-        self.vfr_hud = []
         self.scaled_pressure = []
         self.terrain_report = []
         self.msg_map = {
             'GLOBAL_POSITION_INT' : self.global_position_int,
             'ATTITUDE' : self.attitude,
-            'VFR_HUD' : self.vfr_hud,
             'SCALED_PRESSURE' : self.scaled_pressure,
             'TERRAIN_REPORT' : self.terrain_report
             }
@@ -61,7 +120,7 @@ class MavInterpolator():
         self.boot_offset = 0
         self.last_msg_time = 0
         self.gps_lag = gps_lag
-
+        self.jitter = JitterCorrection()
 
     def _find_msg_idx(self, type, t):
         '''find the msg just before time t'''
@@ -86,35 +145,6 @@ class MavInterpolator():
         return self.msg_map[type][i]
 
 
-    def update_usec_base(self, msg):
-        '''update the difference between a usec field from
-        the APM and message timestamps'''
-        usec = getattr(msg, 'time_usec', None)
-        if usec is None:
-            usec = getattr(msg, 'usec', None)
-        sec = usec*1.0e-6
-        offset = msg._timestamp - sec
-        if msg._timestamp > self.last_msg_time + 10:
-            # clock on PC has changed?
-            self.boot_offset = offset
-        self.last_msg_time = msg._timestamp
-        if self.boot_offset == 0:
-            self.boot_offset = offset
-        # check if time has wrapped
-        while offset > self.boot_offset + 4200:
-            self.boot_offset += (2**32)*1.0e-6
-            print("time wrapped: offset=%.2f boot_offset=%.2f sec=%.2f" % (offset, self.boot_offset, sec))
-        # assume minimum latency is most accurate
-        if offset < self.boot_offset:
-            self.boot_offset = offset
-            #print("link_lag=%f" % offset)
-        # limit latency to 1 second
-        if self.boot_offset + sec > msg._timestamp:
-            self.boot_offset = msg._timestamp - sec
-        if self.boot_offset + sec < msg._timestamp-1:
-            self.boot_offset = (msg._timestamp-1) - sec
-        
-                 
     def add_msg(self, msg):
         '''add in a mavlink message'''
         type = msg.get_type()
@@ -135,9 +165,13 @@ class MavInterpolator():
             '''keep self.backlog messages around of each type'''
             while len(self.msg_map[type]) > self.backlog:
                 self.msg_map[type].pop(0)
-        if type == 'RAW_IMU':
-            self.update_usec_base(msg)
-
+        if type in ['ATTITUDE', 'GLOBAL_POSITION_INT', 'SCALED_PRESSURE']:
+            timestamp_corrected = self.jitter.correct_timestamp(msg.time_boot_ms*0.001, msg._timestamp)
+            #print(msg._timestamp - timestamp_corrected)
+            msg._timestamp = timestamp_corrected
+        else:
+            msg._timestamp = self.jitter.correct_local(msg._timestamp)
+            
     def _altitude(self, SCALED_PRESSURE, TERRAIN_REPORT):
         '''calculate barometric altitude relative to the ground'''
         if TERRAIN_REPORT is not None:
@@ -211,7 +245,7 @@ class MavInterpolator():
 
         # maxroll and maxpitch represent the maximum roll and pitch
         # that can be stabilised by the stabilisation system
-    def position(self, t, max_deltat=0,roll=None, pitch=None, maxroll=45, maxpitch=45, pitch_offset=0):
+    def position(self, t, max_deltat=0,roll=None, pitch=None, maxroll=0, maxpitch=0, pitch_offset=0):
         '''return a MavPosition estimate given a time'''
         self.advance_log(t)
             
