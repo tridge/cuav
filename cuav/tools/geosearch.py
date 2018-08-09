@@ -132,6 +132,7 @@ def process(args):
   camera_settings = MPSettings(
     [ MPSetting('roll_stabilised', bool, args.roll_stabilised, 'Roll Stabilised'),
       MPSetting('pitch_stabilised', bool, args.pitch_stabilised, 'Pitch Stabilised'),
+      MPSetting('roll_offset', float, args.roll_offset, 'Roll Offset'),
       MPSetting('pitch_offset', float, args.pitch_offset, 'Pitch Offset'),
       MPSetting('altitude', int, args.altitude, 'Altitude', range=(0,10000), increment=1),
       MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
@@ -204,7 +205,9 @@ def process(args):
         else:
           pitch = None
         try:
-          pos = mpos.position(frame_time, roll=roll, pitch=pitch, pitch_offset=camera_settings.pitch_offset)
+          pos = mpos.position(frame_time, roll=roll, pitch=pitch,
+                              roll_offset=camera_settings.roll_offset,
+                              pitch_offset=camera_settings.pitch_offset)
         except Exception:
           print("No position available for %s" % frame_time)
           # skip this frame
@@ -345,6 +348,7 @@ def parse_args():
     parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
     parser.add_argument("--pitch-stabilised", default=False, action='store_true', help="assume pitch stabilised camera")
     parser.add_argument("--pitch-offset", default=0, type=float, help="pitch offset from autopilot pitch")
+    parser.add_argument("--roll-offset", default=0, type=float, help="roll offset from autopilot pitch")
     parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
     parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
     parser.add_argument("--map-thumbsize", default=60, type=int, help="map thumbnail size")
