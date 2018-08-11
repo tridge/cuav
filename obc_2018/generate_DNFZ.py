@@ -13,10 +13,10 @@ import math, time, socket, pickle
 import random, argparse
 
 parser = argparse.ArgumentParser(description='DNFZ generator')
-parser.add_argument("--num-aircraft", default=6, type=int, help="number of aircraft")
-parser.add_argument("--num-bird-prey", default=6, type=int, help="number of birds of prey")
-parser.add_argument("--num-bird-migratory", default=6, type=int, help="number of migratory birds")
-parser.add_argument("--num-weather", default=6, type=int, help="number of weather systems")
+parser.add_argument("--num-aircraft", default=10, type=int, help="number of aircraft")
+parser.add_argument("--num-bird-prey", default=10, type=int, help="number of birds of prey")
+parser.add_argument("--num-bird-migratory", default=10, type=int, help="number of migratory birds")
+parser.add_argument("--num-weather", default=10, type=int, help="number of weather systems")
 args = parser.parse_args()
 
 radius_of_earth = 6378100.0 # in meters
@@ -99,6 +99,10 @@ class DNFZ:
         '''random initial position'''
         self.setpos(home[0], home[1])
         self.move(random.uniform(0, 360), random.uniform(0, region_width))
+
+    def randalt(self):
+        '''random initial position'''
+        self.setalt(ground_height + random.uniform(100, 1500))
         
     def move(self, bearing, distance):
         '''move position by bearing and distance'''
@@ -163,6 +167,7 @@ class Aircraft(DNFZ):
         self.setspeed(speed)
         self.circuit_width = circuit_width
         self.dist_flown = 0
+        self.randalt()
 
     def update(self, deltat=1.0):
         '''fly a square circuit'''
@@ -186,6 +191,8 @@ class BirdOfPrey(DNFZ):
         circumference = math.pi * self.radius * 2
         self.circle_time = circumference / self.speed
         self.turn_rate = 360.0 / self.circle_time
+        if random.uniform(0,1) < 0.5:
+            self.turn_rate = -self.turn_rate
 
     def update(self, deltat=1.0):
         '''fly circles, then dive'''
@@ -201,19 +208,21 @@ class BirdOfPrey(DNFZ):
                 self.time_circling = 0
         if self.distance_from_home() > region_width:
             self.randpos()
+            self.randalt()
 
 class BirdMigrating(DNFZ):
     '''an bird that circles slowly climbing, then dives'''
     def __init__(self):
         DNFZ.__init__(self, 'BirdMigrating')
         self.setspeed(random.uniform(4,16))
-        self.setyawrate(random.uniform(0,0.2))
+        self.setyawrate(random.uniform(-0.2,0.2))
 
     def update(self, deltat=1.0):
         '''fly in long curves'''
         DNFZ.update(self, deltat)
         if self.distance_from_home() > region_width:
             self.randpos()
+            self.randalt()
 
 class Weather(DNFZ):
     '''a weather system'''
@@ -228,6 +237,7 @@ class Weather(DNFZ):
         self.lifetime -= deltat
         if self.lifetime <= 0:
             self.randpos()
+            self.randalt()
             self.lifetime = random.uniform(300,600)
             
     
