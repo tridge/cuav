@@ -1,6 +1,6 @@
 set moddebug 3
 module load cuav.modules.camera_air
-camera set gcs_address 172.27.131.215:14670:14680:60000,172.27.234.170:14670:14680:60000
+camera set gcs_address 10.26.0.200:14670:14680:60000
 camera set camparms /data/PiCamV2/params_half.json
 camera set imagefile ~/images_captured/capture.jpg
 camera set minscore 1000
