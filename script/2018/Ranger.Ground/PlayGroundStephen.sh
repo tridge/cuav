@@ -9,4 +9,4 @@
 #Type in "camera status" to see the queues of captured/processed/transmitted images
 
 #All telemetry from the Rpi on the Ranger
-mavproxy.py --master=udpin:172.27.234.170:14650 --mav20 --console --map --cmd="script PlayGroundStephen.scr"
+mavproxy.py --master=udpin:10.26.0.225:14650 --mav20 --console --map --cmd="script PlayGroundStephen.scr"
