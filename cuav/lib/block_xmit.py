@@ -247,7 +247,7 @@ class BlockSender:
     ordered:       set to True to force blocks to be delivered in the sending order (default False)
     debug:         enable debugging (default False)
     '''
-    def __init__(self, port=0, dest_ip=None, dest_port=None, listen_ip='', bandwidth=100000,
+    def __init__(self, port=0, dest_ip=None, dest_port=None, listen_ip='', bandwidth=20000,
              completed_len=1000, chunk_size=1000, backlog=100, rtt=0.01,
              sock=None, mss=0, ordered=False,
              debug=False):
