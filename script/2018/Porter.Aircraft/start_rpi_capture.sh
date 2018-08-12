@@ -6,7 +6,7 @@ set -x
 # set timezone to GMT
 export TZ=GMT
 
-CAPTURE_DIR=~/images_captured/$(date +"%Y%m%d_%H-%M-%S")/
+CAPTURE_DIR=$HOME/images_captured/$(date +"%Y%m%d_%H-%M-%S")/
 
 mkdir -p ${CAPTURE_DIR}
 
