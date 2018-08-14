@@ -13,8 +13,12 @@ It is highly desirable that teams provide:
 
 '''
 
-import sys, os, serial, math
-from cuav.lib import cuav_util
+import math
+import os
+import serial
+import subprocess
+import sys
+
 from MAVProxy.modules.lib import mp_module
 
 class NMEAModule(mp_module.MPModule):
@@ -26,6 +30,7 @@ class NMEAModule(mp_module.MPModule):
         self.parity = 'N'
         self.stop = 1
         self.serial = None
+        self.socat = None
         self.output_time = 0.0
         self.add_command('nmea', self.cmd_nmea, "nmea control")
 
@@ -35,13 +40,21 @@ class NMEAModule(mp_module.MPModule):
         self.fix_quality = 0
         self.last_time_boot_ms = 0
 
+    def usage(self):
+        return """
+nmea port [baudrate data parity stop]
+e.g.
+nmea /dev/ttyS0 115200 8 N 1
+nmea socat:GOPEN:/tmp/output
+nmea socat:UDP-SENDTO:10.0.1.255:17890
+"""
+
     def cmd_nmea(self, args):
         '''set nmea'''
-        usage = "nmea port [baudrate data parity stop]"
         if len(args) == 0:
             if self.port is None:
                 print("NMEA output port not set")
-                print usage
+                print(self.usage())
             else:
                 print("NMEA output port %s, %d, %d, %s, %d" % (str(self.port), self.baudrate, self.data, str(self.parity), self.stop))
             return
@@ -65,6 +78,11 @@ class NMEAModule(mp_module.MPModule):
                     self.serial = serial.Serial(self.port, self.baudrate, self.data, self.parity, self.stop)
                 except serial.SerialException as se:
                     print("Failed to open output port %s:%s" % (self.port, se.message))
+            elif self.port.startswith("socat:"):
+                try:
+                    self.start_socat_output(self.port[6:])
+                except Exception as se:
+                    print("Failed to open socat output %s:%s" % (self.port, se.message))
             else:
                 self.serial = open(self.port, mode='w')
 
@@ -110,6 +128,14 @@ class NMEAModule(mp_module.MPModule):
         msg = fmt % (self.format_time(utc_sec), fix, self.format_lat(lat), self.format_lon(lon),
                      speed, course, self.format_date(utc_sec))
         return msg + "*%02X" % self.nmea_checksum(msg)
+
+    def start_socat_output(self, args):
+        (self.socat_in, self.socat_out) = os.pipe()
+        self.socat = subprocess.Popen(["socat",
+                                       "FD:0",
+                                       args],
+                                      stdin=self.socat_in,
+        )
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -158,11 +184,15 @@ class NMEAModule(mp_module.MPModule):
             #print(gga+'\r')
             #print(rmc+'\r')
             #print(self.serial)
-            if self.serial is not None:
-                self.serial.write(gga + '\r\n')
-                self.serial.write(rmc + '\r\n')
-                self.serial.flush()
+            self.output(gga + '\r\n')
+            self.output(rmc + '\r\n')
 
+    def output(self, output):
+        if self.serial is not None:
+            self.serial.write(output)
+            self.serial.flush()
+        if self.socat is not None:
+            os.write(self.socat_out, output)
 
 def init(mpstate):
     '''initialise module'''
