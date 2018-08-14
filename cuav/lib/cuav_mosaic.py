@@ -87,12 +87,13 @@ class Mosaic():
         self.mouse_region = None
         self.ridx_by_frame_time = {}
         self.page = 0
-        self.sort_type = 'Time'
+        self.sort_type = 'Score'
         self.images = []
         self.current_view = 0
         self.last_view_latlon = None
         self.view_filename = None
         self.full_res = False
+        self.autorefresh = True
         self.boundary = []
         self.displayed_image = None
         self.last_click_position = None
@@ -156,6 +157,7 @@ class Mosaic():
                                                             'Distinctiveness\tAlt+D',
                                                             'Whiteness\tAlt+W',
                                                             'Time\tAlt+T']),
+                                         MPMenuCheckbox('Auto Refresh', 'Auto Refresh', 'autorefresh', checked=True),
                                          MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
                                          MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage'),
                                          MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
@@ -428,9 +430,10 @@ class Mosaic():
             self.redisplay_mosaic()
         self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
 
-    def re_sort(self):
+    def re_sort(self, printsort=True):
         '''re sort the mosaic'''
-        print("Sorting by %s" % self.sort_type)
+        if printsort:
+            print("Sorting by %s" % self.sort_type)
         sortby = self.sort_type
         if sortby == 'Score':
             self.regions_sorted.sort(key = lambda r : r.score, reverse=True)
@@ -463,6 +466,8 @@ class Mosaic():
         elif event.returnkey == 'decreaseBrightness':
             self.brightness -= 1
             self.redisplay_mosaic()
+        elif event.returnkey == 'autorefresh':
+            self.autorefresh = not self.autorefresh
         elif event.returnkey == 'showImage':
             region = self.pos_to_region(event.popup_pos)
             self.popup_show_image(region)
@@ -788,6 +793,9 @@ class Mosaic():
                 self.slipmap.add_object(slobj)
 
         self.image_mosaic.set_image(self.mosaic)
+        if self.autorefresh:
+            self.re_sort(printsort=False)
+            self.redisplay_mosaic()
 
     def add_image(self, frame_time, filename, pos):
         '''add a camera image'''
