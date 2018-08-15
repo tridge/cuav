@@ -1768,8 +1768,7 @@ static void finalise_file(RASPISTILL_STATE *state, PORT_USERDATA *callback_data)
 {
     cuav_process(callback_data->buffer->data, callback_data->buffer->offset, callback_data->filename, state->linkname,
                  &callback_data->tv, halfres);
-    free(callback_data->buffer);
-    callback_data->buffer = NULL;
+    callback_data->buffer->offset = 0;
 }
 
 /**
@@ -1958,7 +1957,7 @@ int main(int argc, const char **argv)
                     {
                         callback_data.filename = state.filename;
                         if (callback_data.buffer == NULL) {
-                            callback_data.buffer = malloc(sizeof(*callback_data.buffer));
+                            callback_data.buffer = mm_alloc(sizeof(*callback_data.buffer));
                         }
                         if (!callback_data.buffer)
                         {
