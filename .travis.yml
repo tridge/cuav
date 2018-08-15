@@ -56,4 +56,4 @@ install:
 before_script:
   - ls
 script:
-  - py.test
+  - py.test ./tests/
