@@ -488,7 +488,7 @@ void cuav_process(const uint8_t *buffer, uint32_t size, const char *filename, co
         debayer_BGGR_float(bayer, rgbf);
         mm_free(bayer, sizeof(*bayer));
 
-        rgbf_change_saturation(rgbf, 1.5);
+        //rgbf_change_saturation(rgbf, 1.5);
         
         rgb8 = mm_alloc(sizeof(*rgb8));
         rgbf_to_rgb8(rgbf, rgb8);
