@@ -1,3 +1,3 @@
 #!/bin/bash
 
-../../../cuav/tools/playback.py testimgs testimgs/flight.tlog $*
+../../../cuav/tools/playback.py testimgs testimgs/flight.tlog --loop $*
