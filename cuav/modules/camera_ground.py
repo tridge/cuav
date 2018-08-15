@@ -71,7 +71,7 @@ class CameraGroundModule(mp_module.MPModule):
 
         self.add_command('camera', self.cmd_camera,
                          'camera control',
-                         ['<status|view|boundary|remoteset>',
+                         ['<status|view|boundary>',
                           'set (CAMERASETTING)'])
         self.add_command('remote', self.cmd_remote, "remote command", ['(COMMAND)'])
         self.add_completion_function('(CAMERASETTING)', self.settings.completion)
@@ -80,7 +80,7 @@ class CameraGroundModule(mp_module.MPModule):
 
     def cmd_camera(self, args):
         '''camera commands'''
-        usage = "usage: camera <status|view|boundary|set|remoteset>"
+        usage = "usage: camera <status|view|boundary|set>"
         if len(args) == 0:
             print(usage)
             return
@@ -120,16 +120,6 @@ class CameraGroundModule(mp_module.MPModule):
                                                                        self.boundary_polygon,
                                                                        layer=1, linewidth=2,
                                                                        colour=(0, 0, 255)))
-        elif args[0] == "remoteset":
-            if len(args) != 3:
-                print("Error in command")
-                return
-            if self.bsend == []:
-                print("Error - no active connection to cuav_air")
-                return
-            #send remote command
-            pkt = cuav_command.ChangeCameraSetting(args[1], args[2])
-            self.send_packet(pkt)
 
     def cmd_remote(self, args):
         '''camera commands'''
