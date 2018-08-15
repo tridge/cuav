@@ -321,6 +321,9 @@ class CameraGroundModule(mp_module.MPModule):
             cv2.imwrite(ff, imagedec, write_param)
             self.mosaic.tag_image(obj.frame_time)
 
+            if obj.pos is not None:
+                self.mosaic.add_image(obj.frame_time, ff, obj.pos)
+            
             # update console
             self.image_count += 1
             color = 'black'

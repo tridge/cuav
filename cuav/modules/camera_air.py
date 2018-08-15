@@ -36,6 +36,7 @@ class CameraAirModule(mp_module.MPModule):
         self.terrain_alt = None
         self.handled_timestamps = {}
         self.imagefilenamemapping = {}
+        self.posmapping = {}
 
         # prevent loopback of messages
         #for mtype in ['DATA16', 'DATA32', 'DATA64', 'DATA96']:
@@ -269,6 +270,8 @@ class CameraAirModule(mp_module.MPModule):
             else:
                 roll=None
             pos = self.get_plane_position(frame_time, roll=roll)
+            if pos is not None:
+                self.posmapping[str(frame_time)] = pos
 
             # this adds the latlon field to the regions (georeferencing)
             if self.joelog:
@@ -361,7 +364,7 @@ class CameraAirModule(mp_module.MPModule):
                 self.bandwidth_used.append(bsnd.get_bandwidth_used())
                 self.rtt_estimate.append(bsnd.get_rtt_estimate())
 
-    def send_image(self, img, frame_time, priority, linktosend=None):
+    def send_image(self, img, frame_time, priority, pos, linktosend):
         '''send an image object to the GCS'''
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.camera_settings.qualitysend]
         (result, jpeg) = cv2.imencode('.jpg', img, encode_param)
@@ -369,7 +372,7 @@ class CameraAirModule(mp_module.MPModule):
         # keep filtered image size
         self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)
 
-        pkt = cuav_command.ImagePacket(frame_time, jpeg, priority)
+        pkt = cuav_command.ImagePacket(frame_time, jpeg, pos, priority)
         self.transmit_queue.put((pkt, priority, linktosend))
 
     def start_aircraft_bsend(self):
@@ -490,7 +493,8 @@ class CameraAirModule(mp_module.MPModule):
             im_small = cv2.resize(img, (0,0), fx=0.5, fy=0.5)
             img = im_small
         print("Sending image %s" % filename)
-        self.send_image(img, obj.frame_time, 10000, bsend)
+        pos = self.posmapping.get(str(obj.frame_time), None)
+        self.send_image(img, obj.frame_time, 10000, pos, bsend)
 
     def camera_settings_callback(self, setting):
         '''called on a changed camera setting'''

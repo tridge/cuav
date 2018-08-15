@@ -10,10 +10,11 @@ class StampedCommand:
 
 class ImagePacket(StampedCommand):
     '''a jpeg image sent to the ground station'''
-    def __init__(self, frame_time, jpeg, priority):
+    def __init__(self, frame_time, jpeg, pos, priority):
         StampedCommand.__init__(self)
         self.frame_time = frame_time
         self.jpeg = jpeg
+        self.pos = pos
         self.priority = priority
 
 class ThumbPacket(StampedCommand):
