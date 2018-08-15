@@ -33,7 +33,7 @@ def scan_image_directory(dirname):
     ret.sort(key=lambda f: f.frame_time)
     return ret
 
-def playback(filename, images, argout, argbaudrate, argcondition, argspeedup):
+def playback(filename, images, argout, argbaudrate, argcondition, argspeedup, linkname="capture.jpg"):
     '''playback one file'''
     mlog = mavutil.mavlink_connection(filename, robust_parsing=True)
     mout = mavutil.mavlink_connection(argout, input=False, baud=argbaudrate)
@@ -71,13 +71,11 @@ def playback(filename, images, argout, argbaudrate, argcondition, argspeedup):
 
         if len(images) and msg._timestamp > images[0].frame_time:
             img = images.pop(0)
-            filename, file_extension = os.path.splitext(img.filename)
             try:
-                os.unlink('cur_camera.jpg')
+                os.unlink(linkname)
             except Exception:
                 pass
-            os.symlink(img.filename, 'cur_camera.jpg')
-            os.rename('cur_camera.jpg', 'cur_camera' + file_extension)
+            os.symlink(img.filename, linkname)
             print(img.filename)
 
         # check for parameter fetch messages
