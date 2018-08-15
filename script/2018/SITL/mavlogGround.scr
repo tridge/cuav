@@ -2,5 +2,5 @@ set moddebug 3
 
 # go via ozlabs proxy2
 camera set air_address 203.11.71.1:10408:14670:60000
-camera set camparms /data/PiCamV2/params.json
+camera set camparms /data/PiCamV2/params_half.json
 camera view
