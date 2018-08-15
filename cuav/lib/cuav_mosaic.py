@@ -113,7 +113,7 @@ class Mosaic():
         self.selected_region = 0
 
         self.view_image = None
-        self.brightness = 1
+        self.brightness = 0
 
         # dictionary of image requests, contains True if fullres image is wanted
         self.image_requests = {}
@@ -205,12 +205,7 @@ class Mosaic():
         '''display a region on the map'''
         region = self.regions[ridx]
 
-        #do brightness
-        hsv = cv2.cvtColor(region.full_thumbnail, cv2.COLOR_RGB2HSV)
-        v = hsv[:, :, 2]
-        v = numpy.where(v <= 255 - (self.brightness * 10), v + (self.brightness * 10), 255)
-        hsv[:, :, 2] = v
-        thumbnail = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+        thumbnail = self.change_brightness(region.full_thumbnail)
 
         thumbnail_saturated = cuav_util.SaturateImage(thumbnail)
         self.slipmap.add_object(mp_slipmap.SlipInfoImage('region saturated', thumbnail_saturated))
@@ -463,10 +458,10 @@ class Mosaic():
         elif event.returnkey == 'previousPage':
             self.change_page(self.page - 1)
         elif event.returnkey == 'increaseBrightness':
-            self.brightness = min(5, self.brightness+1)
+            self.brightness += 1
             self.redisplay_mosaic()
         elif event.returnkey == 'decreaseBrightness':
-            self.brightness = max(0, self.brightness-1)
+            self.brightness -= 1
             self.redisplay_mosaic()
         elif event.returnkey == 'showImage':
             region = self.pos_to_region(event.popup_pos)
@@ -543,12 +538,10 @@ class Mosaic():
         '''called on menu events on the view image'''
         if event.returnkey == 'increaseBrightness':
             self.brightness += 1
-            self.brightness = min(self.brightness, 5)
             self.redisplay_mosaic()
             self.view_image.set_brightness(self.brightness)
         elif event.returnkey == 'decreaseBrightness':
             self.brightness -= 1
-            self.brightness = max(self.brightness, 0)
             self.redisplay_mosaic()
             self.view_image.set_brightness(self.brightness)
         elif event.returnkey == 'fitWindow':
@@ -678,6 +671,19 @@ class Mosaic():
             return False
         return True
 
+    def change_brightness(self, thumb):
+        '''change brightness of a thumbnail'''
+        hsv = cv2.cvtColor(thumb, cv2.COLOR_RGB2HSV)
+        v = hsv[:, :, 2]
+        change = 1.0 + self.brightness * 0.1
+        if change >= 1:
+            limit = int(255 / change)
+            v = numpy.where(v > limit,255,v*change)
+        else:
+            v = v * change
+        hsv[:, :, 2] = v
+        return cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+    
     def display_mosaic_region(self, ridx):
         '''display a thumbnail on the mosaic'''
         if not self.region_on_page(ridx, self.page):
@@ -693,12 +699,8 @@ class Mosaic():
         else:
             thumb = region.small_thumbnail
         
-        #do brightness
-        hsv = cv2.cvtColor(thumb, cv2.COLOR_RGB2HSV)
-        v = hsv[:, :, 2]
-        v = numpy.where(v <= 255 - (self.brightness * 10), v + (self.brightness * 10), 255)
-        hsv[:, :, 2] = v
-
+        thumb = self.change_brightness(thumb)
+        
         # overlay thumbnail on mosaic
         #print dest_x, dest_y, self.width, self.height, self.thumb_size, cuav_util.image_width(region.small_thumbnail)
         try:
