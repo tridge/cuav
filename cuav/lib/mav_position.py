@@ -121,6 +121,7 @@ class MavInterpolator():
         self.last_msg_time = 0
         self.gps_lag = gps_lag
         self.jitter = JitterCorrection()
+        self.jitter_correction = True
 
     def _find_msg_idx(self, type, t):
         '''find the msg just before time t'''
@@ -165,12 +166,13 @@ class MavInterpolator():
             '''keep self.backlog messages around of each type'''
             while len(self.msg_map[type]) > self.backlog:
                 self.msg_map[type].pop(0)
-        if type in ['ATTITUDE', 'GLOBAL_POSITION_INT', 'SCALED_PRESSURE']:
-            timestamp_corrected = self.jitter.correct_timestamp(msg.time_boot_ms*0.001, msg._timestamp)
-            #print(msg._timestamp - timestamp_corrected)
-            msg._timestamp = timestamp_corrected
-        else:
-            msg._timestamp = self.jitter.correct_local(msg._timestamp)
+        if self.jitter_correction:
+            if type in ['ATTITUDE', 'GLOBAL_POSITION_INT', 'SCALED_PRESSURE']:
+                timestamp_corrected = self.jitter.correct_timestamp(msg.time_boot_ms*0.001, msg._timestamp)
+                #print(msg._timestamp - timestamp_corrected)
+                msg._timestamp = timestamp_corrected
+            else:
+                msg._timestamp = self.jitter.correct_local(msg._timestamp)
             
     def _altitude(self, SCALED_PRESSURE, TERRAIN_REPORT):
         '''calculate barometric altitude relative to the ground'''
