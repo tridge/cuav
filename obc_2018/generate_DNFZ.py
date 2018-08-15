@@ -13,17 +13,18 @@ import math, time, socket, pickle
 import random, argparse
 
 parser = argparse.ArgumentParser(description='DNFZ generator')
-parser.add_argument("--num-aircraft", default=10, type=int, help="number of aircraft")
-parser.add_argument("--num-bird-prey", default=10, type=int, help="number of birds of prey")
-parser.add_argument("--num-bird-migratory", default=10, type=int, help="number of migratory birds")
+parser.add_argument("--num-aircraft", default=20, type=int, help="number of aircraft")
+parser.add_argument("--num-bird-prey", default=20, type=int, help="number of birds of prey")
+parser.add_argument("--num-bird-migratory", default=20, type=int, help="number of migratory birds")
 parser.add_argument("--num-weather", default=10, type=int, help="number of weather systems")
+parser.add_argument("--speedup", default=1.0, type=float, help="time speedup multiplier")
 args = parser.parse_args()
 
 radius_of_earth = 6378100.0 # in meters
 outport = 45454
 
 home = (-27.298440,151.290775)
-ground_height = 1100.0
+ground_height = 1150.0
 region_width = 15000.0
 
 # object types
@@ -176,6 +177,9 @@ class Aircraft(DNFZ):
         if self.dist_flown > self.circuit_width:
             self.setheading(self.heading + 90)
             self.dist_flown = 0
+        if self.getalt() < ground_height:
+            self.randpos()
+            self.randalt()
 
 class BirdOfPrey(DNFZ):
     '''an bird that circles slowly climbing, then dives'''
@@ -187,10 +191,11 @@ class BirdOfPrey(DNFZ):
         self.dive_rate = -30
         self.climb_rate = 5
         self.drift_speed = random.uniform(5,10)
+        self.max_alt = ground_height + random.uniform(100, 400)
         self.drift_heading = self.heading
         circumference = math.pi * self.radius * 2
-        self.circle_time = circumference / self.speed
-        self.turn_rate = 360.0 / self.circle_time
+        circle_time = circumference / self.speed
+        self.turn_rate = 360.0 / circle_time
         if random.uniform(0,1) < 0.5:
             self.turn_rate = -self.turn_rate
 
@@ -200,12 +205,13 @@ class BirdOfPrey(DNFZ):
         self.time_circling += deltat
         self.setheading(self.heading + self.turn_rate * deltat)
         self.move(self.drift_heading, self.drift_speed)
-        if self.time_circling > self.circle_time:
+        if self.getalt() > self.max_alt or self.getalt() < ground_height:
             if self.getalt() > ground_height:
                 self.setclimbrate(self.dive_rate)
             else:
                 self.setclimbrate(self.climb_rate)
-                self.time_circling = 0
+        if self.getalt() < ground_height:
+            self.setalt(ground_height)
         if self.distance_from_home() > region_width:
             self.randpos()
             self.randalt()
@@ -216,11 +222,11 @@ class BirdMigrating(DNFZ):
         DNFZ.__init__(self, 'BirdMigrating')
         self.setspeed(random.uniform(4,16))
         self.setyawrate(random.uniform(-0.2,0.2))
-
+        
     def update(self, deltat=1.0):
         '''fly in long curves'''
         DNFZ.update(self, deltat)
-        if self.distance_from_home() > region_width:
+        if self.distance_from_home() > region_width or self.getalt() < ground_height:
             self.randpos()
             self.randalt()
 
@@ -230,14 +236,14 @@ class Weather(DNFZ):
         DNFZ.__init__(self, 'Weather')
         self.setspeed(random.uniform(1,4))
         self.lifetime = random.uniform(300,600)
-
+        self.setalt(0)
+        
     def update(self, deltat=1.0):
         '''straight lines, with short life'''
         DNFZ.update(self, deltat)
         self.lifetime -= deltat
         if self.lifetime <= 0:
             self.randpos()
-            self.randalt()
             self.lifetime = random.uniform(300,600)
             
     
@@ -264,10 +270,10 @@ for i in range(args.num_weather):
     aircraft.append(Weather())
     
 while True:
-    dt = 1.0
+    dt = 1.0/args.speedup
     time.sleep(dt)
     for a in aircraft:
-        a.update(dt)
+        a.update(1.0)
         try:
             sock.send(a.pickled())
         except Exception:
