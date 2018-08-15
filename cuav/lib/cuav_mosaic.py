@@ -463,10 +463,10 @@ class Mosaic():
         elif event.returnkey == 'previousPage':
             self.change_page(self.page - 1)
         elif event.returnkey == 'increaseBrightness':
-            self.brightness += 1
+            self.brightness = min(5, self.brightness+1)
             self.redisplay_mosaic()
         elif event.returnkey == 'decreaseBrightness':
-            self.brightness -= 1
+            self.brightness = max(0, self.brightness-1)
             self.redisplay_mosaic()
         elif event.returnkey == 'showImage':
             region = self.pos_to_region(event.popup_pos)
@@ -543,10 +543,12 @@ class Mosaic():
         '''called on menu events on the view image'''
         if event.returnkey == 'increaseBrightness':
             self.brightness += 1
+            self.brightness = min(self.brightness, 5)
             self.redisplay_mosaic()
             self.view_image.set_brightness(self.brightness)
         elif event.returnkey == 'decreaseBrightness':
             self.brightness -= 1
+            self.brightness = max(self.brightness, 0)
             self.redisplay_mosaic()
             self.view_image.set_brightness(self.brightness)
         elif event.returnkey == 'fitWindow':
