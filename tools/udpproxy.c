@@ -16,6 +16,9 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+static bool verbose;
+static int listen_port1, listen_port2;
+
 static double timestamp()
 {
     struct timeval tval;
@@ -63,12 +66,24 @@ static void main_loop(int sock1, int sock2)
         double last_pkt1=0;
         double last_pkt2=0;
         int fdmax = (sock1>sock2?sock1:sock2)+1;
-
+        double last_stats = timestamp();
+        uint32_t bytes_in1=0;
+        uint32_t bytes_in2=0;
+        
 	while (1) {
             fd_set fds;
             int ret;
             struct timeval tval;
             double now = timestamp();
+
+            if (verbose && now - last_stats > 1) {
+                double dt = now - last_stats;
+                printf("%u: %u bytes/sec  %u: %u bytes/sec\n",
+                       (unsigned)listen_port1, (unsigned)(bytes_in1/dt),
+                       (unsigned)listen_port2, (unsigned)(bytes_in2/dt));
+                bytes_in1 = bytes_in2 = 0;
+                last_stats = now;
+            }
             
             if (have_conn1 && now - last_pkt1 > 10) {
                 break;
@@ -96,6 +111,9 @@ static void main_loop(int sock1, int sock2)
                 int n = recvfrom(sock1, buf, sizeof(buf), 0, 
                                  (struct sockaddr *)&from, &fromlen);
                 if (n <= 0) break;
+
+                bytes_in1 += n;
+                
                 last_pkt1 = now;
                 if (!have_conn1) {
                     if (connect(sock1, (struct sockaddr *)&from, fromlen) != 0) {
@@ -117,6 +135,9 @@ static void main_loop(int sock1, int sock2)
                 int n = recvfrom(sock2, buf, sizeof(buf), 0, 
                                  (struct sockaddr *)&from, &fromlen);
                 if (n <= 0) break;
+
+                bytes_in2 += n;
+
                 last_pkt2 = now;
                 if (!have_conn2) {
                     if (connect(sock2, (struct sockaddr *)&from, fromlen) != 0) {
@@ -136,19 +157,22 @@ static void main_loop(int sock1, int sock2)
 
 int main(int argc, char *argv[])
 {
-    int listen_port1, listen_port2;
     int sock_in1, sock_in2;
 
     if (argc < 3) {
         printf("Usage: udpproxy <port1> <port2>\n");
         exit(1);
     }
-
+    if (argc > 3) {
+        verbose = strcmp(argv[3],"-v") == 0;
+        printf("verbose=%u\n", (unsigned)verbose);
+    }
+    
     while (true) {
         listen_port1 = atoi(argv[1]);
         listen_port2 = atoi(argv[2]);
 
-        printf("Opening sockets\n");
+        printf("Opening sockets %u %u\n", listen_port1, listen_port2);
         sock_in1 = open_socket_in(listen_port1);
         sock_in2 = open_socket_in(listen_port2);
         if (sock_in1 == -1 || sock_in2 == -1) {
