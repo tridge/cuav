@@ -73,6 +73,7 @@ class CameraGroundModule(mp_module.MPModule):
                          'camera control',
                          ['<status|view|boundary|remoteset>',
                           'set (CAMERASETTING)'])
+        self.add_command('remote', self.cmd_remote, "remote command", ['(COMMAND)'])
         self.add_completion_function('(CAMERASETTING)', self.settings.completion)
         self.add_completion_function('(CAMERASETTING)', self.camera_settings.completion)
         print("camera (ground) initialised")
@@ -130,6 +131,11 @@ class CameraGroundModule(mp_module.MPModule):
             pkt = cuav_command.ChangeCameraSetting(args[1], args[2])
             self.send_packet(pkt)
 
+    def cmd_remote(self, args):
+        '''camera commands'''
+        cmd = " ".join(args)
+        pkt = cuav_command.CommandPacket(cmd)
+        self.send_packet(pkt)
 
     def check_camera_parms(self):
         '''check for change in camera parameters'''
@@ -323,8 +329,13 @@ class CameraGroundModule(mp_module.MPModule):
                                     (self.image_total_bytes/self.image_count), row=7)
 
         if isinstance(obj, cuav_command.CommandPacket):
+            # ground doesn't accept command packets from air
             pass
 
+        if isinstance(obj, cuav_command.CommandResponse):
+            # reply to CommandPacket
+            print('REMOTE: %s' % obj.response)
+        
         if isinstance(obj, cuav_command.CameraMessage):
             print('CUAV AIR REMOTE: %s' % obj.msg)
 

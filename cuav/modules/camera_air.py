@@ -434,7 +434,7 @@ class CameraAirModule(mp_module.MPModule):
             self.image_settings_callback(obj)
 
         if isinstance(obj, cuav_command.CommandPacket):
-            self.cmd_camera([obj.command])
+            self.handle_command_packet(obj, bsend)
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -534,6 +534,17 @@ class CameraAirModule(mp_module.MPModule):
         else:
             if linktosend.sendq_size() < self.camera_settings.maxqueue:
                 obj.blockid = linktosend.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj))
+
+    def handle_command_packet(self, obj, bsend):
+        '''handle CommandPacket from other end'''
+        stdout_saved = sys.stdout
+        buf = cStringIO.StringIO()
+        sys.stdout = buf
+        self.mpstate.functions.process_stdin(obj.command, immediate=True)
+        sys.stdout = stdout_saved
+        pkt = cuav_command.CommandResponse(str(buf.getvalue()))
+        buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+        bsend.send(buf, priority=10000)
 
 def init(mpstate):
     '''initialise module'''

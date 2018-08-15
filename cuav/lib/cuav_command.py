@@ -31,6 +31,12 @@ class CommandPacket(StampedCommand):
         StampedCommand.__init__(self)
         self.command = command
 
+class CommandResponse(StampedCommand):
+    '''a command response from the plane'''
+    def __init__(self, response):
+        StampedCommand.__init__(self)
+        self.response = response
+        
 class ImageRequest(StampedCommand):
     '''request a jpeg image from the aircraft'''
     def __init__(self, frame_time, fullres):
