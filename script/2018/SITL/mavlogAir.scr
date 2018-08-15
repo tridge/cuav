@@ -3,6 +3,6 @@ set moddebug 3
 # go via ozlabs proxy2
 camera set gcs_address 203.11.71.1:10407:14680:60000
 camera set camparms /data/PiCamV2/params.json
-camera set imagefile ~/images_captured/capture.jpg
+camera set imagefile capture.jpg
 camera set minscore 1000
 camera start
