@@ -516,13 +516,12 @@ class CameraAirModule(mp_module.MPModule):
         pkt = cuav_command.CameraMessage(msg)
         self.transmit_queue.put((pkt, None, None))
 
-    def send_object_complete(self, obj):
-        '''called on complete of an send_object, cancelling send on other link
-        Not used for now, as we're assuming some links are to different GCS'''
-        pass
-        #if obj.blockid is not None:
-        #    for bsnd in self.bsend:
-        #        bsnd.cancel(obj.blockid)
+    def send_object_complete(self, obj, bsend):
+        '''called on complete of an send_object, cancelling send on other links'''
+        if obj.blockid is not None:
+            for bsnd in self.bsend:
+                if bsend != bsnd:
+                    bsnd.cancel(obj.blockid)
 
     def send_object(self, obj, priority=None, linktosend=None):
         '''send an object to all links if linktosend is none
@@ -534,10 +533,10 @@ class CameraAirModule(mp_module.MPModule):
         if not linktosend:
             for bsnd in self.bsend:
                 if bsnd.sendq_size() < self.camera_settings.maxqueue:
-                    obj.blockid = bsnd.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj))
+                    obj.blockid = bsnd.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj, bsnd))
         else:
             if linktosend.sendq_size() < self.camera_settings.maxqueue:
-                obj.blockid = linktosend.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj))
+                obj.blockid = linktosend.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj, linktosend))
 
     def handle_command_packet(self, obj, bsend):
         '''handle CommandPacket from other end'''
