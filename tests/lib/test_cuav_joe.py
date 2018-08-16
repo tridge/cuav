@@ -17,7 +17,7 @@ def test_JoeLog_JoeIterator():
     regions.append(cuav_region.Region(10, 10, 25, 23, None, scan_score=450))
     regions.append(cuav_region.Region(200, 205, 252, 236, None, scan_score=420))
     pos = mav_position.MavPosition(-30, 145, 34.56, 20, -56.67, 345, frame_time)
-    joelog.add_regions(frame_time, regions, pos, 'img2017111312451230Z.png', width=1024, height=768, altitude=None, C=C)
+    joelog.add_regions(frame_time, regions, pos, 'img2017111312451230Z.png')
     
     joeread = cuav_joe.JoeIterator(os.path.join('.', 'joe.log'))
     

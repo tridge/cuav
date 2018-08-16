@@ -254,9 +254,9 @@ class CameraAirModule(mp_module.MPModule):
 
             t1 = time.time()
             img_scan = cv2.imread(im, -1)
+            (h, w) = img_scan.shape[:2]
             if self.camera_settings.rotate180:
                 M = cv2.getRotationMatrix2D(center, angle180, scale)
-                (h, w) = img_scan.shape[:2]
                 img_scan = cv2.warpAffine(img_scan, M, (w, h))
             im_numpy = numpy.ascontiguousarray(img_scan)
             regions = scanner.scan(im_numpy, scan_parms)
@@ -281,6 +281,9 @@ class CameraAirModule(mp_module.MPModule):
                 self.posmapping[str(frame_time)] = pos
 
             # this adds the latlon field to the regions (georeferencing)
+            for r in regions:
+                r.latlon = cuav_util.gps_position_from_image_region(r, pos, w, h, altitude=None, C=self.c_params)
+
             if self.joelog:
                 self.log_joe_position(pos, frame_time, regions)
 
@@ -325,8 +328,7 @@ class CameraAirModule(mp_module.MPModule):
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
         '''add to joe.log if possible, returning a list of (lat,lon) tuples
         for the positions of the identified image regions'''
-        return self.joelog.add_regions(frame_time, regions, pos, filename,
-                                       thumb_filename, altitude=None, C=self.c_params)
+        return self.joelog.add_regions(frame_time, regions, pos, filename, thumb_filename)
 
     def send_heartbeats(self):
         '''possibly send heartbeat msgs'''

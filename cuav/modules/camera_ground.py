@@ -147,7 +147,7 @@ class CameraGroundModule(mp_module.MPModule):
         joes = []
         if os.path.isfile(self.joelog.filename):
             joes = cuav_joe.JoeIterator(self.joelog.filename)
-        for joe in joes:
+        for joe in joes.getjoes():
             if joe.thumb_filename == last_thumbfile or last_thumbfile is None:
                 regions.append(joe.r)
                 last_joe = joe
@@ -335,8 +335,7 @@ class CameraGroundModule(mp_module.MPModule):
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
         '''add to joe_ground.log if possible, returning a list of (lat,lon) tuples
         for the positions of the identified image regions'''
-        return self.joelog.add_regions(frame_time, regions, pos, filename,
-                                       thumb_filename, altitude=None, C=self.c_params)
+        return self.joelog.add_regions(frame_time, regions, pos, filename, thumb_filename)
 
     def start_thread(self, fn):
         '''start a thread running'''
