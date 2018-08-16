@@ -94,6 +94,7 @@ class Mosaic():
         self.view_filename = None
         self.full_res = False
         self.autorefresh = True
+        self.topfifty = True
         self.boundary = []
         self.displayed_image = None
         self.last_click_position = None
@@ -158,6 +159,7 @@ class Mosaic():
                                                             'Whiteness\tAlt+W',
                                                             'Time\tAlt+T']),
                                          MPMenuCheckbox('Auto Refresh', 'Auto Refresh', 'autorefresh', checked=True),
+                                         MPMenuCheckbox('Only Show Top 50', 'Only Show Top 50', 'topfifty', checked=True),
                                          MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
                                          MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage'),
                                          MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
@@ -406,6 +408,13 @@ class Mosaic():
         self.redisplay_mosaic()
         self.change_page(self.page)
 
+    def topfiftyonly(self):
+        '''only show the top fifty regions'''
+        while len(self.regions_sorted) > 50:
+            r = self.regions_sorted.pop(len(self.regions_sorted)-1)
+            self.regions_hidden.add(r.ridx)
+            self.slipmap.hide_object("region %u" % r.ridx)
+        
     def unhide_all(self):
         '''unhide all pages in mosaic'''
         for ridx in self.regions_hidden:
@@ -468,6 +477,8 @@ class Mosaic():
             self.redisplay_mosaic()
         elif event.returnkey == 'autorefresh':
             self.autorefresh = not self.autorefresh
+        elif event.returnkey == 'topfifty':
+            self.topfifty = not self.topfifty
         elif event.returnkey == 'showImage':
             region = self.pos_to_region(event.popup_pos)
             self.popup_show_image(region)
@@ -796,6 +807,10 @@ class Mosaic():
         if self.autorefresh:
             self.re_sort(printsort=False)
             self.redisplay_mosaic()
+        if self.topfifty:
+            self.re_sort(printsort=False)
+            self.redisplay_mosaic()
+            self.topfiftyonly()
 
     def add_image(self, frame_time, filename, pos):
         '''add a camera image'''
