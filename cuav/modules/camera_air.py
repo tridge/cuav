@@ -562,8 +562,9 @@ class CameraAirModule(mp_module.MPModule):
         sys.stdout = buf
         self.mpstate.functions.process_stdin(obj.command, immediate=True)
         sys.stdout = stdout_saved
-        pkt = cuav_command.CommandResponse(str(buf.getvalue()))
-        self.transmit_queue.put((pkt, None, bsend))
+        if str(buf.getvalue().strip()):
+            pkt = cuav_command.CommandResponse(str(buf.getvalue()).strip())
+            self.transmit_queue.put((pkt, None, bsend))
 
 def init(mpstate):
     '''initialise module'''
