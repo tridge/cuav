@@ -143,41 +143,6 @@ def test_camera_command(mpstate, image_file):
 
     assert loadedModule.camera_settings.minscore == 50
 
-def test_camera_remote_response(mpstate, image_file):
-    '''get some status responses via the block_xmit (remote)'''
-    loadedModule = camera_air.init(mpstate)
-    parms = "/data/ChameleonArecort/params.json"
-    loadedModule.cmd_camera(["set", "camparms", parms])
-    loadedModule.cmd_camera(["set", "imagefile", image_file])
-    loadedModule.cmd_camera(["set", "minscore", "0"])
-    loadedModule.cmd_camera(["set", "gcs_address", "127.0.0.1:14550:14560:90000"])
-
-    pkt = cuav_command.CommandPacket("status")
-    b1 = block_xmit.BlockSender(dest_ip='127.0.0.1', port = 14550, dest_port = 14560)
-    buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
-
-    loadedModule.cmd_camera(["start"])
-    time.sleep(0.1)
-    b1.tick()
-    b1.send(buf)
-    time.sleep(0.1)
-    blkret = []
-    while True:
-        try:
-            b1.tick()
-            blk = cPickle.loads(str(b1.recv(0.01, True)))
-            blkret.append(blk)
-            time.sleep(0.05)
-        except cPickle.UnpicklingError:
-            break
-    loadedModule.cmd_camera(["stop"])
-    loadedModule.unload()
-
-    assert len(blkret) > 0
-    assert isinstance(blkret[-1], cuav_command.CameraMessage)
-    assert "Cap imgs:0 err:0 scan:0 regions:0 jsize:0 xmitq:[0] sq:0.0 eff:[" in blkret[-1].msg
-    assert blkret[-1].msg[-1] == "]"
-
 def test_camera_image_request(mpstate, image_file):
     '''image request via the block_xmit'''
     loadedModule = camera_air.init(mpstate)
@@ -252,7 +217,7 @@ def test_camera_airstart(mpstate, image_file):
         try:
             b1.tick()
             blk = cPickle.loads(str(b1.recv(0.01, True)))
-            if isinstance(blk, cuav_command.CameraMessage):
+            if isinstance(blk, cuav_command.CommandResponse) or isinstance(blk, cuav_command.CameraMessage):
                 blkret.append(blk)
             time.sleep(0.05)
         except cPickle.UnpicklingError:
@@ -261,8 +226,6 @@ def test_camera_airstart(mpstate, image_file):
     loadedModule.unload()
 
     assert len(blkret) == 2
-    assert isinstance(blkret[0], cuav_command.CameraMessage)
-    assert isinstance(blkret[1], cuav_command.CameraMessage)
     assert blkret[0].msg == "cuav airstart ready"
     assert blkret[1].msg == "Started cuav running"
 

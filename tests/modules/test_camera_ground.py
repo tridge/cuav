@@ -93,33 +93,6 @@ def test_camera_commands(mpstate):
 
     assert loadedModule.boundary_polygon is not None
 
-def test_send_remote(mpstate):
-    '''Send some remote commands to the camera_air module'''
-    loadedModuleGround = camera_ground.init(mpstate)
-    parms = "/data/ChameleonArecort/params.json"
-    bnd = str(os.path.join(os.getcwd(), 'tests', 'testdata', 'OBC_boundary.txt'))
-    loadedModuleGround.cmd_camera(["set", "camparms", parms])
-    loadedModuleGround.cmd_camera(["set", "air_address", "127.0.0.1:15000:14000:45, 127.0.0.1:15500:14500:6000"])
-
-    loadedModuleGround.cmd_camera(["view"])
-
-    loadedModuleAir = camera_air.init(mpstate)
-    loadedModuleAir.cmd_camera(["set", "camparms", parms])
-    loadedModuleAir.cmd_camera(["set", "imagefile", ""])
-
-    loadedModuleAir.cmd_camera(["set", "gcs_address", "127.0.0.1:14000:15000:45, 127.0.0.1:14500:15500:6000"])
-    loadedModuleAir.cmd_camera(["start"])
-
-    #send the commands
-    loadedModuleGround.cmd_camera(["remoteset", "minscore", "10"])
-    loadedModuleGround.cmd_camera(["remoteset", "roll_limit", "45"])
-
-    time.sleep(1.0)
-    assert loadedModuleAir.camera_settings.minscore == 10
-    assert loadedModuleAir.camera_settings.roll_limit == 45
-
-    loadedModuleGround.unload()
-    loadedModuleAir.unload()
 
 def test_camera_thumbs(mpstate, image_file):
     '''Send some thumbnails to the view via the camera_air module'''

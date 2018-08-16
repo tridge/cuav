@@ -24,7 +24,7 @@ def test_do_playback():
     images.append(playback.ImageFile(cuav_util.parse_frame_time(image_b), image_b))
     image_c = os.path.join('.', 'tests', 'testdata', 'raw2016111223465213Z.png')
     images.append(playback.ImageFile(cuav_util.parse_frame_time(image_c), image_c))
-    playback.playback(os.path.join('.', 'tests', 'testdata', 'flight.tlog'), images, "127.0.0.1:14550", 57600, None, 10)
+    playback.playback(os.path.join('.', 'tests', 'testdata', 'flight.tlog'), images, "127.0.0.1:14550", 57600, None, 40, 'cur_camera.png')
     assert os.path.isfile(outfile)
     os.remove(outfile)
 

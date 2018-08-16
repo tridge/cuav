@@ -146,10 +146,10 @@ class CameraAirModule(mp_module.MPModule):
                 self.send_message("cuav already running")
                 print("cuav already running")
         elif args[0] == "stop":
-            self.send_message("Stopped cuav")
             self.running = False
             self.airstart_triggered = False
             print("Stopped cuav")
+            self.send_message("Stopped cuav")
         elif args[0] == "status":
             ret = "Cap imgs:%u err:%u scan:%u regions:%u jsize:%.0f xmitq:%s sq:%.1f eff:%s" % (
                 self.capture_count, self.error_count, self.scan_count,
@@ -167,7 +167,6 @@ class CameraAirModule(mp_module.MPModule):
                 self.bandwidth_used,
                 self.rtt_estimate)
             print(ret)
-            self.send_message(ret)
         elif args[0] == "set":
             self.camera_settings.command(args[1:])
         elif args[0] == "airstart":
@@ -564,8 +563,7 @@ class CameraAirModule(mp_module.MPModule):
         self.mpstate.functions.process_stdin(obj.command, immediate=True)
         sys.stdout = stdout_saved
         pkt = cuav_command.CommandResponse(str(buf.getvalue()))
-        buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
-        bsend.send(buf, priority=10000)
+        self.transmit_queue.put((pkt, None, bsend))
 
 def init(mpstate):
     '''initialise module'''
