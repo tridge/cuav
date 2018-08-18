@@ -32,6 +32,6 @@ ping -q -c 2 $TRIDGELLNET || {
     /usr/bin/rdate $OZLABSORG
 }
 
-(mount -n | grep -q images_captured) || mount /home/pi/images_captured
+#(mount -n | grep -q images_captured) || mount /home/pi/images_captured
 echo
 ) > network.log 2>&1
