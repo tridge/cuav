@@ -8,5 +8,8 @@
 
 #Type in "camera status" to see the queues of captured/processed/transmitted images
 
+OZLABS_PROXY1_GND=udpin:203.11.71.1:10402
+TRIDGELL_PROXY1_GND=udpin:203.217.61.45:10402
+
 #All telemetry from the Rpi on the Ranger
-mavproxy.py --master=udpin:10.26.0.200:14650 --mav20 --console --map --cmd="script StartTridge.scr"
+mavproxy.py --master=$OZLABS_PROXY1_GND --master=$TRIDGELL_PROXY1_GND --mav20 --console --map --cmd="script StartTridge.scr"
