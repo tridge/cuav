@@ -167,8 +167,15 @@ def hsv_score(r, hsv, use_whiteness=False):
     else:
         scaled_col_score = math.log(col_score)
 
+    from numpy import shape
+    (height,width,d) = shape(hsv)
+    num_pixels = height*width
+    if red_count > 15 and blue_count > 15:
+        col_score *= 8
+        
     # combine all the scoring systems
     r.score = r.scan_score*(s_range/128.0)*log_scaling(col_score,0.3)
+    #print(r.score, red_count, blue_count, num_pixels)
 
 def score_region(img, r, filter_type='simple'):
     '''filter a list of regions using HSV values'''
