@@ -15,7 +15,7 @@ TELSTRAGW="192.168.0.1"
 (route -n | grep -q $OZLABSORG) || route add -host $OZLABSORG gw $TELSTRAGW
 
 ifconfig usb0 192.168.0.125/24 up
-ifconfig eth0 192.168.2.70/24 up
+ifconfig eth0 192.168.3.70/24 up
 ifconfig eth1 192.168.8.100/24 up
 
 ping -q -c 2 $OZLABSORG || {
