@@ -74,7 +74,7 @@ def test_score_region():
     newregion = cuav_region.Region(1020, 658, 1050, 678, (30, 30), scan_score=20)
     cuav_region.score_region(im_orig, newregion, filter_type='simple')
     assert newregion.hsv_score > 0
-    assert newregion.whiteness > 0
+    assert newregion.whiteness == None
     assert newregion.score > 0
 
 def test_filter_regions():
@@ -83,7 +83,7 @@ def test_filter_regions():
     regions.append(cuav_region.Region(1020, 658, 1050, 678, (30, 30), scan_score=20))
     regions.append(cuav_region.Region(30, 54, 50, 74, (20, 20), scan_score=15))
     ret = cuav_region.filter_regions(im_orig, regions, filter_type='simple')
-    assert len(ret) == 1
+    assert len(ret) == 2
     assert ret[0].scan_score == 20
     assert ret[0].score > 4
 
