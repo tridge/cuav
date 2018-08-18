@@ -19,6 +19,7 @@ from cuav.image import scanner
 from cuav.lib import mav_position, cuav_util, cuav_joe, block_xmit, cuav_region, cuav_command
 from MAVProxy.modules.lib import mp_settings
 from cuav.camera.cam_params import CameraParams
+from pymavlink import mavutil
 
 
 class CameraAirModule(mp_module.MPModule):
@@ -37,6 +38,7 @@ class CameraAirModule(mp_module.MPModule):
         self.handled_timestamps = {}
         self.imagefilenamemapping = {}
         self.posmapping = {}
+        self.is_armed = True
 
         # prevent loopback of messages
         #for mtype in ['DATA16', 'DATA32', 'DATA64', 'DATA96']:
@@ -223,6 +225,11 @@ class CameraAirModule(mp_module.MPModule):
                 self.imagefilenamemapping[str(filetime)] = filename
                 self.capture_count += 1
                 prev_image = filename
+            if self.is_armed:
+                stopfile = self.camera_settings.imagefile + ".stop"
+                if os.path.exists(stopfile):
+                    print("Removing stopfile")
+                    os.unlink(self.camera_settings.imagefile + ".stop")
 
     def scan_threadfunc(self):
         '''image scanning thread'''
@@ -460,6 +467,15 @@ class CameraAirModule(mp_module.MPModule):
                 print("Started cuav running")
         if m.get_type() == "TERRAIN_REPORT":
             self.terrain_alt = m.current_height
+        if m.get_type() == "HEARTBEAT":
+            was_armed = self.is_armed
+            self.is_armed = (m.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
+            if not self.is_armed and was_armed:
+                stopfile = self.camera_settings.imagefile + ".stop"
+                if not os.path.exists(stopfile):
+                    print("Creating stop file")
+                    open(stopfile,"w").write("")
+                
 
     def sync_gps_clock(self, time_usec):
         '''sync system clock with GPS time'''
