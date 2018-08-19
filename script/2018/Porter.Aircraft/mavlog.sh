@@ -7,6 +7,7 @@ if [ $# -ne 1 ]; then
 fi
 
 LOG_DIR=$1
+shift
 
 OZLABS_PROXY1_AIR=udpout:203.11.71.1:10401
 OZLABS_PROXY1_GND=udpout:203.11.71.1:10402
