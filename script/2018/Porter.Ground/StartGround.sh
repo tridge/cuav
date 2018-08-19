@@ -12,4 +12,5 @@ OZLABS_PROXY1_GND=udpout:203.11.71.1:10402
 TRIDGELL_PROXY1_GND=udpout:203.217.61.45:10402
 
 #All telemetry from the Rpi on the Porter over two networks
-mavproxy.py --master=$OZLABS_PROXY1_GND --master=$TRIDGELL_PROXY1_GND --mav20 --console --map --cmd="script StartGround.scr"
+mavproxy.py --master=$OZLABS_PROXY1_GND --master=$TRIDGELL_PROXY1_GND --mav20 --console --map --cmd="script StartGround.scr" $*
+

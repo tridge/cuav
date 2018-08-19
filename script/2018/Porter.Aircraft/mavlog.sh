@@ -18,6 +18,7 @@ cp -f mavinit.scr ${LOG_DIR}/mavinit.scr
 
 cd ${LOG_DIR}
 #All outputs via 2 network links
-mavproxy.py --master=/dev/serial0 --baud=115200 --out=$OZLABS_PROXY1_AIR --out=$TRIDGELL_PROXY1_AIR --mav20 --cmd="script mavinit.scr"
+mavproxy.py --master=/dev/serial0 --baud=115200 --out=$OZLABS_PROXY1_AIR --out=$TRIDGELL_PROXY1_AIR --mav20 --cmd="script mavinit.scr" $*
+
 
 
