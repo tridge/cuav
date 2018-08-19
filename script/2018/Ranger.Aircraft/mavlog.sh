@@ -7,6 +7,7 @@ if [ $# -ne 1 ]; then
 fi
 
 LOG_DIR=$1
+shift
 
 cp mavinit.scr ${LOG_DIR}/mavinit.scr
 
