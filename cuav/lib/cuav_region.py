@@ -2,6 +2,7 @@
 '''CanberraUAV utility functions for dealing with image regions'''
 
 import numpy, sys, os, time, cuav_util, cv2, math
+from numpy import shape
 
 class Region:
     '''a object representing a recognised region in an image'''
@@ -59,7 +60,6 @@ def RegionsConvert(rlist, scan_shape, full_shape):
 
 def image_whiteness(hsv):
         ''' a measure of the whiteness of an HSV image 0 to 1'''
-        from numpy import shape
         #(width,height) = cv.GetSize(hsv)
         (height,width,d) = shape(hsv)
         score = 0
@@ -75,7 +75,6 @@ def image_whiteness(hsv):
 
 def raw_hsv_score(hsv):
     '''try to score a HSV image based on hsv'''
-    from numpy import shape
     (height,width,d) = shape(hsv)
     score = 0
     blue_count = 0
@@ -168,7 +167,6 @@ def hsv_score(r, hsv, use_whiteness=False):
     else:
         scaled_col_score = math.log(col_score)
 
-    from numpy import shape
     (height,width,d) = shape(hsv)
     num_pixels = height*width
     if red_count > 15 and blue_count > 15:
@@ -177,8 +175,29 @@ def hsv_score(r, hsv, use_whiteness=False):
     # combine all the scoring systems
     r.score = r.scan_score*(s_range/128.0)*log_scaling(col_score,0.3)
     r.score = max(r.score, 1)
+
     #print(r.score, red_count, blue_count, num_pixels)
 
+def rgb_score(img):
+    '''count red and blue pixels for scoring. This is specially targeted
+    at the CanberraUAV OBC 2018 target'''
+    (height,width,d) = shape(img)
+    num_pixels = width * height
+    red_count=0
+    blue_count=0
+    col_thresh = 1.4
+    for x in range(width):
+        for y in range(height):
+            (r,g,b) = img[y][x]
+            if r > g*col_thresh and r > b*col_thresh:
+                red_count += 1
+            elif b > r*col_thresh and b > g*col_thresh:
+                blue_count += 1
+    threshold_pct = 3
+    pct_red = 100.0 * red_count / num_pixels
+    pct_blue = 100.0 * blue_count / num_pixels
+    return min(pct_red, pct_blue) * 5000
+    
 def score_region(img, r, filter_type='simple'):
     '''filter a list of regions using HSV values'''
     (x1, y1, x2, y2) = r.tuple()
@@ -189,8 +208,11 @@ def score_region(img, r, filter_type='simple'):
     x2 = min(x+10,w)
     y1 = max(y-10,0)
     y2 = min(y+10,h)
-    hsv = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_RGB2HSV)
-    hsv_score(r, hsv)
+    rimg = img[y1:y2, x1:x2]
+    r.score = rgb_score(rimg)
+    #hsv = cv2.cvtColor(rimg, cv2.COLOR_RGB2HSV)
+    #hsv_score(r, hsv)
+    #r.score += template_score(rimg)
 
 def filter_regions(img, regions, min_score=4, filter_type='simple'):
     '''filter a list of regions using HSV values'''
