@@ -11,8 +11,8 @@ OZLABSORG="203.11.71.1"
 OPTUSGW="192.168.8.1"
 TELSTRAGW="192.168.0.1"
 
-(route -n | grep -q $TRIDGELLNET) || route add -host $TRIDGELLNET gw $OPTUSGW
-(route -n | grep -q $OZLABSORG) || route add -host $OZLABSORG gw $TELSTRAGW
+(route -n | grep -q $TRIDGELLNET) || route add -host $TRIDGELLNET gw $OPTUSGW dev eth1
+(route -n | grep -q $OZLABSORG) || route add -host $OZLABSORG gw $TELSTRAGW dev usb0
 
 ifconfig usb0 192.168.0.125/24 up
 ifconfig eth0 192.168.3.70/24 up
