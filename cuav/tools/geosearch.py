@@ -145,7 +145,7 @@ def process(args):
       MPSetting('target_radius', float, float(target[2]), 'target radius', increment=1),
       MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
       MPSetting('thumbsize', int, args.thumbsize, 'Thumbnail Size', range=(10, 200), increment=1),
-      MPSetting('RegionHue', int, ags.targethue, 'Target Hue (0 to disable)', range=(0,180), increment=1, tab='Imaging'),
+      MPSetting('RegionHue', int, args.targethue, 'Target Hue (0 to disable)', range=(0,180), increment=1, tab='Imaging'),
       MPSetting('map_thumbsize', int, args.map_thumbsize, 'Map Thumbnail Size', range=(10, 200), increment=1),
       MPSetting('minscore', int, args.minscore, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
       MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
