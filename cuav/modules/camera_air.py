@@ -56,6 +56,7 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('imagefile', str, None, 'latest captured image', tab='Imaging'),
               MPSetting('filter_type', str, 'simple', 'Filter Type',
                         choice=['simple'], tab='Imaging'),
+              MPSetting('blue_emphasis', bool, False, 'BlueEmphasis', tab='Imaging'),
               MPSetting('use_capture_time', bool, True, 'Use Capture Time (false for sim)', tab='Simulation'),
               MPSetting('target_latitude', float, 0, 'filter detected images to latitude', tab='Filter to Location'),
               MPSetting('target_longitude', float, 0, 'filter detected images to longitude', tab='Filter to Location'),
@@ -69,7 +70,6 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('thumbsize', int, 60, 'Thumbnail Size', range=(10, 200), increment=1),
               MPSetting('minscore', int, 400, 'Min Score to pass detection', range=(0,5000), increment=1, tab='Imaging'),
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),
-              MPSetting('RegionHue', int, 110, 'Target Hue (0 to disable)', range=(0,180), increment=1, digits=1, tab='Imaging'),
               ],
             title='Camera Settings'
             )
@@ -148,7 +148,6 @@ class CameraAirModule(mp_module.MPModule):
         elif args[0] == "stop":
             self.running = False
             self.airstart_triggered = False
-            self.unload_event.set()
             print("Stopped cuav")
             self.send_message("Stopped cuav")
         elif args[0] == "status":
@@ -241,6 +240,7 @@ class CameraAirModule(mp_module.MPModule):
             scan_parms = {}
             for name in self.image_settings.list():
                 scan_parms[name] = self.image_settings.get(name)
+            scan_parms['BlueEmphasis'] = float(self.camera_settings.blue_emphasis)
 
             if self.terrain_alt is not None:
                 altitude = self.terrain_alt
@@ -266,11 +266,9 @@ class CameraAirModule(mp_module.MPModule):
             self.scan_fps = 1.0 / (t2-t1)
             self.scan_count += 1
 
-            #score regions and filter by minscore and RegionHue
             regions = cuav_region.filter_regions(img_scan, regions,
                                                  min_score=self.camera_settings.minscore,
-                                                 filter_type=self.camera_settings.filter_type,
-                                                 target_hue=self.camera_settings.RegionHue)
+                                                 filter_type=self.camera_settings.filter_type)
             self.region_count += len(regions)
             
             if self.camera_settings.roll_stabilised:
@@ -298,6 +296,10 @@ class CameraAirModule(mp_module.MPModule):
             # filter out any regions outside the boundary
             if self.boundary_polygon:
                 regions = cuav_region.filter_boundary(regions, self.boundary_polygon, pos)
+                
+            #filter by minscore
+            regions = cuav_region.filter_regions(img_scan, regions, min_score=self.camera_settings.minscore,
+                                                     filter_type=self.camera_settings.filter_type)
 
             if len(regions) > 0 and self.camera_settings.transmit:
                 # send a region message with thumbnails to the ground station

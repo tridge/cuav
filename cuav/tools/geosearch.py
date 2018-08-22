@@ -145,7 +145,6 @@ def process(args):
       MPSetting('target_radius', float, float(target[2]), 'target radius', increment=1),
       MPSetting('quality', int, 75, 'Compression Quality', range=(1,100), increment=1),
       MPSetting('thumbsize', int, args.thumbsize, 'Thumbnail Size', range=(10, 200), increment=1),
-      MPSetting('RegionHue', int, args.targethue, 'Target Hue (0 to disable)', range=(0,180), increment=1, tab='Imaging'),
       MPSetting('map_thumbsize', int, args.map_thumbsize, 'Map Thumbnail Size', range=(10, 200), increment=1),
       MPSetting('minscore', int, args.minscore, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
       MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
@@ -161,6 +160,7 @@ def process(args):
       MPSetting('MaxRegionSize', float, 1.0, range=(0,100), increment=0.1, digits=1),
       MPSetting('MaxRarityPct',  float, 0.02, range=(0,100), increment=0.01, digits=2),
       MPSetting('RegionMergeSize', float, 1.0, range=(0,100), increment=0.1, digits=1),
+      MPSetting('BlueEmphasis', bool, args.blue_emphasis),
       MPSetting('SaveIntermediate', bool, args.debug)
       ],
     title='Image Settings')
@@ -253,6 +253,7 @@ def process(args):
       for name in image_settings.list():
         scan_parms[name] = image_settings.get(name)
       scan_parms['SaveIntermediate'] = float(scan_parms['SaveIntermediate'])
+      scan_parms['BlueEmphasis'] = float(scan_parms['BlueEmphasis'])
 
       if pos is not None:
         (sw,sh) = cuav_util.image_shape(img_scan)
@@ -270,10 +271,6 @@ def process(args):
 
       frame_time = pos.time
 
-      regions = cuav_region.filter_regions(im_full, regions, min_score=camera_settings.minscore,
-                                           filter_type=camera_settings.filter_type,
-                                           target_hue=camera_settings.RegionHue)
-
       if pos:
         for r in regions:
           r.latlon = cuav_util.gps_position_from_image_region(r, pos, w, h, altitude=altitude, C=C_params)
@@ -282,6 +279,9 @@ def process(args):
           regions = cuav_region.filter_radius(regions, (camera_settings.target_lattitude,
                                                         camera_settings.target_longitude),
                                               camera_settings.target_radius)
+
+      regions = cuav_region.filter_regions(im_full, regions, min_score=camera_settings.minscore,
+                                           filter_type=camera_settings.filter_type)
 
       scan_count += 1
 
@@ -350,12 +350,12 @@ def parse_args():
     parser.add_argument("--map-thumbsize", default=60, type=int, help="map thumbnail size")
     parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")
     parser.add_argument("--minscore", default=100, type=int, help="minimum score")
-    parser.add_argument("--targethue", default=0, type=int, help="Target hue (0-180) of object")
     parser.add_argument("--gammalog", default=None, type=str, help="gamma.log from flight")
     parser.add_argument("--target", default=None, type=str, help="lat,lon,radius target")
     parser.add_argument("--categories", default=None, type=str, help="xml file containing categories for classification")
     if 1 != len(sys.argv):
         parser.add_argument("--flag", default=[], type=str, action='append', help="flag positions"),
+    parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
     parser.add_argument("--start", default=False, action='store_true', help="start straight away")
     parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
     return parser.parse_args()

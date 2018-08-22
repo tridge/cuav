@@ -3,8 +3,6 @@
 
 import numpy, sys, os, time, cuav_util, cv2, math
 
-from numpy import shape
-
 class Region:
     '''a object representing a recognised region in an image'''
     def __init__(self, x1, y1, x2, y2, scan_shape, scan_score=0):
@@ -16,6 +14,7 @@ class Region:
         self.score = None
         self.scan_score = scan_score
         self.whiteness = None
+        self.blue_score = None
         self.scan_shape = scan_shape
 
     def tuple(self):
@@ -60,6 +59,7 @@ def RegionsConvert(rlist, scan_shape, full_shape):
 
 def image_whiteness(hsv):
         ''' a measure of the whiteness of an HSV image 0 to 1'''
+        from numpy import shape
         #(width,height) = cv.GetSize(hsv)
         (height,width,d) = shape(hsv)
         score = 0
@@ -75,6 +75,7 @@ def image_whiteness(hsv):
 
 def raw_hsv_score(hsv):
     '''try to score a HSV image based on hsv'''
+    from numpy import shape
     (height,width,d) = shape(hsv)
     score = 0
     blue_count = 0
@@ -176,7 +177,7 @@ def hsv_score(r, hsv, use_whiteness=False):
     r.score = r.scan_score*(s_range/128.0)*log_scaling(col_score,0.3)
     #print(r.score, red_count, blue_count, num_pixels)
 
-def score_region(img, r, filter_type='simple', target_hue=0):
+def score_region(img, r, filter_type='simple'):
     '''filter a list of regions using HSV values'''
     (x1, y1, x2, y2) = r.tuple()
     (w,h) = cuav_util.image_shape(img)
@@ -186,30 +187,20 @@ def score_region(img, r, filter_type='simple', target_hue=0):
     x2 = min(x+10,w)
     y1 = max(y-10,0)
     y2 = min(y+10,h)
-    hsv = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_RGB2HSV)
     hsv_score(r, hsv)
-    
-    #set score to 0 if outside hue range
-    if target_hue != 0:
-        hue, saturation, lightness = cv2.split(hsv)
-        (height,width,d) = shape(hsv)
-        retb, dest = cv2.threshold(hue, max(target_hue-3, 0), 255, cv2.THRESH_TOZERO)
-        retb, dest = cv2.threshold(dest, min(target_hue+3, 180), 255, cv2.THRESH_TOZERO_INV)
-        ret, dest = cv2.threshold(dest, 0, 255, cv2.THRESH_BINARY)
-        #if less than 5% of the pixels are in hue range, then reject
-        if (cv2.countNonZero(dest)*100/(width*height)) < 5:
-            r.score = 0
-        
 
-def filter_regions(img, regions, min_score=4, filter_type='simple', target_hue=0):
+def filter_regions(img, regions, min_score=4, filter_type='simple'):
     '''filter a list of regions using HSV values'''
     ret = []
+    #img = cv.GetImage(cv.fromarray(img))
     for r in regions:
         if r.score is None:
-            score_region(img, r, filter_type=filter_type, target_hue=target_hue)
+            score_region(img, r, filter_type=filter_type)
         if r.score >= min_score:
             ret.append(r)
     return ret
+
 
 def filter_boundary(regions, boundary, pos=None):
     '''filter a list of regions using a search boundary'''
