@@ -89,11 +89,15 @@ def process(args):
         'MaxRegionSize' : args.max_region_size,
         'MaxRarityPct'  : args.max_rarity_pct,
         'RegionMergeSize' : args.region_merge,
-        'SaveIntermediate' : float(args.debug),
+        'SaveIntermediate' : float(0),
+        #'SaveIntermediate' : float(args.debug),
         'MetersPerPixel' : args.meters_per_pixel100 * args.altitude / 100.0
     }
 
+    filenum = 0
+        
     for f in files:
+        filenum += 1
         if mpos:
             frame_time = cuav_util.parse_frame_time(f)
             try:
@@ -136,9 +140,18 @@ def process(args):
         t1=time.time()
 
         if args.filter:
-            regions = cuav_region.filter_regions(im_full, regions, frame_time=frame_time, min_score=args.minscore,
+            regions = cuav_region.filter_regions(im_full, regions, min_score=args.minscore,
                                            filter_type=args.filter_type)
 
+        if len(regions) > 0 and args.debug:
+            composite = cuav_region.CompositeThumbnail(im_full, regions, thumb_size=args.thumb_size)
+            thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
+            thumb_num = 0
+            for thumb in thumbs:
+                print("thumb %u score %f" % (thumb_num, regions[thumb_num].score))
+                cv2.imwrite('%u_thumb%u.jpg' % (filenum,thumb_num), thumb)
+                thumb_num += 1
+            
         scan_count += 1
 
         # optionally link all the images with joe into a separate directory
@@ -213,6 +226,7 @@ if __name__ == '__main__':
     parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
     parser.add_argument("--camera-params", default=None, type=file, help="camera calibration json file from OpenCV")
     parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
+    parser.add_argument("--thumb-size", default=100, type=int, help="thumbnail size")
 
     args = parser.parse_args()
     process(args)
