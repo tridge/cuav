@@ -131,6 +131,7 @@ def raw_hsv_score(hsv):
             scorix[y,x] = pix_score
     avg_v = sum_v / (width*height)
     score = 500 * float(score) / (width*height)
+    score = max(score, 1)
 
     return (score, scorix, blue_count, red_count, avg_v, s_max - s_min, v_max - v_min)
 
@@ -175,6 +176,7 @@ def hsv_score(r, hsv, use_whiteness=False):
         
     # combine all the scoring systems
     r.score = r.scan_score*(s_range/128.0)*log_scaling(col_score,0.3)
+    r.score = max(r.score, 1)
     #print(r.score, red_count, blue_count, num_pixels)
 
 def score_region(img, r, filter_type='simple'):
