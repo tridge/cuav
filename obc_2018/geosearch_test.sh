@@ -9,4 +9,8 @@ FLAGS="$FLAGS --flag=-35.363027,149.164295,barrell"
 
 CAM_PARMS="../cuav/data/PiCamV2/params_half.json"
 
-geosearch.py --camera-params=$CAM_PARMS --minscore=500 $FLAGS $*
+IMGDIR=$1
+shift
+TLOG=$IMGDIR/mav.tlog
+
+geosearch.py --camera-params=$CAM_PARMS --minscore=500 $FLAGS --mavlog $TLOG $IMGDIR $*
