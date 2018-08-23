@@ -8,6 +8,15 @@ cd /root
 
 (
 date
+
+LOCKFILE="network.sh.lock"
+
+# dotlockfile can be found in liblockfile-bin
+if ! dotlockfile -p "$LOCKFILE"; then
+    echo "Failed to lock"
+    exit 1
+fi
+
 TRIDGELLNET="203.217.61.45"
 OZLABSORG="203.11.71.1"
 OPTUSGW="192.168.8.1"
@@ -33,6 +42,8 @@ ping -q -c 2 $TRIDGELLNET || {
 [ $(date +%s) -lt 1534499946 ] && {
     /usr/bin/rdate $OZLABSORG
 }
+
+dotlockfile -u "$LOCKFILE"
 
 #(mount -n | grep -q images_captured) || mount /home/pi/images_captured
 echo
