@@ -47,4 +47,4 @@ dotlockfile -u "$LOCKFILE"
 
 #(mount -n | grep -q images_captured) || mount /home/pi/images_captured
 echo
-) > network.log 2>&1
+) >> network.log 2>&1
