@@ -40,10 +40,6 @@ class CameraAirModule(mp_module.MPModule):
         self.posmapping = {}
         self.is_armed = True
 
-        # prevent loopback of messages
-        #for mtype in ['DATA16', 'DATA32', 'DATA64', 'DATA96']:
-        #    self.module('link').no_fwd_types.add(mtype)
-
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.camera_settings = MPSettings(
             [ MPSetting('roll_stabilised', bool, False, 'Roll Stabilised'),
@@ -68,8 +64,10 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('maxqueue', int, 100, 'Maximum images queue', tab='GCS'),
 
               MPSetting('thumbsize', int, 60, 'Thumbnail Size', range=(10, 200), increment=1),
-              MPSetting('minscore', int, 400, 'Min Score to pass detection', range=(0,5000), increment=1, tab='Imaging'),
+              MPSetting('minscore', int, 1000, 'Min Score to pass detection', range=(0,100000), increment=1, tab='Imaging'),
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),
+              MPSetting('m_minscore', int, 20000, 'Min Score to pass detection on mavlink', range=(0,100000), increment=1, tab='Imaging'),
+              MPSetting('m_bandwidth', int, 500, 'max bandwidth on mavlink', increment=1, tab='GCS'),
               ],
             title='Camera Settings'
             )
@@ -106,6 +104,10 @@ class CameraAirModule(mp_module.MPModule):
         self.bandwidth_used = []
         self.rtt_estimate = []
         self.bsend = [] #note this is an array of bsends
+
+        # msend is a BlockSender over MAVLink
+        self.msocket = None
+        self.msend = None
         self.last_heartbeat = time.time()
 
         self.mpos = mav_position.MavInterpolator(backlog=500, gps_lag=0.0)
@@ -117,6 +119,11 @@ class CameraAirModule(mp_module.MPModule):
                           'set (CAMERASETTING)'])
         self.add_completion_function('(CAMERASETTING)', self.settings.completion)
         self.add_completion_function('(CAMERASETTING)', self.camera_settings.completion)
+
+        # prevent loopback of messages
+        for mtype in ['DATA16', 'DATA32', 'DATA64', 'DATA96']:
+            self.module('link').no_fwd_types.add(mtype)
+        
         print("camera initialised")
 
     def cmd_camera(self, args):
@@ -299,7 +306,11 @@ class CameraAirModule(mp_module.MPModule):
                 
             #filter by minscore
             regions = cuav_region.filter_regions(img_scan, regions, min_score=self.camera_settings.minscore,
-                                                     filter_type=self.camera_settings.filter_type)
+                                                 filter_type=self.camera_settings.filter_type)
+            high_score = 1
+            for r in regions:
+                if r.score > high_score:
+                    high_score = r.score
 
             if len(regions) > 0 and self.camera_settings.transmit:
                 # send a region message with thumbnails to the ground station
@@ -311,6 +322,8 @@ class CameraAirModule(mp_module.MPModule):
 
                 if self.transmit_queue.qsize() < 100:
                     self.transmit_queue.put((pkt, None, None))
+                    if self.msend is not None and high_score >= self.camera_settings.m_minscore:  
+                        self.transmit_queue.put((pkt, None, self.msend))
                 else:
                     self.send_message("Warning: image Tx queue too long")
                     print("Warning: image Tx queue too long")
@@ -346,6 +359,9 @@ class CameraAirModule(mp_module.MPModule):
             for bsnd in self.bsend:
                 bsnd.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue)
                 self.check_commands(bsnd)
+            if self.msend is not None:
+                self.msend.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue)
+                self.check_commands(self.msend)
             self.send_heartbeats()
 
             #check remaining disk space and warn user if required
@@ -371,6 +387,11 @@ class CameraAirModule(mp_module.MPModule):
                 self.efficiency.append(bsnd.get_efficiency())
                 self.bandwidth_used.append(bsnd.get_bandwidth_used())
                 self.rtt_estimate.append(bsnd.get_rtt_estimate())
+            if self.msend is not None:
+                self.xmit_queue.append(self.msend.sendq_size())
+                self.efficiency.append(self.msend.get_efficiency())
+                self.bandwidth_used.append(self.msend.get_bandwidth_used())
+                self.rtt_estimate.append(self.msend.get_rtt_estimate())
 
     def send_image(self, img, frame_time, priority, pos, linktosend):
         '''send an image object to the GCS'''
@@ -395,6 +416,10 @@ class CameraAirModule(mp_module.MPModule):
                 except:
                     print("Bad GCS endpoint (must be remIP:remport:localport:bw): " + str(lnk))
                     pass
+        if self.msend is None:
+            self.msocket = cuav_command.MavSocket(self.mpstate.mav_master[0])
+            self.msend = block_xmit.BlockSender(mss=96, sock=self.msocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
+            self.msend.set_bandwidth(self.camera_settings.m_bandwidth)
 
     def start_thread(self, fn):
         '''start a thread running'''
@@ -476,7 +501,9 @@ class CameraAirModule(mp_module.MPModule):
                 if not os.path.exists(stopfile):
                     print("Creating stop file")
                     open(stopfile,"w").write("")
-                
+        if m.get_type() in [ 'DATA16', 'DATA32', 'DATA64', 'DATA96' ]:
+            if self.msocket is not None:
+                self.msocket.incoming.append(m)                
 
     def sync_gps_clock(self, time_usec):
         '''sync system clock with GPS time'''

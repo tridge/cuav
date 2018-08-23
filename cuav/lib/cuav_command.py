@@ -78,3 +78,32 @@ class BlockCancel(StampedCommand):
         self.blockid = blockid
         
 
+class MavSocket:
+    '''map block_xmit onto MAVLink data packets'''
+    def __init__(self, master):
+        self.master = master
+        self.incoming = []
+
+    def sendto(self, buf, dest):
+        dbuf = [ord(x) for x in buf]
+        dbuf.extend([0]*(96-len(dbuf)))
+        if len(buf) <= 16:
+            self.master.mav.data16_send(0, len(buf), dbuf)
+        elif len(buf) <= 32:
+            self.master.mav.data32_send(0, len(buf), dbuf)
+        elif len(buf) <= 64:
+            self.master.mav.data64_send(0, len(buf), dbuf)
+        elif len(buf) <= 96:
+            self.master.mav.data96_send(0, len(buf), dbuf)
+        else:
+            print("PACKET TOO LARGE %u" % len(dbuf))
+            raise RuntimeError('packet too large %u' % len(dbuf))
+
+    def recvfrom(self, size):
+        if len(self.incoming) == 0:
+            return ('', 'mavlink')
+        m = self.incoming.pop(0)
+        data = m.data[:m.len]
+        s = ''.join([chr(x) for x in data])
+        buf = bytes(s)
+        return (buf, 'mavlink')

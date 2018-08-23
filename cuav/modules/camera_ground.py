@@ -61,6 +61,10 @@ class CameraGroundModule(mp_module.MPModule):
         self.camera_dir = self.mpstate.status.logdir
 
         self.bsend = []
+
+        self.msend = None
+        self.msocket = None
+        
         #self.last_minscore = None
         self.mosaic = None
         self.last_heartbeat = time.time()
@@ -74,8 +78,13 @@ class CameraGroundModule(mp_module.MPModule):
                          ['<status|view|boundary>',
                           'set (CAMERASETTING)'])
         self.add_command('remote', self.cmd_remote, "remote command", ['(COMMAND)'])
+        self.add_command('remotem', self.cmd_remotem, "remote command over mavlink", ['(COMMAND)'])
         self.add_completion_function('(CAMERASETTING)', self.settings.completion)
         self.add_completion_function('(CAMERASETTING)', self.camera_settings.completion)
+
+        for mtype in ['DATA16', 'DATA32', 'DATA64', 'DATA96']:
+            self.module('link').no_fwd_types.add(mtype)
+        
         print("camera (ground) initialised")
 
     def cmd_camera(self, args):
@@ -122,11 +131,18 @@ class CameraGroundModule(mp_module.MPModule):
                                                                        colour=(0, 0, 255)))
 
     def cmd_remote(self, args):
-        '''camera commands'''
+        '''camera remove commands over UDP'''
         cmd = " ".join(args)
         pkt = cuav_command.CommandPacket(cmd)
         self.send_packet(pkt)
 
+    def cmd_remotem(self, args):
+        '''camera remote commands over mavlink'''
+        cmd = " ".join(args)
+        pkt = cuav_command.CommandPacket(cmd)
+        if self.msend is not None:
+            self.send_packet(pkt, bsnd=self.msend)
+        
     def check_camera_parms(self):
         '''check for change in camera parameters'''
         #dir is rel to this python file:
@@ -172,6 +188,11 @@ class CameraGroundModule(mp_module.MPModule):
 
     def start_gcs_bsend(self):
         '''start up block senders for GCS side'''
+        if self.msend is None:
+            self.msocket = cuav_command.MavSocket(self.mpstate.mav_master[0])
+            self.msend = block_xmit.BlockSender(mss=96, sock=self.msocket, dest_ip='mavlink',
+                                                dest_port=0, backlog=5, debug=False)
+            self.msend.set_bandwidth(500)
         if len(self.bsend) == 0:
             for lnk in self.camera_settings.air_address.split(','):
                 try:
@@ -184,6 +205,7 @@ class CameraGroundModule(mp_module.MPModule):
                 except:
                     print("Bad Air endpoint (must be remIP:remport:localport:bw): " + str(lnk))
                     pass
+        
 
     def view_threadfunc(self):
         '''image viewing thread - this runs on the ground station'''
@@ -229,6 +251,9 @@ class CameraGroundModule(mp_module.MPModule):
             for bsnd in self.bsend:
                 bsnd.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue)
                 self.check_commands(bsnd)
+            if self.msend is not None:
+                self.msend.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue)
+                self.check_commands(self.msend)
             self.send_heartbeats()
 
         #ensure the mosiac is closed at end of thread
@@ -354,7 +379,9 @@ class CameraGroundModule(mp_module.MPModule):
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
-        pass
+        if m.get_type() in [ 'DATA16', 'DATA32', 'DATA64', 'DATA96' ]:
+            if self.msocket is not None:
+                self.msocket.incoming.append(m)
 
     def check_requested_images(self, mosaic):
         '''check if the user has requested download of an image'''
@@ -365,9 +392,9 @@ class CameraGroundModule(mp_module.MPModule):
             print("Requesting image %s" % frame_time)
             self.send_object(pkt, priority=10000)
 
-    def send_packet(self, pkt):
+    def send_packet(self, pkt, bsnd=None):
         '''send a packet from GCS'''
-        self.send_object(pkt, priority=10000)
+        self.send_object(pkt, priority=10000, bsnd=bsnd)
 
     def send_heartbeat(self):
         '''send a heartbeat'''
@@ -384,10 +411,17 @@ class CameraGroundModule(mp_module.MPModule):
         if obj.blockid is not None:
             for bsnd in self.bsend:
                 bsnd.cancel(obj.blockid)
+            if self.msend is not None:
+                self.msend.cancel(obj.blockid)
 
-    def send_object(self, obj, priority):
+    def send_object(self, obj, priority, bsnd=None):
         buf = cPickle.dumps(obj, cPickle.HIGHEST_PROTOCOL)
         #only send if the queue is not clogged
+        if bsnd is not None:
+            if bsnd.sendq_size() < self.camera_settings.maxqueue:
+                obj.blockid = bsnd.send(buf, priority=priority,
+                                        callback=functools.partial(self.send_object_complete, obj))
+            return
         for bsnd in self.bsend:
             if bsnd.sendq_size() < self.camera_settings.maxqueue:
                 obj.blockid = bsnd.send(buf, priority=priority,
