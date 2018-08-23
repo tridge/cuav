@@ -20,7 +20,7 @@ ifconfig eth1 192.168.8.100/24 up
 
 ping -q -c 2 $OZLABSORG || {
     route del default
-    route add default gw $TELSTRAGW
+    route add default gw $TELSTRAGW dev usb0
     wget -O /dev/null "http://$TELSTRAGW/goform/goform_set_cmd_process?goformId=CONNECT_NETWORK"
 }
 
