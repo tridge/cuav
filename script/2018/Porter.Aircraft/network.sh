@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 export PATH=/sbin:/usr/sbin:/bin:/usr/bin
 
 cd /root
