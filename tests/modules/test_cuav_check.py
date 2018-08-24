@@ -90,6 +90,7 @@ def test_toggle_LandingZone(mpstate):
 def test_toggle_JoeZone(mpstate):
     '''toggle the Joe zone on the map'''
     loadedModule = cuav_check.init(mpstate)
+    loadedModule.mpstate.public_modules['link'] = mock.Mock()
 
     loadedModule.toggle_JoeZone()
     assert loadedModule.target == None

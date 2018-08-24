@@ -22,6 +22,7 @@ def mpstate():
     mpstatetmp.command_map = {}
     mpstatetmp.completions = {}
     mpstatetmp.completion_functions = {}
+    mpstatetmp.mav_master = [mock.Mock()]
     return mpstatetmp
 
 
