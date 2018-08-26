@@ -3,7 +3,7 @@
 import numpy, os, time, cv2, sys, math, sys, glob, argparse
 import multiprocessing
 
-from cuav.lib import cuav_util
+from cuav.lib import cuav_util, cuav_landingregion
 from cuav.image import scanner
 from cuav.lib import cuav_mosaic, mav_position, cuav_joe, cuav_region
 from cuav.camera import cam_params
@@ -128,7 +128,7 @@ def process(args):
     target = args.target.split(',')
   else:
     target = [0,0,0]
-    
+
   camera_settings = MPSettings(
     [ MPSetting('roll_stabilised', bool, args.roll_stabilised, 'Roll Stabilised'),
       MPSetting('pitch_stabilised', bool, args.pitch_stabilised, 'Pitch Stabilised'),
@@ -138,6 +138,7 @@ def process(args):
       MPSetting('minalt', int, 30, 'MinAltitude', range=(0,10000), increment=1),
       MPSetting('mpp100', float, 0.0977, 'MPPat100m', range=(0,10000), increment=0.001),
       MPSetting('rotate180', bool, False, 'rotate180'),
+      MPSetting('showlz', bool, args.showlz, 'Show calculated landing zone from regions'),
       MPSetting('filter_type', str, 'simple', 'Filter Type',
                 choice=['simple']),
       MPSetting('target_lattitude', float, float(target[0]), 'target latitude', increment=1.0e-7),
@@ -148,7 +149,7 @@ def process(args):
       MPSetting('map_thumbsize', int, args.map_thumbsize, 'Map Thumbnail Size', range=(10, 200), increment=1),
       MPSetting('minscore', int, args.minscore, 'Min Score', range=(0,1000), increment=1, tab='Scoring'),
       MPSetting('brightness', float, 1.0, 'Display Brightness', range=(0.1, 10), increment=0.1,
-                digits=2, tab='Display'),      
+                digits=2, tab='Display'),
       ],
     title='Camera Settings'
     )
@@ -164,7 +165,7 @@ def process(args):
       MPSetting('SaveIntermediate', bool, args.debug)
       ],
     title='Image Settings')
-  
+
   mosaic = cuav_mosaic.Mosaic(slipmap, C=C_params,
                               camera_settings=camera_settings,
                               image_settings=image_settings,
@@ -174,6 +175,8 @@ def process(args):
                               map_thumb_size=args.map_thumbsize)
 
   joelog = cuav_joe.JoeLog(None)
+
+  lz = cuav_landingregion.LandingZone()
 
   if args.view:
     viewer = mp_image.MPImage(title='Image', can_zoom=True, can_drag=True)
@@ -190,7 +193,7 @@ def process(args):
 
       if mpos:
         # get the position by interpolating telemetry data from the MAVLink log file
-        # this assumes that the filename contains the timestamp 
+        # this assumes that the filename contains the timestamp
         if gamma is not None:
           frame_time = parse_gamma_time(f, gamma)
         else:
@@ -290,6 +293,17 @@ def process(args):
 
       mosaic.add_image(pos.time, f, pos)
 
+      if camera_settings.showlz:
+          for r in regions:
+            lz.checkaddregion(r)
+          #if lz.landingzoneconfidence and lz.landingzoneconfidence < 20:
+          #  print("Refining LZ")
+          if lz.calclandingzone():
+            print("LZ found at %s" % (lz.landingzone,))
+            print("LZ extent is %.2fm with score %u" % (lz.landingzonemaxrange, lz.landingzonemaxscore))
+            slipmap.add_object(mp_slipmap.SlipCircle('LZ', 'LZ', lz.landingzone, lz.landingzonemaxrange,
+                                     linewidth=3, color=(0,255,0)))
+
       region_count += len(regions)
 
       if len(regions) > 0:
@@ -358,10 +372,11 @@ def parse_args():
     parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
     parser.add_argument("--start", default=False, action='store_true', help="start straight away")
     parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
+    parser.add_argument("--showlz", default=False, action='store_true', help="Show calculated landing zone from regions")
     return parser.parse_args()
 
 
-    
+
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     args = parse_args()
