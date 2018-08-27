@@ -11,7 +11,7 @@ from MAVProxy.modules.lib import mp_module, mp_image
 from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 
-from cuav.lib import cuav_mosaic, cuav_util, cuav_joe, block_xmit, cuav_command
+from cuav.lib import cuav_mosaic, cuav_util, cuav_joe, block_xmit, cuav_command, cuav_landingregion
 from cuav.camera.cam_params import CameraParams
 
 
@@ -357,6 +357,16 @@ class CameraGroundModule(mp_module.MPModule):
         if isinstance(obj, cuav_command.CameraMessage):
             print('CUAV AIR REMOTE: %s' % obj.msg)
 
+        if isinstance(obj, cuav_landingregion.LandingZoneDisplay):
+            lzresult = obj
+            self.mpstate.map.add_object(mp_slipmap.SlipCircle('LZ', 'LZ', lzresult.latlon, lzresult.maxrange,
+                                        linewidth=3, color=(0,255,0)))
+            self.mpstate.map.add_object(mp_slipmap.SlipCircle('LZMid', 'LZMid', lzresult.latlon, 2.0,
+                                        linewidth=3, color=(0,255,0)))
+            lztext = 'LZ: %s err:%.1f score:%.0f N:%u ' % (lzresult.latlon, lzresult.maxrange, lzresult.avgscore, lzresult.numregions)
+            self.mpstate.map.add_object(mp_slipmap.SlipInfoText('landingzone', lztext))
+            
+            
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
         '''add to joe_ground.log if possible, returning a list of (lat,lon) tuples
         for the positions of the identified image regions'''

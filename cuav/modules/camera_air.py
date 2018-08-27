@@ -16,7 +16,7 @@ import functools, cv2, pkg_resources
 from MAVProxy.modules.lib import mp_module
 
 from cuav.image import scanner
-from cuav.lib import mav_position, cuav_util, cuav_joe, block_xmit, cuav_region, cuav_command
+from cuav.lib import mav_position, cuav_util, cuav_joe, block_xmit, cuav_region, cuav_command, cuav_landingregion
 from MAVProxy.modules.lib import mp_settings
 from cuav.camera.cam_params import CameraParams
 from pymavlink import mavutil
@@ -39,6 +39,7 @@ class CameraAirModule(mp_module.MPModule):
         self.imagefilenamemapping = {}
         self.posmapping = {}
         self.is_armed = True
+        self.lz = cuav_landingregion.LandingZone()
 
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.camera_settings = MPSettings(
@@ -312,6 +313,15 @@ class CameraAirModule(mp_module.MPModule):
                 if r.score > high_score:
                     high_score = r.score
 
+            if len(regions) > 0 and pos is not None:
+                for r in regions:
+                    self.lz.checkaddregion(r, pos)
+                lzresult = self.lz.calclandingzone()
+                if lzresult:
+                    self.send_object(lzresult, 100000, None)
+                    if self.msend is not None:
+                        self.send_object(lzresult, 100000, self.msend)
+                    
             if len(regions) > 0 and self.camera_settings.transmit:
                 # send a region message with thumbnails to the ground station
                 thumb_img = cuav_region.CompositeThumbnail(img_scan, regions,
