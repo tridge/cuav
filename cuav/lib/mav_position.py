@@ -105,17 +105,14 @@ class MavInterpolator():
         self.backlog = backlog
         self.attitude = []
         self.global_position_int = []
-        self.scaled_pressure = []
         self.terrain_report = []
         self.msg_map = {
             'GLOBAL_POSITION_INT' : self.global_position_int,
             'ATTITUDE' : self.attitude,
-            'SCALED_PRESSURE' : self.scaled_pressure,
             'TERRAIN_REPORT' : self.terrain_report
             }
         self.mlog = None
         self.ground_pressure = None
-        self.ground_temperature = None
         self.usec_base = 0
         self.boot_offset = 0
         self.last_msg_time = 0
@@ -149,17 +146,6 @@ class MavInterpolator():
     def add_msg(self, msg):
         '''add in a mavlink message'''
         type = msg.get_type()
-        if type == 'SCALED_PRESSURE':
-            if self.ground_pressure is None:
-                self.ground_pressure = msg.press_abs
-            if self.ground_temperature is None:
-                self.ground_temperature = msg.temperature * 0.01
-        if type == 'PARAM_VALUE':
-            '''get ground pressure and temperature for altitude'''
-            if str(msg.param_id) == 'GND_ABS_PRESS':
-                self.ground_pressure = msg.param_value
-            if str(msg.param_id) == 'GND_TEMP':
-                self.ground_temperature = msg.param_value
         if type in self.msg_map:
             '''add it to the history'''
             self.msg_map[type].append(msg)
@@ -167,24 +153,18 @@ class MavInterpolator():
             while len(self.msg_map[type]) > self.backlog:
                 self.msg_map[type].pop(0)
         if self.jitter_correction:
-            if type in ['ATTITUDE', 'GLOBAL_POSITION_INT', 'SCALED_PRESSURE']:
+            if type in ['ATTITUDE', 'GLOBAL_POSITION_INT']:
                 timestamp_corrected = self.jitter.correct_timestamp(msg.time_boot_ms*0.001, msg._timestamp)
                 #print(msg._timestamp - timestamp_corrected)
                 msg._timestamp = timestamp_corrected
             else:
                 msg._timestamp = self.jitter.correct_local(msg._timestamp)
             
-    def _altitude(self, SCALED_PRESSURE, TERRAIN_REPORT):
-        '''calculate barometric altitude relative to the ground'''
+    def _altitude(self, GLOBAL_POSITION_INT, TERRAIN_REPORT):
+        '''get height above the ground'''
         if TERRAIN_REPORT is not None:
             return TERRAIN_REPORT.current_height
-        if self.ground_pressure is None:
-            self.ground_pressure = SCALED_PRESSURE.press_abs
-        if self.ground_temperature is None:
-            self.ground_temperature = SCALED_PRESSURE.temperature * 0.01
-        scaling = self.ground_pressure / (SCALED_PRESSURE.press_abs*100.0)
-        temp = self.ground_temperature + 273.15
-        return math.log(scaling) * temp * 29271.267 * 0.001
+        return GLOBAL_POSITION_INT.relative_alt*0.001
 
     def advance_log(self, t):
         '''read from the logfile to advance to time t'''
@@ -195,10 +175,8 @@ class MavInterpolator():
                 raw = 'GLOBAL_POSITION_INT'
                 gps_raw = self._find_msg(raw, t)
                 attitude = self._find_msg('ATTITUDE', t)
-                scaled_pressure = self._find_msg('SCALED_PRESSURE', t)
                 if (self.msg_map[raw][-1]._timestamp >= t and
-                    self.msg_map['ATTITUDE'][-1]._timestamp >= t and
-                    self.msg_map['SCALED_PRESSURE'][-1]._timestamp >= t):
+                    self.msg_map['ATTITUDE'][-1]._timestamp >= t):
                     return
             except MavInterpolatorException:
                 pass
@@ -262,7 +240,6 @@ class MavInterpolator():
                                           gps_raw.hdg*0.01,
                                           velocity * (gpst - gps_timestamp))
 
-        scaled_pressure = self._find_msg('SCALED_PRESSURE', t)
         terrain_report = None
         if len(self.terrain_report) > 0:
             terrain_report = self._find_msg('TERRAIN_REPORT', t)
@@ -274,7 +251,7 @@ class MavInterpolator():
                         terrain_report = None
 
         # get altitude
-        altitude = self._altitude(scaled_pressure, terrain_report)
+        altitude = self._altitude(gps_raw, terrain_report)
 
         # and attitude
         if roll is None:
