@@ -295,13 +295,14 @@ def process(args):
 
       if camera_settings.showlz:
           for r in regions:
-            lz.checkaddregion(r)
+            if r.score >= camera_settings.minscore and pos is not None:
+                lz.checkaddregion(r, pos)
           #if lz.landingzoneconfidence and lz.landingzoneconfidence < 20:
           #  print("Refining LZ")
           if lz.calclandingzone():
-            print("LZ found at %s" % (lz.landingzone,))
-            print("LZ extent is %.2fm with score %u" % (lz.landingzonemaxrange, lz.landingzonemaxscore))
             slipmap.add_object(mp_slipmap.SlipCircle('LZ', 'LZ', lz.landingzone, lz.landingzonemaxrange,
+                                     linewidth=3, color=(0,255,0)))
+            slipmap.add_object(mp_slipmap.SlipCircle('LZMid', 'LZMid', lz.landingzone, 2.0,
                                      linewidth=3, color=(0,255,0)))
 
       region_count += len(regions)
