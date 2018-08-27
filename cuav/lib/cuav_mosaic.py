@@ -69,7 +69,9 @@ class Mosaic():
                  image_settings = None,
                  start_menu=False,
                  classify=None,
-                 image_view_width=700):
+                 image_view_width=700,
+                 search_map=None,
+                 lz_map=None):
         if C is None:
             raise ValueError("camera parameters must be supplied")
         self.thumb_size = thumb_size
@@ -112,6 +114,15 @@ class Mosaic():
                                              auto_size=False,
                                              report_size_changes=True)
         self.slipmap = slipmap
+        self.search_map = search_map
+        self.lz_map = lz_map
+        self.allmaps = [slipmap]
+        if self.search_map:
+            self.allmaps.append(self.search_map)
+        if self.lz_map:
+            self.allmaps.append(self.lz_map)
+        print("allmaps: ", self.allmaps)
+            
         self.selected_region = 0
 
         self.view_image = None
@@ -120,7 +131,8 @@ class Mosaic():
         # dictionary of image requests, contains True if fullres image is wanted
         self.image_requests = {}
 
-        self.slipmap.add_callback(functools.partial(self.map_callback))
+        for m in self.allmaps:
+            m.add_callback(functools.partial(self.map_callback))
 
         if classify:
             import lxml.objectify, lxml.etree
@@ -404,7 +416,8 @@ class Mosaic():
         for i in range(count):
             r = self.regions_sorted.pop(first)
             self.regions_hidden.add(r.ridx)
-            self.slipmap.hide_object("region %u" % r.ridx)
+            for m in self.allmaps:
+                m.hide_object("region %u" % r.ridx)
         self.redisplay_mosaic()
         self.change_page(self.page)
 
@@ -413,13 +426,15 @@ class Mosaic():
         while len(self.regions_sorted) > 50:
             r = self.regions_sorted.pop(len(self.regions_sorted)-1)
             self.regions_hidden.add(r.ridx)
-            self.slipmap.hide_object("region %u" % r.ridx)
+            for m in self.allmaps:
+                m.hide_object("region %u" % r.ridx)
         
     def unhide_all(self):
         '''unhide all pages in mosaic'''
         for ridx in self.regions_hidden:
             self.regions_sorted.append(self.regions[ridx])
-            self.slipmap.hide_object("region %u" % ridx, hide=False)
+            for m in self.allmaps:
+                m.hide_object("region %u" % ridx, hide=False)
         self.regions_hidden = set()
         self.redisplay_mosaic()
 
@@ -592,11 +607,12 @@ class Mosaic():
             if latlon is None:
                 return
             icon = self.slipmap.icon('flag.png')
-            self.slipmap.add_object(mp_slipmap.SlipIcon('Marker-%u' % self.current_view,
-                                                        latlon=latlon,
-                                                        layer='Markers',
-                                                        img=icon,
-                                                        follow=False))
+            for m in self.allmaps:
+                m.add_object(mp_slipmap.SlipIcon('Marker-%u' % self.current_view,
+                                                 latlon=latlon,
+                                                 layer='Markers',
+                                                 img=icon,
+                                                     follow=False))
 
 
     def pos_to_region(self, pos):
@@ -801,7 +817,8 @@ class Mosaic():
                                                  border_width=1,
                                                  border_colour=(255,0,0),
                                                  popup_menu=self.popup_menu)
-                self.slipmap.add_object(slobj)
+                for m in self.allmaps:
+                    m.add_object(slobj)
 
         self.image_mosaic.set_image(self.mosaic)
         if self.autorefresh:

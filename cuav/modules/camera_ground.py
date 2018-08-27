@@ -232,10 +232,21 @@ class CameraGroundModule(mp_module.MPModule):
         self.console.set_status('ThumbSize', 'ThumbSize %.0f' % 0.0, row=7)
         self.console.set_status('ImageSize', 'ImageSize %.0f' % 0.0, row=7)
 
+        # give time for maps to init
+        time.sleep(3)
+        
+        map2 = self.module("map2")
+        map3 = self.module("map3")
+        if map2:
+            search_map = map2.map
+        if map3:
+            lz_map = map3.map
+
         self.mosaic = cuav_mosaic.Mosaic(slipmap=self.mpstate.map, C=self.c_params,
                                          camera_settings=None,
                                          image_settings=None,
-                                         thumb_size=self.camera_settings.mosaic_thumbsize)
+                                         thumb_size=self.camera_settings.mosaic_thumbsize,
+                                         search_map=search_map, lz_map=lz_map)
 
         while not self.unload_event.wait(0.05):
             if self.boundary_polygon is not None:
@@ -359,13 +370,20 @@ class CameraGroundModule(mp_module.MPModule):
 
         if isinstance(obj, cuav_landingregion.LandingZoneDisplay):
             lzresult = obj
-            self.mpstate.map.add_object(mp_slipmap.SlipCircle('LZ', 'LZ', lzresult.latlon, lzresult.maxrange,
-                                        linewidth=3, color=(0,255,0)))
-            self.mpstate.map.add_object(mp_slipmap.SlipCircle('LZMid', 'LZMid', lzresult.latlon, 2.0,
-                                        linewidth=3, color=(0,255,0)))
-            lztext = 'LZ: %s err:%.1f score:%.0f N:%u ' % (lzresult.latlon, lzresult.maxrange, lzresult.avgscore, lzresult.numregions)
-            self.mpstate.map.add_object(mp_slipmap.SlipInfoText('landingzone', lztext))
-            
+            # display on all maps
+            for m in self.module_matching('map*'):
+                m.map.add_object(mp_slipmap.SlipCircle('LZ', 'LZ', lzresult.latlon, lzresult.maxrange,
+                                            linewidth=3, color=(0,255,0)))
+                m.map.add_object(mp_slipmap.SlipCircle('LZMid', 'LZMid', lzresult.latlon, 2.0,
+                                            linewidth=3, color=(0,255,0)))
+                lztext = 'LZ: %s err:%.1f score:%.0f N:%u ' % (lzresult.latlon, lzresult.maxrange, lzresult.avgscore, lzresult.numregions)
+                m.map.add_object(mp_slipmap.SlipInfoText('landingzone', lztext))
+            # assume map3 is the lz map
+            map3 = self.module('map3')
+            if map3 is not None:
+                map3.map.set_zoom(50)
+                map3.map.set_center(lzresult.latlon[0], lzresult.latlon[1])
+                map3.map.set_follow(0)
             
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
         '''add to joe_ground.log if possible, returning a list of (lat,lon) tuples
