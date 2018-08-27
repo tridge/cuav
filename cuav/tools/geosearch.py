@@ -299,10 +299,11 @@ def process(args):
                 lz.checkaddregion(r, pos)
           #if lz.landingzoneconfidence and lz.landingzoneconfidence < 20:
           #  print("Refining LZ")
-          if lz.calclandingzone():
-            slipmap.add_object(mp_slipmap.SlipCircle('LZ', 'LZ', lz.landingzone, lz.landingzonemaxrange,
+          lzresult = lz.calclandingzone()
+          if lzresult is not None:
+            slipmap.add_object(mp_slipmap.SlipCircle('LZ', 'LZ', lzresult.latlon, lzresult.maxrange,
                                      linewidth=3, color=(0,255,0)))
-            slipmap.add_object(mp_slipmap.SlipCircle('LZMid', 'LZMid', lz.landingzone, 2.0,
+            slipmap.add_object(mp_slipmap.SlipCircle('LZMid', 'LZMid', lzresult.latlon, 2.0,
                                      linewidth=3, color=(0,255,0)))
 
       region_count += len(regions)

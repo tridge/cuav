@@ -4,11 +4,16 @@ of detected regions.'''
 
 import cuav_util
 
+class LandingZoneDisplay:
+    '''this is a landing zone object for transmitting to the GCS for display purposes'''
+    def __init__(self, latlon, maxrange, avgscore, numregions):
+        self.latlon = latlon
+        self.maxrange = maxrange
+        self.avgscore = avgscore
+        self.numregions = numregions
+
 class LandingZone:
     def __init__(self):
-        self.landingzone = None
-        self.landingzonemaxrange = None
-        self.landingzonemaxscore = None
         self.regions = []
 
     def checkaddregion(self, r, pos):
@@ -48,7 +53,7 @@ class LandingZone:
 
         # we must have at least 10 samples
         if len(self.regions) < 10:
-            return False
+            return None
         
         # start by dropping the bottom 25% percentile by score. This removes
         # the likely bad matches
@@ -80,8 +85,5 @@ class LandingZone:
             d = self.distance_from(r, center)
             maxerror = max(d, maxerror)
             sumscore += r.score
-        
-        self.landingzone = center
-        self.landingzonemaxrange = maxerror
-        self.landingzonemaxscore = sumscore / len(regions)
-        return True
+
+        return LandingZoneDisplay(center, maxerror, sumscore / len(regions), len(regions))
