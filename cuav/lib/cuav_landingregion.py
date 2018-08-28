@@ -15,6 +15,8 @@ class LandingZoneDisplay:
 class LandingZone:
     def __init__(self):
         self.regions = []
+        self.last_len = 0
+        self.last_result = None
 
     def checkaddregion(self, r, pos):
         '''Add a region to the list of landing zone regions'''
@@ -49,12 +51,15 @@ class LandingZone:
          *) we want regions which have a wide range of yaw values
          *) we want to eliminate outliers
         '''
-        bestlz = None
+        if len(self.regions) == self.last_len:
+            return self.last_result
 
-        # we must have at least 10 samples
-        if len(self.regions) < 10:
+        self.last_len = len(self.regions)
+
+        # we must have at least 2 samples
+        if len(self.regions) < 2:
             return None
-        
+
         # start by dropping the bottom 25% percentile by score. This removes
         # the likely bad matches
 
@@ -86,4 +91,5 @@ class LandingZone:
             maxerror = max(d, maxerror)
             sumscore += r.score
 
-        return LandingZoneDisplay(center, maxerror, sumscore / len(regions), len(regions))
+        self.last_result = LandingZoneDisplay(center, maxerror, sumscore / len(regions), len(regions))
+        return self.last_result
