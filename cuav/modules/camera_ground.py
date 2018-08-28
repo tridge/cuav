@@ -371,17 +371,23 @@ class CameraGroundModule(mp_module.MPModule):
         if isinstance(obj, cuav_landingregion.LandingZoneDisplay):
             lzresult = obj
             # display on all maps
-            for m in self.module_matching('map*'):
+            for m in self.module_matching('map?'):
                 m.map.add_object(mp_slipmap.SlipCircle('LZ', 'LZ', lzresult.latlon, lzresult.maxrange,
                                             linewidth=3, color=(0,255,0)))
                 m.map.add_object(mp_slipmap.SlipCircle('LZMid', 'LZMid', lzresult.latlon, 2.0,
                                             linewidth=3, color=(0,255,0)))
                 lztext = 'LZ: %s err:%.1f score:%.0f N:%u ' % (lzresult.latlon, lzresult.maxrange, lzresult.avgscore, lzresult.numregions)
                 m.map.add_object(mp_slipmap.SlipInfoText('landingzone', lztext))
+            # assume map2 is the search map
+            map2 = self.module('map2')
+            if map2 is not None:
+                map2.map.set_zoom(250)
+                map2.map.set_center(lzresult.latlon[0], lzresult.latlon[1])
+                map2.map.set_follow(0)
             # assume map3 is the lz map
             map3 = self.module('map3')
             if map3 is not None:
-                map3.map.set_zoom(50)
+                map3.map.set_zoom(max(50, 2*lzresult.maxrange))
                 map3.map.set_center(lzresult.latlon[0], lzresult.latlon[1])
                 map3.map.set_follow(0)
             
