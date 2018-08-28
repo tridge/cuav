@@ -17,6 +17,13 @@ class ImagePacket(StampedCommand):
         self.pos = pos
         self.priority = priority
 
+class FilePacket(StampedCommand):
+    '''a general file send'''
+    def __init__(self, filename, contents):
+        StampedCommand.__init__(self)
+        self.filename = filename
+        self.contents = contents
+        
 class ThumbPacket(StampedCommand):
     '''a thumbnail region sent to the ground station'''
     def __init__(self, frame_time, regions, thumb, pos):

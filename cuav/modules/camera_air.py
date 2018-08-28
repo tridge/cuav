@@ -317,9 +317,9 @@ class CameraAirModule(mp_module.MPModule):
                     self.lz.checkaddregion(r, pos)
                 lzresult = self.lz.calclandingzone()
                 if lzresult:
-                    self.send_object(lzresult, 100000, None)
-                    if self.msend is not None:
-                        self.send_object(lzresult, 100000, self.msend)
+                    self.transmit_queue.put((lzresult, 100000, None))
+                    if self.msend:
+                        self.transmit_queue.put((lzresult, 100000, self.msend))
                     
             if len(regions) > 0 and self.camera_settings.transmit:
                 # send a region message with thumbnails to the ground station
@@ -413,6 +413,19 @@ class CameraAirModule(mp_module.MPModule):
         pkt = cuav_command.ImagePacket(frame_time, jpeg, pos, priority)
         self.transmit_queue.put((pkt, priority, linktosend))
 
+    def send_file(self, filename):
+        '''send a file over all links'''
+        try:
+            contents = open(filename).read()
+            filename = os.path.basename(filename)
+        except Exception:
+            return
+        pkt = cuav_command.FilePacket(filename, contents)
+        # send over all links
+        self.transmit_queue.put((pkt, 20000, None))
+        if self.msend:
+            self.transmit_queue.put((pkt, 20000, self.msend))
+        
     def start_aircraft_bsend(self):
         '''start bsend for aircraft side'''
         if len(self.bsend) == 0:
