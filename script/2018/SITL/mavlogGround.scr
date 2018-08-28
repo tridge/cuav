@@ -3,6 +3,11 @@ set moddebug 3
 # go via ozlabs proxy2
 camera set air_address 203.11.71.1:10406:14670:60000,203.11.71.1:10408:14671:60000
 camera set camparms /data/PiCamV2/params_half.json
+
+camera set target_latitude -35.362859
+camera set target_longitude 149.164086
+camera set target_radius 100.0
+
 camera view
 
 # search area map
@@ -15,3 +20,5 @@ module load map
 map3 follow 0
 map3 zoom 50
 
+module load cuav.modules.cuav_check
+cuavcheck toggleJoeZone

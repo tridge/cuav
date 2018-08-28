@@ -6,5 +6,10 @@ camera set camparms /data/PiCamV2/params_half.json
 camera set imagefile capture.jpg
 camera set minscore 1000
 camera set ignoretimestamps 1
+camera set target_latitude -35.362859
+camera set target_longitude 149.164086
+camera set target_radius 100.0
+
+module load cuav.modules.cuav_companion
 
 camera start
