@@ -15,7 +15,7 @@ if mp_util.has_wxpython:
 
 class CUAVModule(mp_module.MPModule):
     def __init__(self, mpstate):
-        super(CUAVModule, self).__init__(mpstate, "CUAV", "CUAV checks")
+        super(CUAVModule, self).__init__(mpstate, "CUAV", "CUAV checks", public=True)
         self.console.set_status('RPM', 'RPM: --', row=8, fg='black')
         self.console.set_status('RFind', 'RFind: --', row=8, fg='black')
         self.console.set_status('Button', 'Button: --', row=8, fg='black')
@@ -63,6 +63,30 @@ class CUAVModule(mp_module.MPModule):
             self.mpstate.map.remove_object('LandingZoneOuter')
             self.mpstate.map.remove_object('LandingZone')
 
+    def show_JoeZone(self):
+        '''show the UAV Challenge landing zone around the clicked point'''
+        from MAVProxy.modules.mavproxy_map import mp_slipmap
+        camera = self.module('camera_ground')
+        if camera is None:
+            print("camera_ground module is not loaded")
+            return
+        target = (camera.camera_settings.target_latitude,
+                  camera.camera_settings.target_longitude,
+                  camera.camera_settings.target_radius)
+        self.target = target
+
+        for m in self.module_matching('map*'):
+            m.map.add_object(mp_slipmap.SlipClearLayer('JoeZone'))
+            m.map.add_object(mp_slipmap.SlipCircle('JoeZoneCircle', layer='JoeZone',
+                                                   latlon=(target[0],target[1]), radius=target[2], linewidth=2, color=(0,0,128)))
+
+    def hide_JoeZone(self):
+        '''hide the UAV Challenge landing zone around the clicked point'''
+        from MAVProxy.modules.mavproxy_map import mp_slipmap
+        for m in self.module_matching('map*'):
+            m.map.remove_object('JoeZoneCircle')
+            m.map.remove_object('JoeZone')
+            
     def toggle_JoeZone(self):
         '''show/hide the UAV Challenge landing zone around the clicked point'''
         from MAVProxy.modules.mavproxy_map import mp_slipmap
@@ -81,15 +105,11 @@ class CUAVModule(mp_module.MPModule):
                   camera.camera_settings.target_radius)
         self.target = target
 
-        'Create a new layer with given radius around the above point'
         if self.showJoeZone:
-            self.mpstate.map.add_object(mp_slipmap.SlipClearLayer('JoeZone'))
-            self.mpstate.map.add_object(mp_slipmap.SlipCircle('JoeZoneCircle', layer='JoeZone',
-                                                              latlon=(target[0],target[1]), radius=target[2], linewidth=2, color=(0,0,128)))
+            self.show_JoeZone()
         else:
-            self.mpstate.map.remove_object('JoeZoneCircle')
-            self.mpstate.map.remove_object('JoeZone')
-
+            self.hide_JoeZone()
+            
     def cmd_cuavcheck(self, args):
         '''handle cuavcheck commands'''
         usage = 'Usage: cuavcheck <set>'

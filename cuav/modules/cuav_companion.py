@@ -40,7 +40,18 @@ class CUAVCompanionModule(mp_module.MPModule):
         self.last_lz_latlon = None
         self.last_wp_list = None
         self.started_landing = False
+        self.updated_waypoints = False
 
+    def send_message(self, msg):
+        '''send a msg to GCS for display'''
+        msg = "cuav: " + msg
+        print(msg)
+        try:
+            cam = self.module('camera_air')
+            cam.send_message(msg)
+        except Exception as ex:
+            print("err: ", ex)
+        
     def cmd_cuav(self, args):
         '''handle cuav commands'''
         if len(args) < 1:
@@ -109,7 +120,7 @@ class CUAVCompanionModule(mp_module.MPModule):
         else:
             led_state = LED_GREEN
         if led_state != self.led_state:
-            print("Changing LEDs to: %s" % led_state[2])
+            self.send_message("Changing LEDs to: %s" % str(led_state))
             self.set_leds(led_state)
 
     def update_mission(self):
@@ -119,17 +130,33 @@ class CUAVCompanionModule(mp_module.MPModule):
             self.cuav_settings.wp_end == 0):
             # not configured
             return
-        if self.started_landing:
-            # no more to do
-            return
 
         # run every 5 seconds
         if self.last_attitude_ms - self.last_mission_check_ms < 5000:
             return
         self.last_mission_check_ms = self.last_attitude_ms
+        
+        if self.updated_waypoints:
+            wpmod = self.module('wp')
+            cam = self.module('camera_air') 
+            if wpmod.loading_waypoints:
+                self.send_message("listing waypoints")                
+                wpmod.cmd_wp(["list"])
+            else:
+                self.send_message("sending waypoints")
+                self.updated_waypoints = False
+                wploader = wpmod.wploader
+                wploader.save("newwp.txt")
+                cam.send_file("newwp.txt")
+        
+        if self.started_landing:
+            # no more to do
+            return
+
         if self.last_attitude_ms - self.last_wp_move < 2*60*1000:
             # only move waypoints every 2 minutes
             return
+        
         try:
             wpmod = self.module('wp')
             cam = self.module('camera_air') 
@@ -138,20 +165,25 @@ class CUAVCompanionModule(mp_module.MPModule):
             target_longitude = cam.camera_settings.target_longitude
             target_radius = cam.camera_settings.target_radius
         except Exception:
-            pass
+            self.send_message("target not set")
+            return
+        
         lzresult = lz.calclandingzone()
         if lzresult is None:
+            self.send_message("no lzresult")
             return
+        
+        self.send_message("lzresult nr:%u avgscore:%u" % (lzresult.numregions, lzresult.avgscore))
+        
         if lzresult.numregions < 5 and lzresult.avgscore < 20000:
             # only accept short lists if they have high scores
             return
-        if lzresult.latlon == self.last_lz_latlon:
-            # no change
-            return
+        
         (lat, lon) = lzresult.latlon
         # check it is within the target radius
         if target_radius > 0:
             dist = cuav_util.gps_distance(lat, lon, target_latitude, target_longitude)
+            self.send_message("dist %u" % dist)
             if dist > target_radius:
                 return
             # don't move more than 70m from the center of the search, this keeps us
@@ -161,19 +193,22 @@ class CUAVCompanionModule(mp_module.MPModule):
                 (lat, lon) = cuav_util.gps_newpos(target_latitude, target_longitude, bearing, 70.0)
 
         # we may need to fetch the wp list
-        if self.last_wp_list is None or self.last_attitude_ms - self.last_wp_list > 120000:
+        if self.last_wp_list is None or self.last_attitude_ms - self.last_wp_list > 120000 or wpmod.loading_waypoints:
             self.last_wp_list = self.last_attitude_ms
+            self.send_message("fetching waypoints")
             wpmod.cmd_wp(["list"])
             return
         
         self.last_wp_move = self.last_attitude_ms
-        print("Moving search to: ", (lat, lon))
+        self.send_message("Moving search to: (%f,%f)" % (lat, lon))
         wpmod.cmd_wp_movemulti([self.cuav_settings.wp_center, self.cuav_settings.wp_start, self.cuav_settings.wp_end], (lat,lon))
         self.wp_move_count += 1
+        
         if self.cuav_settings.wp_land > 0 and self.wp_move_count >= 2 and lzresult.numregions > 10:
-            print("Starting landing")
+            self.send_message("Starting landing")
             self.master.waypoint_set_current_send(self.cuav_settings.wp_land)
             self.started_landing = True
+        self.updated_waypoints = True
             
             
     def mavlink_packet(self, m):
@@ -188,7 +223,7 @@ class CUAVCompanionModule(mp_module.MPModule):
         if m.get_type() == 'COMMAND_ACK' and m.command == mavutil.mavlink.MAV_CMD_DO_SET_RELAY and self.ack_wait > 0:
             self.ack_wait -= 1
             if self.ack_wait == 0:
-                print("LEDs updated: %s" % self.led_state[2])
+                self.send_message("LEDs updated: %s" % self.led_state[2])
         if m.get_type() == 'ATTITUDE':
             if m.time_boot_ms < self.last_attitude_ms:
                 self.led_state = None

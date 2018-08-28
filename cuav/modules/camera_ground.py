@@ -390,7 +390,28 @@ class CameraGroundModule(mp_module.MPModule):
                 map3.map.set_zoom(max(50, 2*lzresult.maxrange))
                 map3.map.set_center(lzresult.latlon[0], lzresult.latlon[1])
                 map3.map.set_follow(0)
+            try:
+                cuav = self.module('CUAV')
+                cuav.show_JoeZone()
+            except Exception as ex:
+                print("err: ", ex)
+                return
+
+        if isinstance(obj, cuav_command.FilePacket):
+            print("got file %s" % obj.filename)
+            try:
+                open(obj.filename,"w").write(obj.contents)
+            except Exception as ex:
+                print("file save failed", ex)
+                return
+            if obj.filename == "newwp.txt":
+                try:
+                    wpmod = self.module('wp')
+                    wpmod.wploader.load(obj.filename)
+                except Exception as ex:
+                    print("wp load failed", ex)
             
+                
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
         '''add to joe_ground.log if possible, returning a list of (lat,lon) tuples
         for the positions of the identified image regions'''
