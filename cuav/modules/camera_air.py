@@ -118,7 +118,6 @@ class CameraAirModule(mp_module.MPModule):
                          'camera control',
                          ['<start|stop|status|boundary|airstart>',
                           'set (CAMERASETTING)'])
-        self.add_completion_function('(CAMERASETTING)', self.settings.completion)
         self.add_completion_function('(CAMERASETTING)', self.camera_settings.completion)
 
         # prevent loopback of messages
