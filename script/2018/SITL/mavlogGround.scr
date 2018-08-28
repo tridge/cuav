@@ -1,4 +1,5 @@
 set moddebug 3
+set streamrate -1
 
 # go via ozlabs proxy2
 camera set air_address 203.11.71.1:10406:14670:60000,203.11.71.1:10408:14671:60000

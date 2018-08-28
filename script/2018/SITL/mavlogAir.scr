@@ -24,6 +24,7 @@ cuav set wp_center 11
 cuav set wp_start 10
 cuav set wp_end 22
 cuav set wp_land 17
+set streamrate -1
 
 
 
