@@ -21,7 +21,7 @@ class LandingZone:
     def checkaddregion(self, r, pos):
         '''Add a region to the list of landing zone regions'''
         # remember the bank angle and yaw for weighting
-        r.angle = pos.roll + pos.pitch
+        r.angle = abs(pos.roll) + abs(pos.pitch)
         r.yaw = pos.yaw
         self.regions.append(r)
 
