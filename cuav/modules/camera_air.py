@@ -158,7 +158,7 @@ class CameraAirModule(mp_module.MPModule):
             print("Stopped cuav")
             self.send_message("Stopped cuav")
         elif args[0] == "status":
-            ret = "Cap imgs:%u err:%u scan:%u regions:%u jsize:%.0f xmitq:%s sq:%.1f eff:%s" % (
+            ret = "Cap imgs:%u err:%u scan:%u regions:%u jsize:%.0f xmitq:%s sq:%u eff:%s" % (
                 self.capture_count, self.error_count, self.scan_count,
                 self.region_count,
                 self.jpeg_size,
