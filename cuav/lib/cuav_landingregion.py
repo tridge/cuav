@@ -74,6 +74,9 @@ class LandingZone:
         regions.sort(key = lambda r : r.angle, reverse=False)
         regions = regions[:-len(regions)/4]
 
+        if len(regions) < 1:
+            return None
+        
         # find average position
         center = self.average_pos(regions)
 
