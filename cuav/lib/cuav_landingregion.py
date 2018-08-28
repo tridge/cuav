@@ -84,6 +84,9 @@ class LandingZone:
         regions.sort(key = lambda r : self.distance_from(r, center), reverse=False)
         regions = regions[:-len(regions)/5]
 
+        if len(regions) < 1:
+            return None
+        
         # re-calculate center
         center = self.average_pos(regions)
 
