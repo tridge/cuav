@@ -69,6 +69,10 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),
               MPSetting('m_minscore', int, 20000, 'Min Score to pass detection on mavlink', range=(0,100000), increment=1, tab='Imaging'),
               MPSetting('m_bandwidth', int, 500, 'max bandwidth on mavlink', increment=1, tab='GCS'),
+              MPSetting('preview', bool, False, 'enable camera preview window', tab='Imaging'),              
+              MPSetting('previewquality', int, 40, 'Compression Quality for preview', range=(1,100), increment=1, tab='Imaging'),
+              MPSetting('previewscale', int, 4, 'preview downscaling', range=(1,10), increment=1, tab='Imaging'),
+              MPSetting('previewfreq', int, 1, 'preview image frequency', range=(1,10), increment=1, tab='Imaging'),
               ],
             title='Camera Settings'
             )
@@ -277,6 +281,9 @@ class CameraAirModule(mp_module.MPModule):
                                                  min_score=self.camera_settings.minscore,
                                                  filter_type=self.camera_settings.filter_type)
             self.region_count += len(regions)
+
+            # possibly send a preview image
+            self.send_preview(img_scan)
             
             if self.camera_settings.roll_stabilised:
                 roll=0
@@ -413,6 +420,21 @@ class CameraAirModule(mp_module.MPModule):
         pkt = cuav_command.ImagePacket(frame_time, jpeg, pos, priority)
         self.transmit_queue.put((pkt, priority, linktosend))
 
+    def send_preview(self, img):
+        '''send a preview image object to the GCS'''
+        if not self.camera_settings.preview or self.transmit_queue.qsize() > 3:
+            # only send when link is nearly idle
+            return
+        if self.scan_count % self.camera_settings.previewfreq != 0:
+            return
+        scale = 1.0 / self.camera_settings.previewscale
+        small_img = cv2.resize(img, (0,0), fx=scale, fy=scale)
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.camera_settings.previewquality]
+        (result, jpeg) = cv2.imencode('.jpg', small_img, encode_param)
+
+        pkt = cuav_command.PreviewPacket(jpeg)
+        self.transmit_queue.put((pkt, 1, None))
+        
     def send_file(self, filename):
         '''send a file over all links'''
         try:

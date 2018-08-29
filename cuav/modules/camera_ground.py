@@ -73,6 +73,8 @@ class CameraGroundModule(mp_module.MPModule):
 
         self.c_params = None
 
+        self.preview_window = None
+
         self.add_command('camera', self.cmd_camera,
                          'camera control',
                          ['<status|view|boundary>',
@@ -410,7 +412,15 @@ class CameraGroundModule(mp_module.MPModule):
                     wpmod.wploader.load(obj.filename)
                 except Exception as ex:
                     print("wp load failed", ex)
-            
+
+        if isinstance(obj, cuav_command.PreviewPacket):
+            # we have a preview image from the plane
+            img = cv2.imdecode(obj.jpeg, 1)
+            if self.preview_window is None or not self.preview_window.is_alive():
+                self.preview_window = mp_image.MPImage(title='Preview', width=410, height=308, auto_size=True)
+            if self.preview_window is not None:
+                self.preview_window.set_image(img, bgr=False)
+                    
                 
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
         '''add to joe_ground.log if possible, returning a list of (lat,lon) tuples
