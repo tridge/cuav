@@ -186,7 +186,6 @@ class CUAVCompanionModule(mp_module.MPModule):
         
         lzresult = lz.calclandingzone()
         if lzresult is None:
-            self.send_message("no lzresult")
             return
         
         self.send_message("lzresult nr:%u avgscore:%u" % (lzresult.numregions, lzresult.avgscore))
