@@ -62,13 +62,14 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('gcs_address', str, "", 'GCS Addresses in RemIP:RemPort:LocalPort:Bandwidth format (127.0.0.1:1440:1234:45, ...)', tab='GCS'),
               MPSetting('qualitysend', int, 90, 'Compression Quality for send', range=(1,100), increment=1, tab='GCS'),
               MPSetting('transmit', bool, True, 'Transmit Enable for thumbnails', tab='GCS'),
-              MPSetting('maxqueue', int, 100, 'Maximum images queue', tab='GCS'),
+              MPSetting('maxqueue', int, 50, 'Maximum images queue', tab='GCS'),
 
               MPSetting('thumbsize', int, 60, 'Thumbnail Size', range=(10, 200), increment=1),
               MPSetting('minscore', int, 1000, 'Min Score to pass detection', range=(0,100000), increment=1, tab='Imaging'),
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),
               MPSetting('m_minscore', int, 20000, 'Min Score to pass detection on mavlink', range=(0,100000), increment=1, tab='Imaging'),
               MPSetting('m_bandwidth', int, 500, 'max bandwidth on mavlink', increment=1, tab='GCS'),
+              MPSetting('m_maxqueue', int, 5, 'Maximum images queue for mavlink', tab='GCS'),
               MPSetting('preview', bool, False, 'enable camera preview window', tab='Imaging'),              
               MPSetting('previewquality', int, 40, 'Compression Quality for preview', range=(1,100), increment=1, tab='Imaging'),
               MPSetting('previewscale', int, 4, 'preview downscaling', range=(1,10), increment=1, tab='Imaging'),
@@ -376,7 +377,7 @@ class CameraAirModule(mp_module.MPModule):
                 bsnd.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue)
                 self.check_commands(bsnd)
             if self.msend is not None:
-                self.msend.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue)
+                self.msend.tick(packet_count=1000, max_queue=self.camera_settings.m_maxqueue)
                 self.check_commands(self.msend)
             self.send_heartbeats()
 
@@ -623,7 +624,11 @@ class CameraAirModule(mp_module.MPModule):
                 if bsnd.sendq_size() < self.camera_settings.maxqueue:
                     obj.blockid = bsnd.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj, bsnd))
         else:
-            if linktosend.sendq_size() < self.camera_settings.maxqueue:
+            if linktosend == self.msend:
+                qsize = self.camera_settings.m_maxqueue
+            else:
+                qsize = self.camera_settings.maxqueue
+            if linktosend.sendq_size() < qsize:
                 obj.blockid = linktosend.send(buf, priority=priority, callback=functools.partial(self.send_object_complete, obj, linktosend))
 
     def handle_command_packet(self, obj, bsend):
