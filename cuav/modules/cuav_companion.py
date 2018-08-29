@@ -97,8 +97,24 @@ class CUAVCompanionModule(mp_module.MPModule):
         self.ack_wait = 2
         self.led_state = state
         self.led_send_time = time.time()
-        self.set_relay(0, state[0])
-        self.set_relay(1, state[1])
+        #self.set_relay(0, state[0])
+        #self.set_relay(1, state[1])
+
+        pattern = [0] * 24
+        plen = 3
+        if state[2] == 'RED':
+            pattern[0] = 255
+        elif state[2] == 'GREEN':
+            pattern[1] = 255
+        elif state[2] == 'FLASH':
+            pattern[0] = 255
+            pattern[1] = 255
+            pattern[3] = 2 # 2Hz flash
+            plen = 4
+        self.master.mav.led_control_send(self.settings.target_system,
+                                         self.settings.target_component,
+                                         0, 0, plen, pattern)
+            
         if state == LED_FLASH:
             # also play warning tune
             self.master.mav.play_tune_send(self.settings.target_system,
