@@ -23,3 +23,7 @@ map3 zoom 50
 
 module load cuav.modules.cuav_check
 cuavcheck toggleJoeZone
+
+@alias add triggerbutton param set SIM_PIN_MASK 0xFE
+@alias add triggerfuel param set SIM_PIN_MASK 0xFD
+

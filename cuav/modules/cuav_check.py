@@ -20,6 +20,7 @@ class CUAVModule(mp_module.MPModule):
         self.console.set_status('RFind', 'RFind: --', row=8, fg='black')
         self.console.set_status('Button', 'Button: --', row=8, fg='black')
         self.console.set_status('ICE', 'ICE: --', row=8, fg='black')
+        self.console.set_status('Fuel', 'Fuel: --', row=8, fg='black')
         self.rate_period = mavutil.periodic_event(1.0/15)
         self.button_remaining = None
         self.button_change = None
@@ -27,6 +28,11 @@ class CUAVModule(mp_module.MPModule):
         self.last_target_update = time.time()
         self.button_change_recv_time = 0
         self.button_announce_time = 0
+
+        self.fuel_change = None
+        self.last_fuel_update = time.time()
+        self.fuel_change_recv_time = 0
+        
         self.last_rpm_update = 0
         self.last_rpm_value = None
         self.last_rpm_announce = 0
@@ -38,7 +44,9 @@ class CUAVModule(mp_module.MPModule):
         self.cuav_settings = MPSettings(
             [ MPSetting('rpm_threshold', int, 6000, 'RPM Threshold'),
               MPSetting('wind_speed', float, 0, 'wind speed (m/s)'),
-              MPSetting('wind_direction', float, 0, 'wind direction (degrees)') ])
+              MPSetting('wind_direction', float, 0, 'wind direction (degrees)'),
+              MPSetting('button_pin', float, 0, 'button pin'),
+              MPSetting('fuel_pin', float, 1, 'fuel pin') ])
         self.add_completion_function('(CUAVCHECKSETTING)', self.cuav_settings.completion)
         self.add_command('cuavcheck', self.cmd_cuavcheck,
                          'cuav check control',
@@ -191,6 +199,9 @@ class CUAVModule(mp_module.MPModule):
         if now - self.last_button_update > 0.5:
             self.last_button_update = now
             self.update_button_display()
+        if now - self.last_fuel_update > 1.0:
+            self.last_fuel_update = now
+            self.update_fuel_display()
         if self.last_rpm_update != 0 and now - self.last_rpm_update > 4:
             self.console.set_status('RPM', 'RPM: --', row=8, fg='red')
             self.say("Engine stopped")
@@ -229,6 +240,15 @@ class CUAVModule(mp_module.MPModule):
             self.say("%u seconds" % remaining)
             self.button_announce_time = now
 
+    def update_fuel_display(self):
+        '''update the fuel display on console'''
+        if self.fuel_change is None:
+            return
+        now = time.time()
+        time_since_change = (self.fuel_change.time_boot_ms - self.fuel_change.last_change_ms) * 0.001
+        time_since_change += now - self.fuel_change_recv_time
+        self.console.set_status('Fuel', 'Fuel: %u' % int(time_since_change), row=8, fg='black')
+            
     def rpm_check(self, m):
         '''check for correct RPM range'''
         thr = self.master.field('VFR_HUD', 'throttle', 0)
@@ -255,14 +275,23 @@ class CUAVModule(mp_module.MPModule):
         '''handle an incoming mavlink packet'''
         now = time.time()
         if m.get_type() == "BUTTON_CHANGE":
-            if self.button_change is not None:
-                if (m.time_boot_ms < self.button_change.time_boot_ms and
-                    self.button_change.time_boot_ms - m.time_boot_ms < 30000):
-                    # discard repeated packet from another link if older by less than 30s
-                    return
-            self.button_change = m
-            self.button_change_recv_time = now
-            self.update_button_display()
+            if m.state & (1 << self.cuav_settings.fuel_pin):
+                if self.fuel_change is None or m.last_change_ms != self.fuel_change.last_change_ms:
+                    print("fuel change", m.state)
+                self.fuel_change = m
+                self.fuel_change_recv_time = now
+                self.update_fuel_display()
+            if m.state & (1 << self.cuav_settings.button_pin):
+                if self.button_change is None or m.last_change_ms != self.button_change.last_change_ms:
+                    print("button change", m.state)
+                if self.button_change is not None:
+                    if (m.time_boot_ms < self.button_change.time_boot_ms and
+                        self.button_change.time_boot_ms - m.time_boot_ms < 30000):
+                        # discard repeated packet from another link if older by less than 30s
+                        return
+                self.button_change = m
+                self.button_change_recv_time = now
+                self.update_button_display()
 
         if m.get_type() == "RPM":
             self.console.set_status('RPM', 'RPM: %u' % m.rpm1, row=8)
