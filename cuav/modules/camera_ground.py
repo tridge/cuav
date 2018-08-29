@@ -419,7 +419,7 @@ class CameraGroundModule(mp_module.MPModule):
             if self.preview_window is None or not self.preview_window.is_alive():
                 self.preview_window = mp_image.MPImage(title='Preview', width=410, height=308, auto_size=True)
             if self.preview_window is not None:
-                self.preview_window.set_image(img, bgr=False)
+                self.preview_window.set_image(img, bgr=True)
                     
                 
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
