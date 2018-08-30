@@ -96,7 +96,7 @@ class Mosaic():
         self.view_filename = None
         self.full_res = False
         self.autorefresh = True
-        self.topfifty = True
+        self.topfifty = False
         self.boundary = []
         self.displayed_image = None
         self.last_click_position = None
@@ -171,7 +171,7 @@ class Mosaic():
                                                             'Whiteness\tAlt+W',
                                                             'Time\tAlt+T']),
                                          MPMenuCheckbox('Auto Refresh', 'Auto Refresh', 'autorefresh', checked=True),
-                                         MPMenuCheckbox('Only Show Top 50', 'Only Show Top 50', 'topfifty', checked=True),
+                                         MPMenuCheckbox('Only Show Top 50', 'Only Show Top 50', 'topfifty', checked=False),
                                          MPMenuItem('Next Page\tCtrl+N', 'Next Page', 'nextPage'),
                                          MPMenuItem('Previous Page\tCtrl+P', 'Previous Page', 'previousPage'),
                                          MPMenuItem('Brightness +\tCtrl+B', 'Increase Brightness', 'increaseBrightness'),
