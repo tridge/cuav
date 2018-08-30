@@ -5,6 +5,7 @@ set vehicle_name Porter
 set source_system 254
 
 set streamrate -1
+set shownoise 0
 
 
 output sysid 1 127.0.0.1:14650

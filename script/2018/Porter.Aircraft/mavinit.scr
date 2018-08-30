@@ -1,5 +1,6 @@
 set moddebug 3
 set streamrate -1
+set shownoise 0
 
 # output packets from Kraken onto 14800 on RPi, where they are discarded
 output sysid 1 127.0.0.1:14800
