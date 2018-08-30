@@ -39,7 +39,7 @@ class MavPosition():
 
 class JitterCorrection():
     def __init__(self):
-        self.max_lag_s = 3.0
+        self.max_lag_s = 60.0
         self.convergence_loops = 0
         self.link_offset_s = 0.0
         self.min_sample_s = 0.0
@@ -72,9 +72,9 @@ class JitterCorrection():
         if estimate_s + self.max_lag_s < local_s:
             '''this implies the message came from too far in the past. Clamp
             the lag estimate to assume the message had maximum lag'''
+            print("ERR: offboard timestamp too old %f" % (local_s - estimate_s))
             estimate_s = local_s - self.max_lag_s
             self.link_offset_s = estimate_s - offboard_s
-            print("ERR: offboard timestammp too old %f" % (local_s - estimate_s))
 
         if self.min_sample_counter == 0:
             self.min_sample_s = diff_s
