@@ -603,7 +603,9 @@ class CameraAirModule(mp_module.MPModule):
     def send_message(self, msg):
         '''send a message'''
         pkt = cuav_command.CameraMessage(msg)
-        self.transmit_queue.put((pkt, None, None))
+        self.transmit_queue.put((pkt, 100, None))
+        if self.msend is not None:
+            self.transmit_queue.put((pkt, 100, self.msend))
 
     def send_object_complete(self, obj, bsend):
         '''called on complete of an send_object, cancelling send on other links'''
