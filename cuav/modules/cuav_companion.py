@@ -24,6 +24,7 @@ class CUAVCompanionModule(mp_module.MPModule):
         self.button_change_time = 0
         self.last_attitude_ms = 0
         self.last_mission_check_ms = 0
+        self.last_wp_move_ms = 0
         self.add_command('cuavled', self.cmd_cuavled, "cuav led command", ['<red|green|flash|off|refresh>'])
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.cuav_settings = MPSettings(
@@ -35,10 +36,9 @@ class CUAVCompanionModule(mp_module.MPModule):
                          'cuav companion control',
                          ['set (CUAVSETTING)'])
         self.add_completion_function('(CUAVSETTING)', self.cuav_settings.completion)
-        self.last_wp_move = 0
         self.wp_move_count = 0
         self.last_lz_latlon = None
-        self.last_wp_list = None
+        self.last_wp_list_ms = None
         self.started_landing = False
         self.updated_waypoints = False
 
@@ -169,7 +169,7 @@ class CUAVCompanionModule(mp_module.MPModule):
             # no more to do
             return
 
-        if self.last_attitude_ms - self.last_wp_move < 2*60*1000:
+        if self.last_attitude_ms - self.last_wp_move_ms < 2*60*1000:
             # only move waypoints every 2 minutes
             return
         
@@ -208,13 +208,13 @@ class CUAVCompanionModule(mp_module.MPModule):
                 (lat, lon) = cuav_util.gps_newpos(target_latitude, target_longitude, bearing, 70.0)
 
         # we may need to fetch the wp list
-        if self.last_wp_list is None or self.last_attitude_ms - self.last_wp_list > 120000 or wpmod.loading_waypoints:
-            self.last_wp_list = self.last_attitude_ms
+        if self.last_wp_list_ms is None or self.last_attitude_ms - self.last_wp_list_ms > 120000 or wpmod.loading_waypoints:
+            self.last_wp_list_ms = self.last_attitude_ms
             self.send_message("fetching waypoints")
             wpmod.cmd_wp(["list"])
             return
         
-        self.last_wp_move = self.last_attitude_ms
+        self.last_wp_move_ms = self.last_attitude_ms
         self.send_message("Moving search to: (%f,%f)" % (lat, lon))
         wpmod.cmd_wp_movemulti([self.cuav_settings.wp_center, self.cuav_settings.wp_start, self.cuav_settings.wp_end], (lat,lon))
         self.wp_move_count += 1
@@ -241,7 +241,12 @@ class CUAVCompanionModule(mp_module.MPModule):
                 self.send_message("LEDs updated: %s" % self.led_state[2])
         if m.get_type() == 'ATTITUDE':
             if m.time_boot_ms < self.last_attitude_ms:
+                self.send_message("time wrapped")
                 self.led_state = None
+                self.last_mission_check_ms = 0
+                self.last_wp_move_ms = 0
+                self.last_wp_list_ms = 0
+                self.button_change_time = 0
             self.last_attitude_ms = m.time_boot_ms
         if m.get_type() == 'MISSION_CURRENT':
             self.update_mission()
