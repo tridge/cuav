@@ -276,8 +276,6 @@ class CUAVModule(mp_module.MPModule):
         now = time.time()
         if m.get_type() == "BUTTON_CHANGE":
             if m.state & (1 << self.cuav_settings.fuel_pin):
-                if self.fuel_change is None or m.last_change_ms != self.fuel_change.last_change_ms:
-                    print("fuel change", m.state)
                 self.fuel_change = m
                 self.fuel_change_recv_time = now
                 self.update_fuel_display()
