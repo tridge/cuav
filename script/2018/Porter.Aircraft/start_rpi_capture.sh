@@ -10,4 +10,4 @@ export CAPTURE_DIR=$HOME/images_captured/$(date +"%Y%m%d_%H-%M-%S")/
 
 mkdir -p ${CAPTURE_DIR}
 
-screen -S mav_shell -d -m -c ./screenrc
+screen -L -S mav_shell -d -m -c ./screenrc
