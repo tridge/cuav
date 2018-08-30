@@ -136,8 +136,11 @@ class CUAVCompanionModule(mp_module.MPModule):
         else:
             led_state = LED_GREEN
         if led_state != self.led_state:
-            self.send_message("Changing LEDs to: %s" % str(led_state))
             self.set_leds(led_state)
+            try:
+                self.send_message("Changing LEDs to: %s" % led_state[2])
+            except Exception as ex:
+                print(ex)
 
     def update_mission(self):
         '''update mission status'''
