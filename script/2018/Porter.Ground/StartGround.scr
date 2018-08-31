@@ -45,3 +45,7 @@ map3 follow 0
 map3 zoom 50
 
 cuavcheck toggleJoeZone
+
+@alias add touchstop remote shell touch /home/pi/images_captured/capture.jpg.stop
+@alias add rmstop remote shell rm -f /home/pi/images_captured/capture.jpg.stop
+
