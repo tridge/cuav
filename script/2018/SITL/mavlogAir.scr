@@ -26,5 +26,4 @@ cuav set wp_end 22
 cuav set wp_land 17
 set streamrate -1
 
-
-
+output sysid 1 127.0.0.1:14952
