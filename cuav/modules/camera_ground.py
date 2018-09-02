@@ -420,6 +420,7 @@ class CameraGroundModule(mp_module.MPModule):
                 self.preview_window = mp_image.MPImage(title='Preview', width=410, height=308, auto_size=True)
             if self.preview_window is not None:
                 self.preview_window.set_image(img, bgr=True)
+                self.preview_window.poll()
                     
                 
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
