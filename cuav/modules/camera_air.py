@@ -70,10 +70,10 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('m_minscore', int, 20000, 'Min Score to pass detection on mavlink', range=(0,100000), increment=1, tab='Imaging'),
               MPSetting('m_bandwidth', int, 500, 'max bandwidth on mavlink', increment=1, tab='GCS'),
               MPSetting('m_maxqueue', int, 5, 'Maximum images queue for mavlink', tab='GCS'),
-              MPSetting('preview', bool, False, 'enable camera preview window', tab='Imaging'),              
+              MPSetting('preview', bool, True, 'enable camera preview window', tab='Imaging'),              
               MPSetting('previewquality', int, 40, 'Compression Quality for preview', range=(1,100), increment=1, tab='Imaging'),
-              MPSetting('previewscale', int, 4, 'preview downscaling', range=(1,10), increment=1, tab='Imaging'),
-              MPSetting('previewfreq', int, 1, 'preview image frequency', range=(1,10), increment=1, tab='Imaging'),
+              MPSetting('previewscale', int, 5, 'preview downscaling', range=(1,10), increment=1, tab='Imaging'),
+              MPSetting('previewfreq', int, 4, 'preview image frequency', range=(1,10), increment=1, tab='Imaging'),
               ],
             title='Camera Settings'
             )
