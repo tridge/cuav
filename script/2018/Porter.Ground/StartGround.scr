@@ -7,7 +7,6 @@ set source_system 254
 set streamrate -1
 set shownoise 0
 
-
 # send kraken pkts to local kraken backup GCS
 output sysid 1 127.0.0.1:14650
 
@@ -54,3 +53,5 @@ cuavcheck toggleJoeZone
 @alias add touchstop remote shell touch /home/pi/images_captured/capture.jpg.stop
 @alias add rmstop remote shell rm -f /home/pi/images_captured/capture.jpg.stop
 
+# use saved layout
+layout load

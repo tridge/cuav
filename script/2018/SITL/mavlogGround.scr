@@ -33,3 +33,5 @@ output sysid 1 127.0.0.1:14650
 # output porter traffic to stephen
 output add 192.168.3.22:14660
 
+# use saved layout
+layout load
