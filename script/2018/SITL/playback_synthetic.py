@@ -67,12 +67,15 @@ def playback(mavcon, images, targets, target_lat, target_lon, C_params):
     mavtime = msg.time_boot_ms * 0.001
     last_print = time.time()
     last_image = mavtime
+    mpos = mav_position.MavInterpolator()
 
     Xres = 1640
     Yres = 1232
 
+    tmpimages = "tmpimages"
+    print("Using %s directory" % tmpimages)
     try:
-        os.mkdir("tmpimages")
+        os.mkdir(tmpimages)
     except Exception:
         pass
 
@@ -80,25 +83,23 @@ def playback(mavcon, images, targets, target_lat, target_lon, C_params):
         msg = mlog.recv_match(blocking=True)
         if not msg:
             break
+        mpos.add_msg(msg)
+        
         mtype = msg.get_type()
         if mtype == "ATTITUDE":
             mavtime = msg.time_boot_ms*0.001
             if mavtime - last_image > 0.8:
                 if not 'GLOBAL_POSITION_INT' in mlog.messages:
                     continue
-                global_position_int = mlog.messages['GLOBAL_POSITION_INT']
-                attitude = mlog.messages['ATTITUDE']
-                lat = global_position_int.lat*1.0e-7
-                lon = global_position_int.lon*1.0e-7
-                alt = global_position_int.relative_alt*0.001
-                roll = degrees(attitude.roll)
-                pitch = degrees(attitude.pitch)
-                yaw = degrees(attitude.yaw)
-                pos = mav_position.MavPosition(lat, lon, alt, roll, pitch, yaw, time.time())
+                frame_time = time.time() - 2.0
+                try:
+                    pos = mpos.position(frame_time)
+                except Exception:
+                    continue
                 
                 imgfile = random.choice(images)
                 img = cv2.imread(imgfile)
-                filename = os.path.join("tmpimages", cuav_util.frame_time(time.time()) + ".jpg")
+                filename = os.path.join(tmpimages, cuav_util.frame_time(frame_time) + ".jpg")
                 
                 # see if the target should be in the image
                 xy = find_xy_in_image(target_lat, target_lon, pos, Xres, Yres, C_params)
