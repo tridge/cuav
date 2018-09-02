@@ -222,7 +222,10 @@ class CUAVCompanionModule(mp_module.MPModule):
         wpmod.cmd_wp_movemulti([self.cuav_settings.wp_center, self.cuav_settings.wp_start, self.cuav_settings.wp_end], (lat,lon))
         self.wp_move_count += 1
         
-        if self.cuav_settings.wp_land > 0 and self.wp_move_count >= 2 and lzresult.numregions > 10:
+        if (self.cuav_settings.wp_land > 0 and
+            self.wp_move_count >= 2 and
+            lzresult.numregions > 10 and
+            self.master.flightmode == "AUTO"):
             self.send_message("Starting landing")
             self.master.waypoint_set_current_send(self.cuav_settings.wp_land)
             self.started_landing = True
