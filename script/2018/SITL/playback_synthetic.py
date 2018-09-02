@@ -126,7 +126,7 @@ if __name__ == '__main__':
     parser.add_argument("--targetdir", default="targets", help='target directory')
     parser.add_argument("--target-lat", type=float, default=-35.362846, help='target latitude')
     parser.add_argument("--target-lon", type=float, default=149.164272, help='target longitude')
-    parser.add_argument("--mavcon",   help="MAVLink input port (IP:port)", default='tcp:127.0.0.1:5763')
+    parser.add_argument("--mavcon",   help="MAVLink input port (IP:port)", default='tcp:127.0.0.1:5783')
     parser.add_argument("--camera-params", default='../../../cuav/data/PiCamV2/params_half.json', type=file, help="camera calibration json file from OpenCV")
     
     args = parser.parse_args()
