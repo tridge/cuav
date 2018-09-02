@@ -538,7 +538,7 @@ class CameraAirModule(mp_module.MPModule):
                 print("Started cuav running")
         if m.get_type() == "TERRAIN_REPORT":
             self.terrain_alt = m.current_height
-        if m.get_type() == "HEARTBEAT":
+        if m.get_type() == "HEARTBEAT" and m.type != mavutil.mavlink.MAV_TYPE_GCS:
             was_armed = self.is_armed
             self.is_armed = (m.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
             if not self.is_armed and was_armed:
