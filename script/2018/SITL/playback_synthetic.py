@@ -110,9 +110,16 @@ def playback(mavcon, images, targets, target_lat, target_lon, C_params):
                     # overlay a random target on the image
                     (x,y) = xy
                     tgtfile = random.choice(targets)
+                    # targets come from an 80m reference height
+                    tgt_scale = 80.0 / max(pos.altitude,1)
                     tgt = cv2.imread(tgtfile)
-                    img[y:y+tgt.shape[0], x:x+tgt.shape[1]] = tgt
-                    cv2.imwrite(filename, img)
+                    tgt = cv2.resize(tgt, (0,0), fx=tgt_scale, fy=tgt_scale)
+                    
+                    try:
+                        img[y:y+tgt.shape[0], x:x+tgt.shape[1]] = tgt
+                        cv2.imwrite(filename, img)
+                    except Exception:
+                        os.link(imgfile, filename)
                 # create symlink
                 try:
                     os.unlink("capture.jpg")
