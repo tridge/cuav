@@ -8,7 +8,12 @@ set streamrate -1
 set shownoise 0
 
 
+# send kraken pkts to local kraken backup GCS
 output sysid 1 127.0.0.1:14650
+
+# send porter pkts to stephens laptop
+output add 192.168.3.22:14660
+
 module load cuav.modules.camera_ground
 camera set air_address 203.11.71.1:10404:14680:60000,203.217.61.45:10404:14681:60000
 #camera set air_address 203.11.71.1:10404:14680:60000
