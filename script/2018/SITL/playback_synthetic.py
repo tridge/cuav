@@ -56,6 +56,12 @@ def find_xy_in_image(lat, lon, pos, Xres, Yres, C_params):
             bestDist = dist
     if bestY <= 20 or bestY >= Yres-20:
         return None
+    latlon = cuav_util.gps_position_from_xy(bestX, bestY, pos, C_params, pos.altitude)
+    (lat1,lon1) = latlon
+    dist = cuav_util.gps_distance(lat, lon, lat1, lon1)
+    if dist > 15:
+        print("Bad interpolation %.1f" % dist)
+        return None
     return (bestX, bestY)
 
 def playback(mavcon, images, targets, target_lat, target_lon, C_params):
