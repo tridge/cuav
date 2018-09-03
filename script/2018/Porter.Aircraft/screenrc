@@ -1,5 +1,5 @@
 source /home/pi/.screenrc
 screen -t image_capture
-stuff "/home/pi/cuav/capturescripts/RasPi/cuavraw --halfres -o ${CAPTURE_DIR} -l /home/pi/images_captured/capture.jpg"
+stuff "./cap_loop.sh"
 screen -t mavproxy
 stuff "./mavlog.sh ${CAPTURE_DIR}"
