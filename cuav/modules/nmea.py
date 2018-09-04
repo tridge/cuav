@@ -16,6 +16,7 @@ It is highly desirable that teams provide:
 import math
 import os
 import serial
+import socket
 import subprocess
 import sys
 import time
@@ -33,6 +34,8 @@ class NMEAModule(mp_module.MPModule):
         self.serial = None
         self.socat = None
         self.log_output = None
+        self.udp_output_port = None
+        self.udp_output_address = None
         self.output_time = 0.0
         self.add_command('nmea', self.cmd_nmea, "nmea control")
 
@@ -50,6 +53,7 @@ nmea /dev/ttyS0 115200 8 N 1
 nmea socat:GOPEN:/tmp/output
 nmea socat:UDP-SENDTO:10.0.1.255:17890
 nmea log:/tmp/nmea-log.txt
+nmea udp:10.10.10.72:1765
 """
 
     def cmd_nmea(self, args):
@@ -91,6 +95,11 @@ nmea log:/tmp/nmea-log.txt
                     self.start_log_output(self.port[4:])
                 except Exception as se:
                     print("Failed to open output log %s:%s" % (self.port, se.message))
+            elif self.port.startswith("udp:"):
+                try:
+                    self.start_udp_output(self.port[4:])
+                except Exception as se:
+                    print("Failed to open udp output %s:%s" % (self.port, se.message))
             else:
                 self.serial = open(self.port, mode='w')
 
@@ -150,6 +159,11 @@ nmea log:/tmp/nmea-log.txt
         if not os.path.isabs(filepath):
             filepath = os.path.join(self.mpstate.status.logdir, filepath)
         self.log_output = open(filepath, "ab")
+
+    def start_udp_output(self, args):
+        (hostname, port) = args.split(":")
+        self.udp_output_port = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_output_address = (hostname, int(port))
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -211,6 +225,8 @@ nmea log:/tmp/nmea-log.txt
             timestamped = "%u %s" % (time.time(), output,)
             self.log_output.write(timestamped)
             self.log_output.flush()
+        if self.udp_output_port is not None:
+            self.udp_output_port.sendto(output, self.udp_output_address)
 
 def init(mpstate):
     '''initialise module'''
