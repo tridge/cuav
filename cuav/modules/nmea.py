@@ -18,6 +18,7 @@ import os
 import serial
 import subprocess
 import sys
+import time
 
 from MAVProxy.modules.lib import mp_module
 
@@ -31,6 +32,7 @@ class NMEAModule(mp_module.MPModule):
         self.stop = 1
         self.serial = None
         self.socat = None
+        self.log_output = None
         self.output_time = 0.0
         self.add_command('nmea', self.cmd_nmea, "nmea control")
 
@@ -47,6 +49,7 @@ e.g.
 nmea /dev/ttyS0 115200 8 N 1
 nmea socat:GOPEN:/tmp/output
 nmea socat:UDP-SENDTO:10.0.1.255:17890
+nmea log:/tmp/nmea-log.txt
 """
 
     def cmd_nmea(self, args):
@@ -83,6 +86,11 @@ nmea socat:UDP-SENDTO:10.0.1.255:17890
                     self.start_socat_output(self.port[6:])
                 except Exception as se:
                     print("Failed to open socat output %s:%s" % (self.port, se.message))
+            elif self.port.startswith("log:"):
+                try:
+                    self.start_log_output(self.port[4:])
+                except Exception as se:
+                    print("Failed to open output log %s:%s" % (self.port, se.message))
             else:
                 self.serial = open(self.port, mode='w')
 
@@ -136,6 +144,12 @@ nmea socat:UDP-SENDTO:10.0.1.255:17890
                                        args],
                                       stdin=self.socat_in,
         )
+
+    def start_log_output(self, args):
+        filepath = args
+        if not os.path.isabs(filepath):
+            filepath = os.path.join(self.mpstate.status.logdir, filepath)
+        self.log_output = open(filepath, "ab")
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -193,6 +207,10 @@ nmea socat:UDP-SENDTO:10.0.1.255:17890
             self.serial.flush()
         if self.socat is not None:
             os.write(self.socat_out, output)
+        if self.log_output is not None:
+            timestamped = "%u %s" % (time.time(), output,)
+            self.log_output.write(timestamped)
+            self.log_output.flush()
 
 def init(mpstate):
     '''initialise module'''
