@@ -1,5 +1,5 @@
 set moddebug 3
-set streamrate 2
+set streamrate -1
 set vehicle_name Kraken
 
 layout load
