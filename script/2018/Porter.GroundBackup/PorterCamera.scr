@@ -1,0 +1,26 @@
+
+module load cuav.modules.camera_ground
+camera set air_address 203.11.71.1:10404:14680:60000,203.217.61.45:10404:14681:60000
+#camera set air_address 203.11.71.1:10404:14680:60000
+camera set camparms /data/PiCamV2/params_half.json
+camera view
+
+camera set target_latitude -35.362859
+camera set target_longitude 149.164086
+camera set target_radius 100.0
+
+module load cuav.modules.cuav_check
+
+# search area map
+module load map
+map2 follow 0
+map2 zoom 240
+
+# lz map
+module load map
+map3 follow 0
+map3 zoom 50
+
+@alias add touchstop remote shell touch /home/pi/images_captured/capture.jpg.stop
+@alias add rmstop remote shell rm -f /home/pi/images_captured/capture.jpg.stop
+

@@ -1,0 +1,33 @@
+set moddebug 3
+# redirect Kraken to port 14650
+set vehicle_name Porter
+
+set source_system 254
+
+set streamrate -1
+set shownoise 0
+
+
+output sysid 1 127.0.0.1:14650
+
+
+#set dist_unit nm
+#set height_unit feet
+#set speed_unit knots
+set altreadout 30
+
+module load sensors
+speed
+module load speech
+
+# search area map
+module load map
+map2 follow 0
+map2 zoom 240
+
+# lz map
+module load map
+map3 follow 0
+map3 zoom 50
+
+
