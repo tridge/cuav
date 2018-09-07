@@ -206,9 +206,16 @@ class CUAVCompanionModule(mp_module.MPModule):
                 return
             # don't move more than 70m from the center of the search, this keeps us
             # over more of the search area, and further from the fence
-            if dist > 70:
+            max_move = target_radius
+            if self.wp_move_count == 0:
+                # don't move more than 50m from center on first move
+                max_move = 50
+            if self.wp_move_count == 1:
+                # don't move more than 80m from center on 2nd move
+                max_move = 80
+            if dist > max_move:
                 bearing = cuav_util.gps_bearing(lat, lon, target_latitude, target_longitude)
-                (lat, lon) = cuav_util.gps_newpos(target_latitude, target_longitude, bearing, 70.0)
+                (lat, lon) = cuav_util.gps_newpos(target_latitude, target_longitude, bearing, max_move)
 
         # we may need to fetch the wp list
         if self.last_wp_list_ms is None or self.last_attitude_ms - self.last_wp_list_ms > 120000 or wpmod.loading_waypoints:
@@ -223,7 +230,7 @@ class CUAVCompanionModule(mp_module.MPModule):
         self.wp_move_count += 1
         
         if (self.cuav_settings.wp_land > 0 and
-            self.wp_move_count >= 2 and
+            self.wp_move_count >= 3 and
             lzresult.numregions > 10 and
             self.master.flightmode == "AUTO"):
             self.send_message("Starting landing")
