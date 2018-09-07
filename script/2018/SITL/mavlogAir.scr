@@ -2,6 +2,7 @@ set moddebug 3
 
 # go via ozlabs proxy2
 camera set gcs_address 203.11.71.1:10403:14682:60000,203.217.61.45:10403:14683:60000
+#camera set gcs_address 203.11.71.1:10403:14682:60000
 camera set camparms /data/PiCamV2/params_half.json
 camera set imagefile capture.jpg
 camera set minscore 1000
@@ -20,10 +21,10 @@ camera start
 set distreadout 0
 set altreadout 0
 
-cuav set wp_center 11
-cuav set wp_start 10
-cuav set wp_end 22
-cuav set wp_land 17
+cuav set wp_center 10
+cuav set wp_start 9
+cuav set wp_end 32
+cuav set wp_land 15
 set streamrate -1
 
 output sysid 1 127.0.0.1:14952

@@ -66,6 +66,7 @@ def find_xy_in_image(lat, lon, pos, Xres, Yres, C_params):
 
 def playback(mavcon, images, targets, target_lat, target_lon, C_params):
     '''create synthetic images matching target position'''
+    print("Connecting to %s" % mavcon)
     mlog = mavutil.mavlink_connection(mavcon)
 
     # get first message

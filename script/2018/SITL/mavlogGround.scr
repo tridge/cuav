@@ -3,7 +3,8 @@ set streamrate -1
 set vehicle_name Porter
 
 # go via ozlabs proxy2
-camera set air_address 203.11.71.1:10406:14670:60000,203.11.71.1:10408:14671:60000
+camera set air_address 203.11.71.1:10404:14670:60000,203.217.61.45:10404:14671:60000
+#camera set air_address 203.11.71.1:10404:14670:60000
 camera set camparms /data/PiCamV2/params_half.json
 
 camera set target_latitude -35.362859

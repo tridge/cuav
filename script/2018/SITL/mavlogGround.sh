@@ -5,4 +5,8 @@ TRIDGELL_PROXY1_GND=udpout:203.217.61.45:10402
 
 #Connects to mavlogAir
 
-mavproxy.py --master=radio1 --master=$OZLABS_PROXY1_GND --master=$TRIDGELL_PROXY1_GND --mav20 --console --map --load-module=cuav.modules.camera_ground --cmd="script mavlogGround.scr"
+MASTER="--master=tcp:127.0.0.1:5786"
+MASTER="$MASTER --master=$OZLABS_PROXY1_GND"
+MASTER="$MASTER --master=$TRIDGELL_PROXY1_GND"
+
+mavproxy.py $MASTER --mav20 --console --map --load-module=cuav.modules.camera_ground --cmd="script mavlogGround.scr"
