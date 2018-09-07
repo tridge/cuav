@@ -13,7 +13,10 @@ TRIDGELL_PROXY1_GND=udpout:203.217.61.45:10402
 
 PORT="radio1"
 
+MASTER=""
+MASTER="$MASTER --master $PORT"
+MASTER="$MASTER --master=$OZLABS_PROXY1_GND"
+MASTER="$MASTER --master=$TRIDGELL_PROXY1_GND"
+
 #All telemetry from the Rpi on the Porter over two networks
-mavproxy.py --aircraft Porter --master $PORT --master=$OZLABS_PROXY1_GND --master=$TRIDGELL_PROXY1_GND --mav20 --force-connected --console --map --cmd="script StartGround.scr" $*
-
-
+mavproxy.py --aircraft Porter $MASTER --mav20 --force-connected --console --map --cmd="script StartGround.scr" $*
