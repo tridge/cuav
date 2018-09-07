@@ -152,15 +152,6 @@ class CUAVModule(mp_module.MPModule):
     def check_rates(self):
         '''check stream rates'''
         parms = {
-            "SR0_EXTRA1"    : 1.0,
-            "SR0_EXTRA2"    : 2.0,
-            "SR0_EXTRA3"    : 1.0,
-            "SR0_EXT_STAT"  : 2.0,
-            "SR0_PARAMS"    : 10.0,
-            "SR0_POSITION"  : 2.0,
-            "SR0_RAW_CTRL"  : 1.0,
-            "SR0_RAW_SENS"  : 1.0,
-            "SR0_RC_CHAN"   : 1.0,
             "SR1_EXTRA1"    : 1.0,
             "SR1_EXTRA2"    : 2.0,
             "SR1_EXTRA3"    : 1.0,
@@ -179,17 +170,11 @@ class CUAVModule(mp_module.MPModule):
             "SR2_RAW_CTRL"  : 1.0,
             "SR2_RAW_SENS"  : 1.0,
             "SR2_RC_CHAN"   : 1.0,
-            "SR3_EXTRA1"    : 1.0,
-            "SR3_EXTRA2"    : 2.0,
-            "SR3_EXTRA3"    : 1.0,
-            "SR3_EXT_STAT"  : 2.0,
-            "SR3_PARAMS"    : 10.0,
-            "SR3_POSITION"  : 2.0,
-            "SR3_RAW_CTRL"  : 1.0,
-            "SR3_RAW_SENS"  : 1.0,
-            "SR3_RC_CHAN"   : 1.0,
             "FS_GCS_ENABLE" : 0,
             "FS_GCS_ENABL"  : 0,
+            "Q_OPTIONS"     : 8,
+            "AVD_W_ACTION"  : 2,
+            "FENCE_AUTOENABLE" : 1,
             }
         self.check_parms(parms, True)
 
