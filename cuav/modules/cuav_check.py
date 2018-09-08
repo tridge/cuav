@@ -147,7 +147,7 @@ class CUAVModule(mp_module.MPModule):
         for p in parms.keys():
             v = self.mav_param.get(p, None)
             if v is None:
-                self.master.writeln("Parameter %s unavailable" % p)
+                self.console.writeln("Parameter %s unavailable" % p)
                 continue
             if abs(v - parms[p]) > 0.0001:
                 if set:
