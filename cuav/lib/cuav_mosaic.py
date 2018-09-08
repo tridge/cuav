@@ -124,6 +124,7 @@ class Mosaic():
         print("allmaps: ", self.allmaps)
             
         self.selected_region = 0
+        self.have_selected_region = False
 
         self.view_image = None
         self.brightness = 0
@@ -395,6 +396,7 @@ class Mosaic():
         if ridx < 0 or ridx >= len(self.regions):
             print("Invalid region %u selected" % ridx)
             return
+        self.have_selected_region = True
         self.show_region(ridx)
 
 
@@ -824,6 +826,8 @@ class Mosaic():
         if self.autorefresh:
             self.re_sort(printsort=False)
             self.redisplay_mosaic()
+            if not self.have_selected_region:
+                self.show_region(self.regions_sorted[0].ridx)
         if self.topfifty:
             self.re_sort(printsort=False)
             self.redisplay_mosaic()
