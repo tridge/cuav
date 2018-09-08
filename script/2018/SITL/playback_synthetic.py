@@ -91,11 +91,12 @@ def playback(mavcon, images, targets, target_lat, target_lon, C_params):
         if not msg:
             break
         mpos.add_msg(msg)
-        
         mtype = msg.get_type()
+
         if mtype == "ATTITUDE":
             mavtime = msg.time_boot_ms*0.001
             if mavtime - last_image > 0.8:
+                last_image = mavtime
                 if not 'GLOBAL_POSITION_INT' in mlog.messages:
                     continue
                 frame_time = time.time() - 2.0
@@ -141,7 +142,7 @@ if __name__ == '__main__':
     parser.add_argument("--targetdir", default="targets", help='target directory')
     parser.add_argument("--target-lat", type=float, default=-35.362846, help='target latitude')
     parser.add_argument("--target-lon", type=float, default=149.164272, help='target longitude')
-    parser.add_argument("--mavcon",   help="MAVLink input port (IP:port)", default='tcp:127.0.0.1:5783')
+    parser.add_argument("--mavcon",   help="MAVLink input port (IP:port)", default='tcp:127.0.0.1:5785')
     parser.add_argument("--camera-params", default='../../../cuav/data/PiCamV2/params_half.json', type=file, help="camera calibration json file from OpenCV")
     
     args = parser.parse_args()
