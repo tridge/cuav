@@ -50,7 +50,7 @@ class CUAVModule(mp_module.MPModule):
         self.add_completion_function('(CUAVCHECKSETTING)', self.cuav_settings.completion)
         self.add_command('cuavcheck', self.cmd_cuavcheck,
                          'cuav check control',
-                         ['set (CUAVCHECKSETTING)'])
+                         ['checkparams', 'set (CUAVCHECKSETTING)'])
 
         #make the initial map menu
         if mp_util.has_wxpython and self.module('map'):
@@ -132,15 +132,22 @@ class CUAVModule(mp_module.MPModule):
         elif args[0] == "toggleJoeZone":
             self.showJoeZone = not self.showJoeZone
             self.toggle_JoeZone()
+        elif args[0] == "checkparams":
+            if self.check_parameters():
+                print("Parameters OK")
+            else:
+                print("Parameters bad")
         else:
             print(usage)
             return
 
     def check_parms(self, parms, set=False):
         '''check parameter settings'''
+        ret = True
         for p in parms.keys():
             v = self.mav_param.get(p, None)
             if v is None:
+                self.master.writeln("Parameter %s unavailable" % p)
                 continue
             if abs(v - parms[p]) > 0.0001:
                 if set:
@@ -148,36 +155,81 @@ class CUAVModule(mp_module.MPModule):
                     self.master.param_set_send(p, parms[p])
                 else:
                     self.console.writeln('%s should be %.1f (currently %.1f)' % (p, parms[p], v), fg='blue')
+                ret = False
+        return ret
 
-    def check_rates(self):
-        '''check stream rates'''
-        parms = {
+    def check_parameters(self):
+        '''check key parameters'''
+        # first see if this is a quadplane
+        v = self.mav_param.get('Q_ENABLE',None)
+        if v is None:
+            self.console.writeln('Q_ENABLE set available')
+            return False
+        if int(v) == 0:
+            # this is the relay aircraft
+            return self.check_parameters_relay()
+        else:
+            return self.check_parameters_retrieval()
+
+    def check_parameters_relay(self):
+        # relay aircraft should have low rates on SR1
+        rates = {
             "SR1_EXTRA1"    : 1.0,
-            "SR1_EXTRA2"    : 2.0,
+            "SR1_EXTRA2"    : 1.0,
             "SR1_EXTRA3"    : 1.0,
             "SR1_EXT_STAT"  : 2.0,
-            "SR1_PARAMS"    : 10.0,
+            "SR1_POSITION"  : 2.0,
+            "SR1_RAW_CTRL"  : 1.0,
+            "SR1_RAW_SENS"  : 1.0,
+            "SR1_RC_CHAN"   : 1.0
+            }
+        ret = self.check_parms(rates, True)
+        # some other key parameters, not auto-set
+        keyparams = {
+            "FS_GCS_ENABL"  : 0,
+            "AVD_W_ACTION"  : 2,
+            "FENCE_AUTOENABLE" : 1,
+            "RC_OPTIONS" : 4,
+            }
+        if not self.check_parms(keyparams, False):
+            ret = False
+        return ret
+            
+    def check_parameters_retrieval(self):
+        # retrieval aircraft should have low rates on SR1, higher rates on SR2
+        rates = {
+            "SR1_EXTRA1"    : 1.0,
+            "SR1_EXTRA2"    : 1.0,
+            "SR1_EXTRA3"    : 1.0,
+            "SR1_EXT_STAT"  : 2.0,
             "SR1_POSITION"  : 2.0,
             "SR1_RAW_CTRL"  : 1.0,
             "SR1_RAW_SENS"  : 1.0,
             "SR1_RC_CHAN"   : 1.0,
-            "SR2_EXTRA1"    : 1.0,
-            "SR2_EXTRA2"    : 2.0,
-            "SR2_EXTRA3"    : 1.0,
-            "SR2_EXT_STAT"  : 2.0,
-            "SR2_PARAMS"    : 10.0,
-            "SR2_POSITION"  : 2.0,
-            "SR2_RAW_CTRL"  : 1.0,
-            "SR2_RAW_SENS"  : 1.0,
+            "SR2_EXTRA1"    : 6.0,
+            "SR2_EXTRA2"    : 4.0,
+            "SR2_EXTRA3"    : 4.0,
+            "SR2_EXT_STAT"  : 4.0,
+            "SR2_POSITION"  : 6.0,
+            "SR2_RAW_CTRL"  : 4.0,
+            "SR2_RAW_SENS"  : 4.0,
             "SR2_RC_CHAN"   : 1.0,
-            "FS_GCS_ENABLE" : 0,
+            }
+        ret = self.check_parms(rates, True)
+        # some other key parameters, not auto-set
+        keyparams = {
+            "Q_OPTIONS" : 8,
+            "AVD_ENABLE" : 1,
+            "ADSB_ENABLE" : 1,
             "FS_GCS_ENABL"  : 0,
-            "Q_OPTIONS"     : 8,
             "AVD_W_ACTION"  : 2,
             "FENCE_AUTOENABLE" : 1,
+            "RC_OPTIONS" : 4,
             }
-        self.check_parms(parms, True)
-
+        if not self.check_parms(keyparams, False):
+            ret = False
+        return ret
+            
     def idle_task(self):
         '''run periodic tasks'''
         now = time.time()
@@ -310,7 +362,7 @@ class CUAVModule(mp_module.MPModule):
 
 
         if self.rate_period.trigger():
-            self.check_rates()
+            self.check_parameters()
 
 def init(mpstate):
     '''initialise module'''
