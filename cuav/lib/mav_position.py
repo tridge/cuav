@@ -229,16 +229,10 @@ class MavInterpolator():
     def position(self, t, max_deltat=0,roll=None, pitch=None, maxroll=0, maxpitch=0, pitch_offset=0, roll_offset=0):
         '''return a MavPosition estimate given a time'''
         self.advance_log(t)
-            
-        # extrapolate our latitude/longitude 
-        gpst = t + self.gps_lag
-        gps_raw = self._find_msg('GLOBAL_POSITION_INT', gpst)
-        gps_timestamp = gps_raw._timestamp
-        velocity = math.sqrt((gps_raw.vx*0.01)**2 + (gps_raw.vy*0.01)**2)
-        deltat = gpst - gps_timestamp
-        (lat, lon) = cuav_util.gps_newpos(gps_raw.lat/1.0e7, gps_raw.lon/1.0e7,
-                                          gps_raw.hdg*0.01,
-                                          velocity * (gpst - gps_timestamp))
+
+        # interpolate our latitude/longitude
+        lat = self.interpolate('GLOBAL_POSITION_INT', 'lat', t, max_deltat)*1.0e-7
+        lon = self.interpolate('GLOBAL_POSITION_INT', 'lon', t, max_deltat)*1.0e-7
 
         terrain_report = None
         if len(self.terrain_report) > 0:
@@ -251,7 +245,9 @@ class MavInterpolator():
                         terrain_report = None
 
         # get altitude
-        altitude = self._altitude(gps_raw, terrain_report)
+        gpst = t + self.gps_lag
+        gps_pos = self._find_msg('GLOBAL_POSITION_INT', gpst)
+        altitude = self._altitude(gps_pos, terrain_report)
 
         # and attitude
         if roll is None:
