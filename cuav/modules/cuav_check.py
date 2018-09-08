@@ -20,7 +20,7 @@ class CUAVModule(mp_module.MPModule):
         self.console.set_status('RFind', 'RFind: --', row=8, fg='black')
         self.console.set_status('Button', 'Button: --', row=8, fg='black')
         self.console.set_status('ICE', 'ICE: --', row=8, fg='black')
-        self.console.set_status('Fuel', 'Fuel: --', row=8, fg='black')
+        self.console.set_status('FuelPump', 'FuelPump: --', row=8, fg='black')
         self.rate_period = mavutil.periodic_event(1.0/15)
         self.button_remaining = None
         self.button_change = None
@@ -190,6 +190,7 @@ class CUAVModule(mp_module.MPModule):
             "AVD_W_ACTION"  : 2,
             "FENCE_AUTOENABLE" : 1,
             "RC_OPTIONS" : 4,
+            "SERIAL1_PROTOCOL" : 2,
             }
         if not self.check_parms(keyparams, False):
             ret = False
@@ -225,6 +226,8 @@ class CUAVModule(mp_module.MPModule):
             "AVD_W_ACTION"  : 2,
             "FENCE_AUTOENABLE" : 1,
             "RC_OPTIONS" : 4,
+            "SERIAL1_PROTOCOL" : 2,
+            "SERIAL2_PROTOCOL" : 2,
             }
         if not self.check_parms(keyparams, False):
             ret = False
@@ -284,7 +287,7 @@ class CUAVModule(mp_module.MPModule):
         now = time.time()
         time_since_change = (self.fuel_change.time_boot_ms - self.fuel_change.last_change_ms) * 0.001
         time_since_change += now - self.fuel_change_recv_time
-        self.console.set_status('Fuel', 'Fuel: %u' % int(time_since_change), row=8, fg='black')
+        self.console.set_status('FuelPump', 'FuelPump: %u' % int(time_since_change), row=8, fg='black')
             
     def rpm_check(self, m):
         '''check for correct RPM range'''
