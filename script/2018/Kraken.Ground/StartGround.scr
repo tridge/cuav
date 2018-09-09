@@ -6,5 +6,9 @@ set speed_unit knots
 set height_unit feet
 set dist_unit nm
 
+# set a female voice
+set speech_voice english+f5
+module load speech
+
 layout load
 
