@@ -74,15 +74,20 @@ class LandingZone:
         regions.sort(key = lambda r : r.angle, reverse=False)
         regions = regions[:-len(regions)/4]
 
-        if len(regions) < 1:
-            return None
-        
-        # find average position
-        center = self.average_pos(regions)
+        # remove outliers
+        outlier_distance = 15
 
-        # throw away furthest 20%, to discard outliers
-        regions.sort(key = lambda r : self.distance_from(r, center), reverse=False)
-        regions = regions[:-len(regions)/5]
+        while True:
+            if len(regions) < 1:
+                return None
+        
+            # find average position
+            center = self.average_pos(regions)
+
+            regions.sort(key = lambda r : self.distance_from(r, center), reverse=False)
+            if self.distance_from(regions[-1], center) < outlier_distance:
+                break
+            regions.pop(len(regions)-1)
 
         if len(regions) < 1:
             return None
