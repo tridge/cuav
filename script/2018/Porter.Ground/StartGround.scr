@@ -7,6 +7,10 @@ set source_system 254
 set streamrate -1
 set shownoise 0
 
+set speed_unit knots
+set height_unit feet
+set dist_unit nm
+
 # send kraken pkts to local kraken backup GCS
 output sysid 1 127.0.0.1:14650
 

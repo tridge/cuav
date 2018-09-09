@@ -3,6 +3,10 @@ set streamrate 2
 set vehicle_name Kraken
 set streamrate -1
 
+set speed_unit knots
+set height_unit feet
+set dist_unit nm
+
 # send packets over to primary kraken GCS
 output add 192.168.3.22:14650
 

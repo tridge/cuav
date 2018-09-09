@@ -21,6 +21,10 @@ module load map
 map3 follow 0
 map3 zoom 50
 
+set speed_unit knots
+set height_unit feet
+set dist_unit nm
+
 @alias add touchstop remote shell touch /home/pi/images_captured/capture.jpg.stop
 @alias add rmstop remote shell rm -f /home/pi/images_captured/capture.jpg.stop
 
