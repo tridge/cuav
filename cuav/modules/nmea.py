@@ -25,7 +25,34 @@ from MAVProxy.modules.lib import mp_module
 
 class NMEAModule(mp_module.MPModule):
     def __init__(self, mpstate):
-        super(NMEAModule, self).__init__(mpstate, "NMEA", "NMEA output")
+        super(NMEAModule, self).__init__(mpstate,
+                                         "NMEA",
+                                         "NMEA output",
+                                         public=True)
+        self.add_command('nmea', self.cmd_nmea, "nmea control")
+        self.base_source = NMEASource(mpstate)
+        self.secondary_source = None
+
+    def cmd_nmea(self, args):
+        '''pass through nmea commands for base source'''
+        self.base_source.cmd_nmea(args)
+
+    def mavlink_packet(self, m):
+        '''pass through packets for base source'''
+        self.base_source.mavlink_packet(m)
+
+    def set_secondary_vehicle_position(self, m):
+        '''register secondary vehicle position'''
+        if self.secondary_source is None:
+            self.add_command('nmea2', self.cmd_nmea, "nmea control")
+            self.secondary_source = NMEASource(self.mpstate)
+
+        self.secondary_source.mavlink_packet(m)
+
+class NMEASource():
+    '''allows for multiple sources of NMEA information to be received and sent'''
+
+    def __init__(self, mpstate):
         self.port = None
         self.baudrate = 4800
         self.data = 8
@@ -37,7 +64,6 @@ class NMEAModule(mp_module.MPModule):
         self.udp_output_port = None
         self.udp_output_address = None
         self.output_time = 0.0
-        self.add_command('nmea', self.cmd_nmea, "nmea control")
 
         self.num_sat = 0
         self.hdop = 0
@@ -102,7 +128,6 @@ nmea udp:10.10.10.72:1765
                     print("Failed to open udp output %s:%s" % (self.port, se.message))
             else:
                 self.serial = open(self.port, mode='w')
-
 
     def format_date(self, utc_sec):
         import time
