@@ -39,9 +39,10 @@ class CUAVCompanionModule(mp_module.MPModule):
         self.add_completion_function('(CUAVSETTING)', self.cuav_settings.completion)
         self.wp_move_count = 0
         self.last_lz_latlon = None
-        self.last_wp_list_ms = None
+        self.last_wp_list_ms = 0
         self.started_landing = False
         self.updated_waypoints = False
+        self.last_buzzer = time.time()
 
     def send_message(self, msg):
         '''send a msg to GCS for display'''
@@ -120,7 +121,8 @@ class CUAVCompanionModule(mp_module.MPModule):
             # also play warning tune
             self.master.mav.play_tune_send(self.settings.target_system,
                                            self.settings.target_component,
-                                           'AAAAAA')
+                                           'AAAAAA', '')
+            self.last_buzzer = time.time()
 
     def idle_task(self):
         '''run periodic tasks'''
@@ -136,12 +138,28 @@ class CUAVCompanionModule(mp_module.MPModule):
             led_state = LED_FLASH
         else:
             led_state = LED_GREEN
+            try:
+                wpmod = self.module('wp')
+                wploader = wpmod.wploader
+                wpcur = self.master.messages['MISSION_CURRENT'].seq
+                wp = wploader.wp(wpcur)
+                if wp.command == mavutil.mavlink.MAV_CMD_NAV_DELAY_AIRSPACE_CLEAR:
+                    led_state = LED_FLASH
+            except Exception as ex:
+                pass
         if led_state != self.led_state:
             self.set_leds(led_state)
             try:
                 self.send_message("Changing LEDs to: %s" % led_state[2])
             except Exception as ex:
-                print(ex)
+                pass
+        now = time.time()
+        if led_state[2] == 'FLASH' and now - self.last_buzzer > 5:
+            self.last_buzzer = now
+            self.master.mav.play_tune_send(self.settings.target_system,
+                                           self.settings.target_component,
+                                           'AAAAAA','')
+
 
     def find_user_wp(self, wploader, n):
         '''find a USER_ waypoint number'''
@@ -158,6 +176,9 @@ class CUAVCompanionModule(mp_module.MPModule):
             return
         wpmod = self.module('wp')
         wploader = wpmod.wploader
+        if wploader.count() < 2 and self.last_attitude_ms - self.last_wp_list_ms > 5000:
+            self.last_wp_list_ms = self.last_attitude_ms
+            wpmod.cmd_wp(["list"])
 
         wp_start = self.find_user_wp(wploader, 1)
         wp_center = self.find_user_wp(wploader, 2)
@@ -234,7 +255,7 @@ class CUAVCompanionModule(mp_module.MPModule):
                 (lat, lon) = cuav_util.gps_newpos(target_latitude, target_longitude, bearing, max_move)
 
         # we may need to fetch the wp list
-        if self.last_wp_list_ms is None or self.last_attitude_ms - self.last_wp_list_ms > 120000 or wpmod.loading_waypoints:
+        if self.last_attitude_ms - self.last_wp_list_ms > 120000 or wpmod.loading_waypoints:
             self.last_wp_list_ms = self.last_attitude_ms
             self.send_message("fetching waypoints")
             wpmod.cmd_wp(["list"])
