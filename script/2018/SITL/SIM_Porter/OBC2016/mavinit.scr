@@ -1,0 +1,7 @@
+output sysid 1 127.0.0.1:14950
+set vehicle_name PorterSim
+set streamrate -1
+
+#output add udpout:203.11.71.1:10401
+#output add udpout:203.217.61.45:10401
+
