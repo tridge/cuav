@@ -378,7 +378,8 @@ class CameraGroundModule(mp_module.MPModule):
                                             linewidth=3, color=(0,255,0)))
                 m.map.add_object(mp_slipmap.SlipCircle('LZMid', 'LZMid', lzresult.latlon, 2.0,
                                             linewidth=3, color=(0,255,0)))
-                lztext = 'LZ: %s err:%.1f score:%.0f N:%u ' % (lzresult.latlon, lzresult.maxrange, lzresult.avgscore, lzresult.numregions)
+                lztext = 'LZ: %.6f %.6f E:%.1f AS:%.0f N:%u' % (
+                    lzresult.latlon[0], lzresult.latlon[1], lzresult.maxrange, lzresult.avgscore, lzresult.numregions)
                 m.map.add_object(mp_slipmap.SlipInfoText('landingzone', lztext))
             # assume map2 is the search map
             map2 = self.module('map2')
