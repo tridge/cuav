@@ -21,10 +21,6 @@ camera start
 set distreadout 0
 set altreadout 0
 
-cuav set wp_center 10
-cuav set wp_start 9
-cuav set wp_end 32
-cuav set wp_land 15
 set streamrate -1
 
 output sysid 1 127.0.0.1:14952

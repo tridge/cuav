@@ -28,10 +28,11 @@ class CUAVCompanionModule(mp_module.MPModule):
         self.add_command('cuavled', self.cmd_cuavled, "cuav led command", ['<red|green|flash|off|refresh>'])
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.cuav_settings = MPSettings(
-            [ MPSetting('wp_center', int, 0, 'center search wp'),
-              MPSetting('wp_start', int, 0, 'start search wp'),
-              MPSetting('wp_end', int, 0, 'end search wp'),
-              MPSetting('wp_land',int, 0, 'landing start wp') ])
+            [ MPSetting('wp_center', int, 2, 'center search USER number'),
+              MPSetting('wp_start', int, 1, 'start search USER number'),
+              MPSetting('wp_end', int, 3, 'end search USER number'),
+              MPSetting('wp_land',int, 4, 'landing start USER number'),
+              MPSetting('auto_mission',bool, True, 'enable auto mission code') ])
         self.add_command('cuav', self.cmd_cuav,
                          'cuav companion control',
                          ['set (CUAVSETTING)'])
@@ -142,11 +143,29 @@ class CUAVCompanionModule(mp_module.MPModule):
             except Exception as ex:
                 print(ex)
 
+    def find_user_wp(self, wploader, n):
+        '''find a USER_ waypoint number'''
+        for i in range(1, wploader.count()):
+            wp = wploader.wp(i)
+            if wp.command == mavutil.mavlink.MAV_CMD_USER_1 + (n-1):
+                # the USER_n waypoint is just before the waypoint to use
+                return i+1
+        return None
+
     def update_mission(self):
         '''update mission status'''
-        if (self.cuav_settings.wp_center == 0 or
-            self.cuav_settings.wp_start == 0 or
-            self.cuav_settings.wp_end == 0):
+        if not self.cuav_settings.auto_mission:
+            return
+        wpmod = self.module('wp')
+        wploader = wpmod.wploader
+
+        wp_start = self.find_user_wp(wploader, 1)
+        wp_center = self.find_user_wp(wploader, 2)
+        wp_end = self.find_user_wp(wploader, 3)
+
+        if (wp_center is None or
+            wp_start is None or
+            wp_end is None):
             # not configured
             return
 
@@ -154,17 +173,15 @@ class CUAVCompanionModule(mp_module.MPModule):
         if self.last_attitude_ms - self.last_mission_check_ms < 5000:
             return
         self.last_mission_check_ms = self.last_attitude_ms
-        
+
         if self.updated_waypoints:
-            wpmod = self.module('wp')
-            cam = self.module('camera_air') 
+            cam = self.module('camera_air')
             if wpmod.loading_waypoints:
                 self.send_message("listing waypoints")                
                 wpmod.cmd_wp(["list"])
             else:
                 self.send_message("sending waypoints")
                 self.updated_waypoints = False
-                wploader = wpmod.wploader
                 wploader.save("newwp.txt")
                 cam.send_file("newwp.txt")
         
@@ -175,10 +192,9 @@ class CUAVCompanionModule(mp_module.MPModule):
         if self.last_attitude_ms - self.last_wp_move_ms < 2*60*1000:
             # only move waypoints every 2 minutes
             return
-        
+
         try:
-            wpmod = self.module('wp')
-            cam = self.module('camera_air') 
+            cam = self.module('camera_air')
             lz = cam.lz
             target_latitude = cam.camera_settings.target_latitude
             target_longitude = cam.camera_settings.target_longitude
@@ -226,15 +242,16 @@ class CUAVCompanionModule(mp_module.MPModule):
         
         self.last_wp_move_ms = self.last_attitude_ms
         self.send_message("Moving search to: (%f,%f)" % (lat, lon))
-        wpmod.cmd_wp_movemulti([self.cuav_settings.wp_center, self.cuav_settings.wp_start, self.cuav_settings.wp_end], (lat,lon))
+        wpmod.cmd_wp_movemulti([wp_center, wp_start, wp_end], (lat,lon))
         self.wp_move_count += 1
-        
-        if (self.cuav_settings.wp_land > 0 and
+
+        wp_land = self.find_user_wp(wploader, 4)
+        if (wp_land is not None and
             self.wp_move_count >= 3 and
             lzresult.numregions > 10 and
             self.master.flightmode == "AUTO"):
             self.send_message("Starting landing")
-            self.master.waypoint_set_current_send(self.cuav_settings.wp_land)
+            self.master.waypoint_set_current_send(wp_land)
             self.started_landing = True
         self.updated_waypoints = True
             

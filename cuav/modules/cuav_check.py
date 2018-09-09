@@ -46,17 +46,32 @@ class CUAVModule(mp_module.MPModule):
               MPSetting('wind_speed', float, 0, 'wind speed (m/s)'),
               MPSetting('wind_direction', float, 0, 'wind direction (degrees)'),
               MPSetting('button_pin', float, 0, 'button pin'),
-              MPSetting('fuel_pin', float, 1, 'fuel pin') ])
+              MPSetting('fuel_pin', float, 1, 'fuel pin'),
+              MPSetting('wp_center', int, 2, 'center search USER number'),
+              MPSetting('wp_start', int, 1, 'start search USER number'),
+              MPSetting('wp_end', int, 3, 'end search USER number'),
+              MPSetting('wp_land',int, 4, 'landing start USER number') ])
         self.add_completion_function('(CUAVCHECKSETTING)', self.cuav_settings.completion)
         self.add_command('cuavcheck', self.cmd_cuavcheck,
                          'cuav check control',
-                         ['checkparams', 'set (CUAVCHECKSETTING)'])
+                         ['checkparams',
+                          'movetarget',
+                          'set (CUAVCHECKSETTING)'])
 
         #make the initial map menu
         if mp_util.has_wxpython and self.module('map'):
             self.menu = MPMenuSubMenu('UAV Challenge', items=[MPMenuCheckbox('Show Landing Zone', 'Show Landing Zone', '# cuavcheck toggleLandingZone'), MPMenuCheckbox('Show Joe Zone', 'Show Joe Zone', '# cuavcheck toggleJoeZone')])
             self.module('map').add_menu(self.menu)
 
+    def find_user_wp(self, wploader, n):
+        '''find a USER_ waypoint number'''
+        for i in range(1, wploader.count()):
+            wp = wploader.wp(i)
+            if wp.command == mavutil.mavlink.MAV_CMD_USER_1 + (n-1):
+                # the USER_n waypoint is just before the waypoint to use
+                return i+1
+        return None
+            
     def toggle_LandingZone(self):
         '''show/hide the UAV Challenge landing zone around the clicked point'''
         from MAVProxy.modules.mavproxy_map import mp_slipmap
@@ -137,9 +152,31 @@ class CUAVModule(mp_module.MPModule):
                 print("Parameters OK")
             else:
                 print("Parameters bad")
+        elif args[0] == "movetarget":
+            self.move_target()
         else:
             print(usage)
             return
+
+    def move_target(self):
+        '''move target waypoints'''
+        wpmod = self.module('wp')
+        wploader = wpmod.wploader
+
+        wp_start = self.find_user_wp(wploader, 1)
+        wp_center = self.find_user_wp(wploader, 2)
+        wp_end = self.find_user_wp(wploader, 3)
+        if (wp_center is None or
+            wp_start is None or
+            wp_end is None):
+            print("Target WPs not in mission")
+            return
+        latlon = self.module('map').click_position
+        if latlon is None:
+            print("No click position")
+            return
+        print("Moving %u waypoints" % (wp_end + 1 - wp_start), wp_center, wp_start, wp_end)
+        wpmod.cmd_wp_movemulti([wp_center, wp_start, wp_end], latlon)
 
     def check_parms(self, parms, set=False):
         '''check parameter settings'''
