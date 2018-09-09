@@ -28,31 +28,13 @@ class NMEAModule(mp_module.MPModule):
         super(NMEAModule, self).__init__(mpstate,
                                          "NMEA",
                                          "NMEA output",
-                                         public=True)
-        self.add_command('nmea', self.cmd_nmea, "nmea control")
-        self.base_source = NMEASource(mpstate)
-        self.secondary_source = None
+                                         public=True,
+                                         multi_instance=True)
+        cmdname = "nmea"
+        if self.instance > 1:
+            cmdname += "%u" % self.instance
+        self.add_command(cmdname, self.cmd_nmea, "nmea control")
 
-    def cmd_nmea(self, args):
-        '''pass through nmea commands for base source'''
-        self.base_source.cmd_nmea(args)
-
-    def mavlink_packet(self, m):
-        '''pass through packets for base source'''
-        self.base_source.mavlink_packet(m)
-
-    def set_secondary_vehicle_position(self, m):
-        '''register secondary vehicle position'''
-        if self.secondary_source is None:
-            self.add_command('nmea2', self.cmd_nmea, "nmea control")
-            self.secondary_source = NMEASource(self.mpstate)
-
-        self.secondary_source.mavlink_packet(m)
-
-class NMEASource():
-    '''allows for multiple sources of NMEA information to be received and sent'''
-
-    def __init__(self, mpstate):
         self.port = None
         self.baudrate = 4800
         self.data = 8
@@ -61,6 +43,7 @@ class NMEASource():
         self.serial = None
         self.socat = None
         self.log_output = None
+        self.log_output_filepath = None
         self.udp_output_port = None
         self.udp_output_address = None
         self.output_time = 0.0
@@ -82,14 +65,22 @@ nmea log:/tmp/nmea-log.txt
 nmea udp:10.10.10.72:1765
 """
 
+    def show_status(self):
+        if self.port is None:
+            print("NMEA output port not set")
+            print(self.usage())
+        else:
+            print("NMEA output port %s, %d, %d, %s, %d" % (str(self.port), self.baudrate, self.data, str(self.parity), self.stop))
+
+        print("NMEA-socat: %s" % str(self.socat))
+        print("NMEA-log-output: %s" % str(self.log_output))
+        print("NMEA-udp-output: %s (%s)" % (str(self.udp_output_port),
+                                            self.log_output_filepath))
+
     def cmd_nmea(self, args):
         '''set nmea'''
         if len(args) == 0:
-            if self.port is None:
-                print("NMEA output port not set")
-                print(self.usage())
-            else:
-                print("NMEA output port %s, %d, %d, %s, %d" % (str(self.port), self.baudrate, self.data, str(self.parity), self.stop))
+            self.show_status()
             return
         if len(args) > 0:
             self.port = str(args[0])
@@ -184,16 +175,31 @@ nmea udp:10.10.10.72:1765
         if not os.path.isabs(filepath):
             filepath = os.path.join(self.mpstate.status.logdir, filepath)
         self.log_output = open(filepath, "ab")
+        self.log_output_filepath = filepath
 
     def start_udp_output(self, args):
         (hostname, port) = args.split(":")
         self.udp_output_port = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_output_address = (hostname, int(port))
 
+    def set_secondary_vehicle_position(self, m):
+        '''register secondary vehicle position'''
+
+        if self.instance == 1:
+            return
+
+        self.handle_position(m)
+
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
         import time
 
+        if self.instance == 2:
+            return
+
+        self.handle_position(m)
+
+    def handle_position(self, m):
         now_time = time.time()
         if abs(self.output_time - now_time) < 1.0:
             return
