@@ -60,9 +60,9 @@ class ImageRequest(StampedCommand):
 
 class HeartBeat(StampedCommand):
     '''generic heartbeat to keep bsend alive'''
-    def __init__(self):
+    def __init__(self, icount):
         StampedCommand.__init__(self)
-        pass
+        self.icount = icount
 
 class CameraMessage(StampedCommand):
     '''critical camera message'''

@@ -597,7 +597,7 @@ class CameraAirModule(mp_module.MPModule):
 
     def send_heartbeat(self):
         '''send a heartbeat'''
-        pkt = cuav_command.HeartBeat()
+        pkt = cuav_command.HeartBeat(self.capture_count)
         self.transmit_queue.put((pkt, None, None))
 
     def send_message(self, msg):

@@ -228,11 +228,9 @@ class CameraGroundModule(mp_module.MPModule):
 
         self.console.set_status('Images', 'Images %u' % self.image_count, row=6)
         self.console.set_status('Regions', 'Regions %u' % self.region_count, row=6)
-        self.console.set_status('JPGSize', 'JPGSize %.0f' % 0.0, row=6)
 
         self.console.set_status('Thumbs', 'Thumbs %u' % self.thumb_count, row=7)
         self.console.set_status('ThumbSize', 'ThumbSize %.0f' % 0.0, row=7)
-        self.console.set_status('ImageSize', 'ImageSize %.0f' % 0.0, row=7)
 
         # give time for maps to init
         time.sleep(3)
@@ -302,6 +300,10 @@ class CameraGroundModule(mp_module.MPModule):
                 return
             self.handled_timestamps[obj.timestamp] = time.time()
 
+        if isinstance(obj, cuav_command.HeartBeat):
+            self.image_count = obj.icount
+            self.console.set_status('Images', 'Images %u' % self.image_count, row=6)
+
         if isinstance(obj, cuav_command.ThumbPacket):
             # we've received a set of thumbnails from the plane for a positive hit
             if obj.frame_time not in self.thumbs_received:
@@ -356,8 +358,6 @@ class CameraGroundModule(mp_module.MPModule):
             self.image_count += 1
             color = 'black'
             self.console.set_status('Images', 'Images %u' % self.image_count, row=6, fg=color)
-            self.console.set_status('ImageSize', 'ImageSize %.0f' %
-                                    (self.image_total_bytes/self.image_count), row=7)
 
         if isinstance(obj, cuav_command.CommandPacket):
             # ground doesn't accept command packets from air
@@ -464,7 +464,7 @@ class CameraGroundModule(mp_module.MPModule):
 
     def send_heartbeat(self):
         '''send a heartbeat'''
-        pkt = cuav_command.HeartBeat()
+        pkt = cuav_command.HeartBeat(self.image_count)
         self.send_packet(pkt)
 
     def send_message(self, msg):
