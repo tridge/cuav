@@ -21,6 +21,7 @@ class CUAVModule(mp_module.MPModule):
         self.console.set_status('Button', 'Button: --', row=8, fg='black')
         self.console.set_status('ICE', 'ICE: --', row=8, fg='black')
         self.console.set_status('FuelPump', 'FuelPump: --', row=8, fg='black')
+        self.console.set_status('DNFZ', 'DNFZ -- --', row=6, fg='black')
         self.rate_period = mavutil.periodic_event(1.0/15)
         self.button_remaining = None
         self.button_change = None
@@ -400,6 +401,21 @@ class CUAVModule(mp_module.MPModule):
         if m.get_type() == 'NAMED_VALUE_FLOAT' and m.name == 'BAT3VOLT':
             self.console.set_status('BAT3', 'Bat3: %.2f' % m.value, row=8)
 
+        if m.get_type() == 'COLLISION':
+            if m.action == 0:
+                color = 'green'
+            elif m.action == 1:
+                color = 'blue'
+            elif m.action == 2:
+                color = 'orange'
+            elif m.action == 3:
+                color = 'darkorange'
+            elif m.action == 4:
+                color = 'darkred'
+            else:
+                color = 'red'
+            self.console.set_status('DNFZ', 'DNFZ %d %.0fm %.0fm' % (
+                m.id, m.horizontal_minimum_delta, m.altitude_minimum_delta), row=6, fg=color)
 
         if self.rate_period.trigger():
             self.check_parameters()
