@@ -1,0 +1,21 @@
+# start gpsd listening for NMEA data on port 7000 and listening on port 7001 for gpsd clients:
+gpsd -D 10 udp://192.168.3.11:7000 -N -n -S 7001
+
+# start MAVProxy sending data to gegpsd:
+# in MAVProxy console:
+module load nmea
+nmea udp:192.168.3.11:7000
+
+# start gegpsd sourcing information from started gpsd:
+GEGPSD=$HOME/rc/cuav/cuav/cuav/tools/gegpsd
+$GEGPSD/gegpsd.py  --output=/tmp/nmea.kml --server=localhost:7001 --pin-image=$GEGPSD/blueplane.png
+
+# in Google Earth Pro, open the .kml file as a Network Link
+Add -> Network Link
+Name: CUAV Primary Vehicle
+Link: /tmp/nmea.kml
+
+Refresh Tab:
+ Time-based-fresh
+ When: Periodically, 1 second
+ 
