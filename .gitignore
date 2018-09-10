@@ -18,3 +18,4 @@ logs/
 .eggs/
 .pytest_cache/
 cuav.egg-info/
+!cuav/tools/gegpsd/*.png
