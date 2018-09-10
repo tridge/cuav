@@ -1,12 +1,22 @@
-#!env python
+#!/usr/bin/env python
 
 # gegpsd-0.3.py retrieved from https://warwick.ac.uk/fac/sci/csc/people/computingstaff/jaroslaw_zachwieja/gegpsd/gegpsd-0.3.py
 
 import gps
+import optparse
 
-file = '/tmp/nmea.kml'
+parser = optparse.OptionParser("gegpsd.py [options]")
+parser.add_option("--output", help="Output file", default='/tmp/nmea.kml')
+parser.add_option("--server", help="host:port", default="localhost:2947")
+parser.add_option("--pin-image", help="pin image", default=None)
 
-session = gps.gps(host="localhost", port="2947")
+(opts, args) = parser.parse_args()
+
+file = opts.output
+
+(host, port) = opts.server.split(":")
+
+session = gps.gps(host=host, port=port)
 
 session.stream(flags=gps.WATCH_JSON)
 
@@ -27,6 +37,18 @@ for report in session:
            tilt = 30
            heading = 0
 
+       pin_image = ""
+       if opts.pin_image is not None:
+           pin_image = """	<Style id="mystyle">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>%s</href>
+			</Icon>
+		</IconStyle>
+	</Style>
+""" % opts.pin_image
+
        output = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://earth.google.com/kml/2.0">
 	<Placemark>
@@ -42,8 +64,9 @@ for report in session:
 		<Point>
 			<coordinates>%s,%s,%s</coordinates>
 		</Point>
+	%s
 	</Placemark>
-</kml>""" % (speed,longitude,latitude,range,tilt,heading,longitude,latitude,altitude)
+</kml>""" % (speed,longitude,latitude,range,tilt,heading,longitude,latitude,altitude, pin_image)
 
        f=open(file, 'w')
        f.write(output)
