@@ -1,4 +1,7 @@
 #!env python
+
+# gegpsd-0.3.py retrieved from https://warwick.ac.uk/fac/sci/csc/people/computingstaff/jaroslaw_zachwieja/gegpsd/gegpsd-0.3.py
+
 import gps
 
 file = '/tmp/nmea.kml'
