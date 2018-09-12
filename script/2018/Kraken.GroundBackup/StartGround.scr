@@ -16,5 +16,7 @@ set speech_voice english+f5
 # send packets over to primary kraken GCS
 output add 192.168.3.22:14650
 
+output sysid 2 127.0.0.1:9991
+
 # use saved layout
 layout load

@@ -15,3 +15,5 @@ module load speech
 
 layout load
 
+# throw away sysid2 pkts
+output sysid 2 127.0.0.1:9991
