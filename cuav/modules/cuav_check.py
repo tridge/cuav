@@ -414,8 +414,8 @@ class CUAVModule(mp_module.MPModule):
                 color = 'darkred'
             else:
                 color = 'red'
-            self.console.set_status('DNFZ', 'DNFZ %d %.0fm %.0fm' % (
-                m.id, m.horizontal_minimum_delta, m.altitude_minimum_delta), row=6, fg=color)
+            self.console.set_status('DNFZ', 'DNFZ %d %.0fm %.0fm %u' % (
+                m.id, m.horizontal_minimum_delta, m.altitude_minimum_delta, m.src), row=6, fg=color)
 
         if self.rate_period.trigger():
             self.check_parameters()
