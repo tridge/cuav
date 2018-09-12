@@ -22,6 +22,7 @@ import sys
 import time
 
 from MAVProxy.modules.lib import mp_module
+from MAVProxy.modules.lib import mp_settings
 
 class NMEAModule(mp_module.MPModule):
     def __init__(self, mpstate):
@@ -33,13 +34,12 @@ class NMEAModule(mp_module.MPModule):
         cmdname = "nmea"
         if self.instance > 1:
             cmdname += "%u" % self.instance
-        self.add_command(cmdname, self.cmd_nmea, "nmea control")
+        self.add_command(cmdname,
+                         self.cmd_nmea,
+                         "nmea control",
+                         ['<status|set>'])
 
-        self.port = None
-        self.baudrate = 4800
-        self.data = 8
-        self.parity = 'N'
-        self.stop = 1
+        self.serial_line = None
         self.serial = None
         self.socat = None
         self.log_output = None
@@ -54,26 +54,26 @@ class NMEAModule(mp_module.MPModule):
         self.fix_quality = 0
         self.last_time_boot_ms = 0
 
+        self.nmea_settings = mp_settings.MPSettings(
+            [('target_system', int, 1)]
+        )
+        self.add_completion_function('(NMEASETTING)',
+                                     self.nmea_settings.completion)
+
         self.sent_count = 0
 
     def usage(self):
         return """
-nmea port [baudrate data parity stop]
-e.g.
+nmea serial /dev/ttyS0 115200 8 N 1
+nmea udp 10.10.10.72:1765
+nmea log /tmp/nmea-log.txt
+nmea socat GOPEN:/tmp/output
+nmea socat UDP-SENDTO:10.0.1.255:17890
 nmea /dev/ttyS0 115200 8 N 1
-nmea socat:GOPEN:/tmp/output
-nmea socat:UDP-SENDTO:10.0.1.255:17890
-nmea log:/tmp/nmea-log.txt
-nmea udp:10.10.10.72:1765
 """
 
-    def show_status(self):
-        if self.port is None:
-            print("NMEA output port not set")
-            print(self.usage())
-        else:
-            print("NMEA output port %s, %d, %d, %s, %d" % (str(self.port), self.baudrate, self.data, str(self.parity), self.stop))
-
+    def cmd_status(self, rest):
+        print("NMEA-serial: %s" % str(self.serial_line))
         print("NMEA-socat: %s" % str(self.socat))
         print("NMEA-log-output: %s" % str(self.log_output))
         print("NMEA-udp-output: %s (%s)" % (str(self.udp_output_port),
@@ -82,45 +82,49 @@ nmea udp:10.10.10.72:1765
     def cmd_nmea(self, args):
         '''set nmea'''
         if len(args) == 0:
-            self.show_status()
+            self.cmd_status(args)
             return
-        if len(args) > 0:
-            self.port = str(args[0])
-        if len(args) > 1:
-            self.baudrate = int(args[1])
-        if len(args) > 2:
-            self.data = int(args[2])
-        if len(args) > 3:
-            self.parity = str(args[3])
-        if len(args) > 4:
-            self.stop = int(args[4])
+        cmd = args[0]
+        args = args[1:]
+        if cmd == 'status':
+            self.cmd_status(args)
+        elif cmd == 'set':
+            self.nmea_settings.command(args)
+        elif cmd == 'udp':
+            self.cmd_udp(args)
+        elif cmd == 'log':
+            self.cmd_log(args)
+        elif cmd == 'socat':
+            self.cmd_log(args)
+        elif cmd == 'serial':
+            self.cmd_serial(args)
+        else:
+            print("Unknown command (%s)" % cmd)
+        return
+
+    def cmd_serial(self, args):
+        if len(args) != 0 and len(args) < 5:
+            print(self.usage())
+            return
 
         if self.serial is not None:
             self.serial.close()
         self.serial = None
-        if len(args) > 0:
-            if self.port.startswith("/dev/"):
-                try:
-                    self.serial = serial.Serial(self.port, self.baudrate, self.data, self.parity, self.stop)
-                except serial.SerialException as se:
-                    print("Failed to open output port %s:%s" % (self.port, se.message))
-            elif self.port.startswith("socat:"):
-                try:
-                    self.start_socat_output(self.port[6:])
-                except Exception as se:
-                    print("Failed to open socat output %s:%s" % (self.port, se.message))
-            elif self.port.startswith("log:"):
-                try:
-                    self.start_log_output(self.port[4:])
-                except Exception as se:
-                    print("Failed to open output log %s:%s" % (self.port, se.message))
-            elif self.port.startswith("udp:"):
-                try:
-                    self.start_udp_output(self.port[4:])
-                except Exception as se:
-                    print("Failed to open udp output %s:%s" % (self.port, se.message))
-            else:
-                self.serial = open(self.port, mode='w')
+
+        if len(args) == 0:
+            return
+
+        port = str(args[0])
+        baudrate = int(args[1])
+        data = int(args[2])
+        parity = str(args[3])
+        stop = int(args[4])
+        self.serial_line = ":".join(args)
+
+        try:
+            self.serial = serial.Serial(port, baudrate, data, parity, stop)
+        except serial.SerialException as se:
+            print("Failed to open serial %s:%s" % (self.serial_line, se.message))
 
     def format_date(self, utc_sec):
         import time
@@ -164,23 +168,33 @@ nmea udp:10.10.10.72:1765
                      speed, course, self.format_date(utc_sec))
         return msg + "*%02X" % self.nmea_checksum(msg)
 
-    def start_socat_output(self, args):
+    def cmd_socat(self, args):
+        if len(args) < 1:
+            print(self.usage)
+            return
+        socat_cmd = args[0]
         (self.socat_in, self.socat_out) = os.pipe()
         self.socat = subprocess.Popen(["socat",
                                        "FD:0",
-                                       args],
+                                       socat_cmd],
                                       stdin=self.socat_in,
         )
 
-    def start_log_output(self, args):
-        filepath = args
+    def cmd_log(self, args):
+        if len(args) < 1:
+            print(self.usage)
+            return
+        filepath = args[0]
         if not os.path.isabs(filepath):
             filepath = os.path.join(self.mpstate.status.logdir, filepath)
         self.log_output = open(filepath, "ab")
         self.log_output_filepath = filepath
 
-    def start_udp_output(self, args):
-        (hostname, port) = args.split(":")
+    def cmd_udp(self, args):
+        if len(args) < 1:
+            print(self.usage)
+            return
+        (hostname, port) = args[0].split(":")
         self.udp_output_port = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_output_address = (hostname, int(port))
         self.udp_output_port.connect(self.udp_output_address)
@@ -188,9 +202,6 @@ nmea udp:10.10.10.72:1765
 
     def set_secondary_vehicle_position(self, m):
         '''register secondary vehicle position'''
-
-        if self.instance == 1:
-            return
 
         self.handle_position(m)
 
@@ -203,12 +214,12 @@ nmea udp:10.10.10.72:1765
                                     'NMEA: %u' % self.sent_count,
                                     fg='black')
 
-        if self.instance == 2:
-            return
-
         self.handle_position(m)
 
     def handle_position(self, m):
+        if m.get_srcSystem() != self.nmea_settings.target_system:
+            return
+
         now_time = time.time()
         if abs(self.output_time - now_time) < 1.0:
             return
