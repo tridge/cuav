@@ -8,6 +8,10 @@ set speed_unit knots
 set height_unit feet
 set dist_unit nm
 
+module load cuav.modules.cuav_check
+module load speech
+set speech_voice english+f5
+
 # send packets over to primary kraken GCS
 output add 192.168.3.22:14650
 
