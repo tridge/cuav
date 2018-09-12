@@ -33,6 +33,7 @@ cuavcheck toggleJoeZone
 @alias add triggerbutton param set SIM_PIN_MASK 0xFE
 @alias add triggerfuel param set SIM_PIN_MASK 0xFD
 
+module load asterix
 
 output sysid 1 127.0.0.1:14650
 
