@@ -153,6 +153,10 @@ class CUAVModule(mp_module.MPModule):
                 print("Parameters OK")
             else:
                 print("Parameters bad")
+            if not self.check_fence():
+                print("Fence bad")
+            else:
+                print("Fence OK")
         elif args[0] == "movetarget":
             self.move_target()
         else:
@@ -348,6 +352,24 @@ class CUAVModule(mp_module.MPModule):
         airspeed = ground + wind
         self.console.set_status('AirspeedEstimate', 'AirspeedEstimate: %u m/s' % airspeed.length(), row=8)
 
+    def check_fence(self):
+        try:
+            sys_status = self.master.messages['SYS_STATUS']
+        except Exception:
+            return False
+
+        bits = mavutil.mavlink.MAV_SYS_STATUS_GEOFENCE
+
+        present = ((sys_status.onboard_control_sensors_present & bits) == bits)
+        enabled = ((sys_status.onboard_control_sensors_enabled & bits) == bits)
+        healthy = ((sys_status.onboard_control_sensors_health & bits) == bits)
+        if not present or not enabled:
+            self.console.writeln('Fence should be enabled')
+            return False
+        if not healthy:
+            self.console.writeln('Fence unhealthy')
+            return False
+        return True
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -419,6 +441,7 @@ class CUAVModule(mp_module.MPModule):
 
         if self.rate_period.trigger():
             self.check_parameters()
+            self.check_fence()
 
 def init(mpstate):
     '''initialise module'''
