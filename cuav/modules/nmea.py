@@ -50,7 +50,6 @@ class NMEAModule(mp_module.MPModule):
 
         self.num_sat = 0
         self.hdop = 0
-        self.altitude = 0
         self.fix_quality = 0
         self.last_time_boot_ms = 0
 
@@ -263,7 +262,6 @@ nmea socat UDP-SENDTO:10.0.1.255:17890
         if m.get_type() == 'GPS_RAW_INT':
             self.num_sat = m.satellites_visible
             self.hdop = m.eph/100.0
-            self.altitude = m.alt/1000.0
             self.fix_quality = 1 if (m.fix_type > 1) else 0 # 0/1 for (in)valid or 2 DGPS
 
         if m.get_type() == 'GLOBAL_POSITION_INT':
@@ -280,6 +278,7 @@ nmea socat UDP-SENDTO:10.0.1.255:17890
             fix_status = 'A'
             lat = m.lat/1.0e7
             lon = m.lon/1.0e7
+            altitude = m.alt * 0.001
 
             # for GPRMC
             speed_ms = math.sqrt(m.vx**2+m.vy**2) * 0.01
@@ -290,9 +289,9 @@ nmea socat UDP-SENDTO:10.0.1.255:17890
 
             # for GPGGA
 
-            # print format_gga(utc_sec, lat, lon, self.fix_quality, self.num_sat, self.hdop, self.altitude)
+            # print format_gga(utc_sec, lat, lon, self.fix_quality, self.num_sat, self.hdop, altitude)
             # print format_rmc(utc_sec, fix_status, lat, lon, knots, course)
-            gga = self.format_gga(utc_sec, lat, lon, self.fix_quality, self.num_sat, self.hdop, self.altitude)
+            gga = self.format_gga(utc_sec, lat, lon, self.fix_quality, self.num_sat, self.hdop, altitude)
             rmc = self.format_rmc(utc_sec, fix_status, lat, lon, knots, course)
 
             self.output_time = now_time
