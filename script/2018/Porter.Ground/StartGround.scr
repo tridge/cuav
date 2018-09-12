@@ -11,6 +11,7 @@ set altreadout 30
 set speed_unit knots
 set height_unit feet
 set dist_unit nm
+set numcells 6
 
 # send kraken pkts to local kraken backup GCS
 output sysid 1 127.0.0.1:14650
