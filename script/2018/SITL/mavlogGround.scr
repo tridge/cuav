@@ -41,3 +41,5 @@ output add 192.168.3.22:14660
 
 # use saved layout
 layout load
+
+rc 7 1500
