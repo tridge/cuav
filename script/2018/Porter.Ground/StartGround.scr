@@ -37,6 +37,8 @@ set altreadout 30
 
 module load cuav.modules.cuav_check
 
+module load asterix
+
 module load sensors
 speed
 module load speech
