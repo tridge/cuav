@@ -42,6 +42,6 @@ def test_calcLandingZone():
         lz.checkaddregion(r, pos)
 
     ret = lz.calclandingzone()
-    assert ret = True
+    assert ret == True
 
 
