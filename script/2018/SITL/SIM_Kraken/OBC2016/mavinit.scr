@@ -1,0 +1,5 @@
+
+output sysid 2 127.0.0.1:14951
+set vehicle_name KrakenSim
+set streamrate -1
+
