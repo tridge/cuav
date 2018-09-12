@@ -45,9 +45,10 @@ for report in session:
 			<Icon>
 				<href>%s</href>
 			</Icon>
+			<heading>%s</heading>
 		</IconStyle>
 	</Style>
-""" % opts.pin_image
+""" % (opts.pin_image, heading)
 
        output = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://earth.google.com/kml/2.0">
