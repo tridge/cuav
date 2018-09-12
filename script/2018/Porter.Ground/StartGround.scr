@@ -6,6 +6,7 @@ set source_system 254
 
 set streamrate -1
 set shownoise 0
+set altreadout 30
 
 set speed_unit knots
 set height_unit feet

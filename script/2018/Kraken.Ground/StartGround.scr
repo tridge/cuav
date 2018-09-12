@@ -2,6 +2,8 @@ set moddebug 3
 set streamrate -1
 set vehicle_name Kraken
 
+set altreadout 30
+
 set speed_unit knots
 set height_unit feet
 set dist_unit nm
