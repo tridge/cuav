@@ -239,7 +239,7 @@ nmea socat UDP-SENDTO:10.0.1.255:17890
     def set_console_status(self, colour):
         self.console.set_status('NMEA' + str(self.instance),
                                 'NMEA%u:%u' % (self.instance, self.sent_count),
-                                fg=colour)
+                                fg=colour, row=6)
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
