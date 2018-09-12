@@ -54,6 +54,8 @@ class NMEAModule(mp_module.MPModule):
         self.fix_quality = 0
         self.last_time_boot_ms = 0
 
+        self.sent_count = 0
+
     def usage(self):
         return """
 nmea port [baudrate data parity stop]
@@ -181,6 +183,8 @@ nmea udp:10.10.10.72:1765
         (hostname, port) = args.split(":")
         self.udp_output_port = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_output_address = (hostname, int(port))
+        self.udp_output_port.connect(self.udp_output_address)
+        self.udp_output_port.setblocking(0)
 
     def set_secondary_vehicle_position(self, m):
         '''register secondary vehicle position'''
@@ -193,6 +197,11 @@ nmea udp:10.10.10.72:1765
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
         import time
+
+        if self.sent_count == 0:
+            self.console.set_status('NMEA' + str(self.instance),
+                                    'NMEA: %u' % self.sent_count,
+                                    fg='black')
 
         if self.instance == 2:
             return
@@ -243,8 +252,15 @@ nmea udp:10.10.10.72:1765
             #print(gga+'\r')
             #print(rmc+'\r')
             #print(self.serial)
-            self.output(gga + '\r\n')
-            self.output(rmc + '\r\n')
+            try:
+                self.output(gga + '\r\n')
+            except Exception as e:
+                return
+            try:
+                self.output(rmc + '\r\n')
+            except Exception as e:
+                return
+            self.sent_count += 1
 
     def output(self, output):
         if self.serial is not None:
@@ -257,7 +273,16 @@ nmea udp:10.10.10.72:1765
             self.log_output.write(timestamped)
             self.log_output.flush()
         if self.udp_output_port is not None:
-            self.udp_output_port.sendto(output, self.udp_output_address)
+            try:
+                self.udp_output_port.send(output)
+                self.console.set_status('NMEA' + str(self.instance),
+                                        'NMEA:%u' % self.sent_count,
+                                        fg='green')
+            except Exception as e:
+                self.console.set_status('NMEA' + str(self.instance),
+                                        'NMEA:%u' % self.sent_count,
+                                        fg='red')
+                raise e
 
 def init(mpstate):
     '''initialise module'''
