@@ -55,7 +55,9 @@ class NMEAModule(mp_module.MPModule):
         self.last_time_boot_ms = 0
 
         self.nmea_settings = mp_settings.MPSettings(
-            [('target_system', int, 1)]
+            [('target_system', int, 1),
+             ('wgs84_to_amsl', float, 0),
+            ]
         )
         self.add_completion_function('(NMEASETTING)',
                                      self.nmea_settings.completion)
@@ -67,17 +69,16 @@ class NMEAModule(mp_module.MPModule):
 nmea serial /dev/ttyS0 115200 8 N 1
 nmea udp 10.10.10.72:1765
 nmea log /tmp/nmea-log.txt
+nmea log log.txt
 nmea socat GOPEN:/tmp/output
 nmea socat UDP-SENDTO:10.0.1.255:17890
-nmea /dev/ttyS0 115200 8 N 1
 """
 
     def cmd_status(self, rest):
         print("NMEA-serial: %s" % str(self.serial_line))
         print("NMEA-socat: %s" % str(self.socat))
-        print("NMEA-log-output: %s" % str(self.log_output))
-        print("NMEA-udp-output: %s (%s)" % (str(self.udp_output_port),
-                                            self.log_output_filepath))
+        print("NMEA-log-output: %s" % str(self.log_output_filepath))
+        print("NMEA-udp-output: %s" % (str(self.udp_output_address)))
 
     def cmd_nmea(self, args):
         '''set nmea'''
@@ -156,12 +157,43 @@ nmea /dev/ttyS0 115200 8 N 1
         for i in d:
             cs ^= ord(i)
         return cs
-
+    # From: http://aprs.gids.nl/nmea/#gga
+    # eg3. $GPGGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x,xx,x.x,x.x,M,x.x,M,x.x,xxxx*hh
+    # 1    = UTC of Position
+    # 2    = Latitude
+    # 3    = N or S
+    # 4    = Longitude
+    # 5    = E or W
+    # 6    = GPS quality indicator (0=invalid; 1=GPS fix; 2=Diff. GPS fix)
+    # 7    = Number of satellites in use [not those in view]
+    # 8    = Horizontal dilution of position
+    # 9    = Antenna altitude above/below mean sea level (geoid)
+    # 10   = Meters  (Antenna height unit)
+    # 11   = Geoidal separation (Diff. between WGS-84 earth ellipsoid and
+    #        mean sea level.  -=geoid is below WGS-84 ellipsoid)
+    # 12   = Meters  (Units of geoidal separation)
+    # 13   = Age in seconds since last update from diff. reference station
+    # 14   = Diff. reference station ID#
+    # 15   = Checksum
     def format_gga(self, utc_sec, lat, lon, fix, nsat, hdop, alt):
-        fmt = "$GPGGA,%s,%s,%s,%01d,%02d,%04.1f,%07.2f,M,0.0,M,,"
-        msg = fmt % (self.format_time(utc_sec), self.format_lat(lat), self.format_lon(lon), fix, nsat, hdop, alt)
+        fmt = "$GPGGA,%s,%s,%s,%01d,%02d,%04.1f,%07.2f,M,%07.2f,M,,"
+        msg = fmt % (self.format_time(utc_sec), self.format_lat(lat), self.format_lon(lon), fix, nsat, hdop, alt, -self.nmea_settings.wgs84_to_amsl)
         return msg + "*%02X" % self.nmea_checksum(msg)
 
+    # From: http://aprs.gids.nl/nmea/#rmc
+    # eg4. $GPRMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,ddmmyy,x.x,a*hh
+    # 1    = UTC of position fix
+    # 2    = Data status (V=navigation receiver warning)
+    # 3    = Latitude of fix
+    # 4    = N or S
+    # 5    = Longitude of fix
+    # 6    = E or W
+    # 7    = Speed over ground in knots
+    # 8    = Track made good in degrees True
+    # 9    = UT date
+    # 10   = Magnetic variation degrees (Easterly var. subtracts from true course)
+    # 11   = E or W
+    # 12   = Checksum
     def format_rmc(self, utc_sec, fix, lat, lon, speed, course):
         fmt = "$GPRMC,%s,%s,%s,%s,%.2f,%.2f,%s,,"
         msg = fmt % (self.format_time(utc_sec), fix, self.format_lat(lat), self.format_lon(lon),
@@ -202,21 +234,25 @@ nmea /dev/ttyS0 115200 8 N 1
 
     def set_secondary_vehicle_position(self, m):
         '''register secondary vehicle position'''
-
+#        print("Secondary vehicle position")
         self.handle_position(m)
+
+    def set_console_status(self, colour):
+        self.console.set_status('NMEA' + str(self.instance),
+                                'NMEA%u:%u' % (self.instance, self.sent_count),
+                                fg=colour)
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
         import time
 
         if self.sent_count == 0:
-            self.console.set_status('NMEA' + str(self.instance),
-                                    'NMEA: %u' % self.sent_count,
-                                    fg='black')
+            self.set_console_status('black')
 
         self.handle_position(m)
 
     def handle_position(self, m):
+#        print("%u: %u vs %u" % (self.instance, m.get_srcSystem(), self.nmea_settings.target_system))
         if m.get_srcSystem() != self.nmea_settings.target_system:
             return
 
@@ -286,13 +322,9 @@ nmea /dev/ttyS0 115200 8 N 1
         if self.udp_output_port is not None:
             try:
                 self.udp_output_port.send(output)
-                self.console.set_status('NMEA' + str(self.instance),
-                                        'NMEA:%u' % self.sent_count,
-                                        fg='green')
+                self.set_console_status('green')
             except Exception as e:
-                self.console.set_status('NMEA' + str(self.instance),
-                                        'NMEA:%u' % self.sent_count,
-                                        fg='red')
+                self.set_console_status('red')
                 raise e
 
 def init(mpstate):
