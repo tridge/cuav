@@ -20,7 +20,7 @@ session = gps.gps(host=host, port=port)
 
 session.stream(flags=gps.WATCH_JSON)
 
-for report in session:
+def handle_report(report):
    if report['class'] == 'TPV':
        latitude  = report['lat']
        longitude = report['lon']
@@ -72,6 +72,12 @@ for report in session:
        f=open(file, 'w')
        f.write(output)
        f.close()
+
+for report in session:
+   try:
+      handle_report(report)
+   except Exception as e:
+      print("Caught exception: %s" % str(e))
 
 del session
 
