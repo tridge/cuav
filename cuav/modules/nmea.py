@@ -48,9 +48,9 @@ class NMEAModule(mp_module.MPModule):
         self.udp_output_address = None
         self.output_time = 0.0
 
-        self.num_sat = 0
-        self.hdop = 0
-        self.fix_quality = 0
+        self.num_sat = 21
+        self.hdop = 1.21
+        self.fix_quality = 1
         self.last_time_boot_ms = 0
 
         self.nmea_settings = mp_settings.MPSettings(
@@ -265,6 +265,9 @@ nmea socat UDP-SENDTO:10.0.1.255:17890
             self.fix_quality = 1 if (m.fix_type > 1) else 0 # 0/1 for (in)valid or 2 DGPS
 
         if m.get_type() == 'GLOBAL_POSITION_INT':
+            if self.last_time_boot_ms > m.time_boot_ms + 120000:
+                # time wrap
+                self.last_time_boot_ms = m.time_boot_ms
             if m.time_boot_ms <= self.last_time_boot_ms and self.last_time_boot_ms - m.time_boot_ms < 60000:
                 # time going backwards from multiple links
                 return
