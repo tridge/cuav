@@ -1,6 +1,7 @@
 set moddebug 3
 set streamrate -1
 set vehicle_name Porter
+set shownoise 0
 
 set speed_unit knots
 set height_unit feet
@@ -44,3 +45,17 @@ output add 192.168.3.22:14660
 layout load
 
 rc 7 1500
+
+module load cuav.modules.nmea
+#nmea udp 127.0.0.1:9500
+nmea udp 172.27.162.164:9500
+nmea log primary.nmea.log
+nmea set target_vehicle 2
+nmea set wgs84_to_amsl -41.2
+
+module load cuav.modules.nmea
+#nmea2 udp 127.0.0.1:7000
+nmea2 udp 172.27.162.164:7000
+nmea2 log secondary.nmea.log
+nmea2 set target_vehicle 1
+nmea2 set wgs84_to_amsl -41.2
