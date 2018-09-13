@@ -19,8 +19,9 @@ layout load
 # throw away sysid2 pkts
 output sysid 2 127.0.0.1:9991
 
-set source_system 253
-
 module load cuav.modules.cuav_check
 
 module load map
+
+#output to big screen
+output add udp:127.0.0.1:16001

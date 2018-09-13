@@ -33,3 +33,6 @@ map3 zoom 50
 
 module load cuav.modules.cuav_check
 
+#output to big screen
+output add udp:127.0.0.1:16000
+
