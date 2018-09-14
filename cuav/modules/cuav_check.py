@@ -205,7 +205,7 @@ class CUAVModule(mp_module.MPModule):
         # first see if this is a quadplane
         v = self.mav_param.get('Q_ENABLE',None)
         if v is None:
-            self.console.writeln('Q_ENABLE set available')
+            self.console.writeln('Q_ENABLE not available')
             return False
         if int(v) == 0:
             # this is the relay aircraft
@@ -368,10 +368,10 @@ class CUAVModule(mp_module.MPModule):
         enabled = ((sys_status.onboard_control_sensors_enabled & bits) == bits)
         healthy = ((sys_status.onboard_control_sensors_health & bits) == bits)
         if not present or not enabled:
-            self.console.writeln('Fence should be enabled')
+            self.console.writeln('Fence should be enabled', fg='blue')
             return False
         if not healthy:
-            self.console.writeln('Fence unhealthy')
+            self.console.writeln('Fence unhealthy', fg='blue')
             return False
         return True
 
