@@ -2,6 +2,7 @@ set moddebug 3
 set streamrate -1
 set vehicle_name Porter
 set shownoise 0
+set source_system 254
 
 set speed_unit knots
 set height_unit feet
