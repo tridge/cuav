@@ -1,6 +1,7 @@
 set moddebug 3
 set streamrate -1
 set vehicle_name Kraken
+set source_system 253
 
 set altreadout 30
 set numcells 3

@@ -4,6 +4,7 @@ set vehicle_name Kraken
 set streamrate -1
 set altreadout 30
 set numcells 3
+set source_system 253
 
 set speed_unit knots
 set height_unit feet

@@ -233,6 +233,8 @@ class CUAVModule(mp_module.MPModule):
             "FENCE_AUTOENABLE" : 1,
             "RC_OPTIONS" : 4,
             "SERIAL1_PROTOCOL" : 2,
+            "SYSID_ENFORCE" : 1,
+            "SYSID_MYGCS" : 253,
             }
         if not self.check_parms(keyparams, False):
             ret = False
@@ -270,6 +272,8 @@ class CUAVModule(mp_module.MPModule):
             "RC_OPTIONS" : 4,
             "SERIAL1_PROTOCOL" : 2,
             "SERIAL2_PROTOCOL" : 2,
+            "SYSID_ENFORCE" : 1,
+            "SYSID_MYGCS" : 254,
             }
         if not self.check_parms(keyparams, False):
             ret = False
