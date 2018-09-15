@@ -2,6 +2,9 @@ set moddebug 3
 
 set source_system 254
 
+# enable ICE subsystem
+rc 7 1500
+
 # go via ozlabs proxy2
 camera set gcs_address 203.11.71.1:10403:14682:60000,203.217.61.45:10403:14683:60000
 #camera set gcs_address 203.11.71.1:10403:14682:60000
