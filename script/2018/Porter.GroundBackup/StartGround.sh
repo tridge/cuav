@@ -7,5 +7,5 @@
 PORT=$(/bin/ls /dev/serial/by-id/usb-FTDI*)
 
 #All telemetry from the RFD900 or Tridge's laptop
-mavproxy.py --aircraft Porter --master $PORT --master :14660 --mav20 --console --map --cmd="script StartGround.scr" $*
+mavproxy.py --aircraft Porter --master $PORT --master :14660 --mav20 --console --map --force-connect --cmd="script StartGround.scr" $*
 

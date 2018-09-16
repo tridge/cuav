@@ -31,3 +31,5 @@ map3 follow 0
 map3 zoom 50
 
 
+module load cuav.modules.cuav_check
+
