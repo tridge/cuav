@@ -15,8 +15,8 @@ camera set air_address 203.11.71.1:10404:14680:60000,203.217.61.45:10404:14681:6
 camera set camparms /data/PiCamV2/params_half.json
 camera view
 
-camera set target_latitude -35.362859
-camera set target_longitude 149.164086
+camera set target_latitude $(TARGET_LATITUDE}
+camera set target_longitude ${TARGET_LONGITUDE}
 camera set target_radius 100.0
 
 

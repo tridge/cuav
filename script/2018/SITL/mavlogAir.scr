@@ -16,8 +16,8 @@ camera set minscore 1000
 # timestamps
 # camera set ignoretimestamps 1
 
-camera set target_latitude -35.362859
-camera set target_longitude 149.164086
+camera set target_latitude $(TARGET_LATITUDE}
+camera set target_longitude ${TARGET_LONGITUDE}
 camera set target_radius 100.0
 
 module load cuav.modules.cuav_companion
