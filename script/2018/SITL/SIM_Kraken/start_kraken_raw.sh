@@ -6,6 +6,10 @@ pushd $OBC
 ./waf plane
 popd
 
-UARTC="uart:../radio_relay"
+[ -z "$UART_RELAY" ] && {
+    UART_RELAY="uart:../radio_relay"
+}
 
-$OBC/build/sitl/bin/arduplane --model plane -I 3 --uartA tcp:0 --uartC $UARTC --defaults $OBC/Tools/autotest/default_params/plane.parm
+HOMELOC="-27.274541,151.289865,343,195"
+
+$OBC/build/sitl/bin/arduplane --home $HOMELOC --model plane -I 3 --uartA tcp:0 --uartC $UART_RELAY --defaults $OBC/Tools/autotest/default_params/plane.parm
