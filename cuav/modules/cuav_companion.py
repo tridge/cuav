@@ -165,8 +165,8 @@ class CUAVCompanionModule(mp_module.MPModule):
         '''find a USER_ waypoint number'''
         for i in range(1, wploader.count()):
             wp = wploader.wp(i)
-            if wp.command == mavutil.mavlink.MAV_CMD_USER_1 + (n-1):
-                # the USER_n waypoint is just before the waypoint to use
+            if wp.command == mavutil.mavlink.MAV_CMD_USER_1 and wp.param1 == n:
+                # the USER_1 waypoint is just before the waypoint to use
                 return i+1
         return None
 
