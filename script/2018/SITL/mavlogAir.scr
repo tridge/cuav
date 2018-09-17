@@ -1,4 +1,5 @@
 set moddebug 3
+set heartbeat 0
 
 set source_system 254
 
