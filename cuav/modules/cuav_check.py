@@ -245,8 +245,8 @@ class CUAVModule(mp_module.MPModule):
             "SERIAL1_PROTOCOL" : 2,
             "SYSID_ENFORCE" : 1,
             "SYSID_MYGCS" : 253,
-            "AFS_WP_COMMS" : 5,
-            "AFS_WP_GPS_LOSS" : 7,
+            "AFS_WP_COMMS" : 6,
+            "AFS_WP_GPS_LOSS" : 8,
             }
         if not self.check_parms(keyparams, False):
             ret = False

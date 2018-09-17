@@ -60,6 +60,11 @@ map3 follow 0
 map3 zoom 50
 map3 center ${TARGET_LATITUDE} ${TARGET_LONGITUDE}
 
+# 2km map
+module load map
+map4 follow 1
+map4 zoom 2000
+
 cuavcheck showJoeZone
 
 @alias add touchstop remote shell touch /home/pi/images_captured/capture.jpg.stop
