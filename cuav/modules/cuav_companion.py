@@ -262,9 +262,9 @@ class CUAVCompanionModule(mp_module.MPModule):
             return
         
         self.last_wp_move_ms = self.last_attitude_ms
-        self.send_message("Moving search to: (%f,%f)" % (lat, lon))
-        wpmod.cmd_wp_movemulti([wp_center, wp_start, wp_end], (lat,lon))
         self.wp_move_count += 1
+        self.send_message("Moving search to: (%f,%f) %u" % (lat, lon, self.wp_move_count))
+        wpmod.cmd_wp_movemulti([wp_center, wp_start, wp_end], (lat,lon))
 
         wp_land = self.find_user_wp(wploader, 4)
         if (wp_land is not None and
