@@ -57,6 +57,7 @@ class CUAVModule(mp_module.MPModule):
                          'cuav check control',
                          ['checkparams',
                           'movetarget',
+                          'showJoeZone',
                           'set (CUAVCHECKSETTING)'])
 
         #make the initial map menu
@@ -147,6 +148,9 @@ class CUAVModule(mp_module.MPModule):
             self.toggle_LandingZone()
         elif args[0] == "toggleJoeZone":
             self.showJoeZone = not self.showJoeZone
+            self.toggle_JoeZone()
+        elif args[0] == "showJoeZone":
+            self.showJoeZone = True
             self.toggle_JoeZone()
         elif args[0] == "checkparams":
             if self.check_parameters():

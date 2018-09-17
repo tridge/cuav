@@ -52,13 +52,15 @@ module load speech
 module load map
 map2 follow 0
 map2 zoom 240
+map2 center ${TARGET_LATITUDE} ${TARGET_LONGITUDE}
 
 # lz map
 module load map
 map3 follow 0
 map3 zoom 50
+map3 center ${TARGET_LATITUDE} ${TARGET_LONGITUDE}
 
-cuavcheck toggleJoeZone
+cuavcheck showJoeZone
 
 @alias add touchstop remote shell touch /home/pi/images_captured/capture.jpg.stop
 @alias add rmstop remote shell rm -f /home/pi/images_captured/capture.jpg.stop
