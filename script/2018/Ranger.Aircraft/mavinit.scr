@@ -12,7 +12,9 @@ camera set imagefile /home/pi/images_captured/capture.jpg
 camera set minscore 1000
 camera start
 
-camera set target_latitude $(TARGET_LATITUDE}
+set script_fatal 1
+
+camera set target_latitude ${TARGET_LATITUDE}
 camera set target_longitude ${TARGET_LONGITUDE}
 camera set target_radius 100.0
 
