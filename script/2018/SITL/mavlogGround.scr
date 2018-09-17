@@ -47,8 +47,6 @@ output add 192.168.3.22:14660
 # use saved layout
 layout load
 
-rc 7 1500
-
 module load cuav.modules.nmea
 #nmea udp 127.0.0.1:9500
 nmea udp 172.27.162.164:9500

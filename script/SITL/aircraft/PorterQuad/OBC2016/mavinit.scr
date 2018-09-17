@@ -27,4 +27,4 @@ camera set save_pgm 1
 camera set roll_stabilised 0
 camera set camparms /home/tridge/project/UAV/cuav/cuav/data/calibration_images_2014/ChameleonArecort/params.json
 camera start
-rc 7 1500
+
