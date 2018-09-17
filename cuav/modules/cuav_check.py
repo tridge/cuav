@@ -157,10 +157,16 @@ class CUAVModule(mp_module.MPModule):
                 print("Parameters OK")
             else:
                 print("Parameters bad")
+
             if not self.check_fence():
                 print("Fence bad")
             else:
                 print("Fence OK")
+
+            if not self.check_status():
+                print("Status bad")
+            else:
+                print("Status OK")
         elif args[0] == "movetarget":
             self.move_target()
         else:
@@ -379,6 +385,18 @@ class CUAVModule(mp_module.MPModule):
             return False
         return True
 
+    def check_status(self):
+        try:
+            hb = self.master.messages['HEARTBEAT']
+            mc = self.master.messages['MISSION_CURRENT']
+        except Exception:
+            return False
+        is_armed = (hb.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
+        if not is_armed and hb.custom_mode == 0:
+            # disarmed in MANUAL we should be at WP 0
+            if mc.seq > 1:
+                self.console.writeln('Incorrect WP %u' % mc.seq, fg='blue')
+
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
         now = time.time()
@@ -450,6 +468,7 @@ class CUAVModule(mp_module.MPModule):
         if self.rate_period.trigger():
             self.check_parameters()
             self.check_fence()
+            self.check_status()
 
 def init(mpstate):
     '''initialise module'''
