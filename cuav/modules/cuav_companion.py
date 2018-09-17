@@ -180,9 +180,9 @@ class CUAVCompanionModule(mp_module.MPModule):
             self.last_wp_list_ms = self.last_attitude_ms
             wpmod.cmd_wp(["list"])
 
-        wp_start = self.find_user_wp(wploader, 1)
-        wp_center = self.find_user_wp(wploader, 2)
-        wp_end = self.find_user_wp(wploader, 3)
+        wp_start = self.find_user_wp(wploader, self.cuav_settings.wp_start)
+        wp_center = self.find_user_wp(wploader, self.cuav_settings.wp_center)
+        wp_end = self.find_user_wp(wploader, self.cuav_settings.wp_end)
 
         if (wp_center is None or
             wp_start is None or
@@ -266,7 +266,7 @@ class CUAVCompanionModule(mp_module.MPModule):
         self.send_message("Moving search to: (%f,%f) %u" % (lat, lon, self.wp_move_count))
         wpmod.cmd_wp_movemulti([wp_center, wp_start, wp_end], (lat,lon))
 
-        wp_land = self.find_user_wp(wploader, 4)
+        wp_land = self.find_user_wp(wploader, self.cuav_settings.wp_land)
         if (wp_land is not None and
             self.wp_move_count >= 3 and
             lzresult.numregions > 10 and

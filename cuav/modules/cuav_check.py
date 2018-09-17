@@ -40,6 +40,7 @@ class CUAVModule(mp_module.MPModule):
         self.showLandingZone = 0
         self.showJoeZone = True
         self.target = None
+        self.last_recall_check = 0
 
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.cuav_settings = MPSettings(
@@ -51,7 +52,8 @@ class CUAVModule(mp_module.MPModule):
               MPSetting('wp_center', int, 2, 'center search USER number'),
               MPSetting('wp_start', int, 1, 'start search USER number'),
               MPSetting('wp_end', int, 3, 'end search USER number'),
-              MPSetting('wp_land',int, 4, 'landing start USER number') ])
+              MPSetting('wp_land',int, 4, 'landing start USER number'),
+              MPSetting('wp_recall', int, 5, 'recall Kraken USER number') ])
         self.add_completion_function('(CUAVCHECKSETTING)', self.cuav_settings.completion)
         self.add_command('cuavcheck', self.cmd_cuavcheck,
                          'cuav check control',
@@ -178,9 +180,9 @@ class CUAVModule(mp_module.MPModule):
         wpmod = self.module('wp')
         wploader = wpmod.wploader
 
-        wp_start = self.find_user_wp(wploader, 1)
-        wp_center = self.find_user_wp(wploader, 2)
-        wp_end = self.find_user_wp(wploader, 3)
+        wp_start = self.find_user_wp(wploader, self.cuav_settings.wp_start)
+        wp_center = self.find_user_wp(wploader, self.cuav_settings.wp_center)
+        wp_end = self.find_user_wp(wploader, self.cuav_settings.wp_end)
         if (wp_center is None or
             wp_start is None or
             wp_end is None):
@@ -292,10 +294,43 @@ class CUAVModule(mp_module.MPModule):
         if not self.check_parms(keyparams, False):
             ret = False
         return ret
-            
+
+    def check_recall(self):
+        '''check for recalling Kraken'''
+        v = self.mav_param.get('Q_ENABLE',None)
+        if v is None or int(v) == 0:
+            return
+        wpmod = self.module('wp')
+        wploader = wpmod.wploader
+        wp_recall = self.find_user_wp(wploader, self.cuav_settings.wp_recall)
+        if wp_recall is None:
+            self.console.writeln('No recall WP', fg='blue')
+            return
+        try:
+            mc = self.master.messages['MISSION_CURRENT']
+        except Exception:
+            return
+        if mc.seq == wp_recall:
+            self.console.writeln('Recalling Kraken', fg='blue')
+            src_saved = self.master.mav.srcSystem
+            self.master.mav.srcSystem = 253
+            self.master.mav.command_long_send(
+                0,  # target_system
+                0, # target_component
+                mavutil.mavlink.MAV_CMD_USER_2, # command
+                0, # confirmation
+                42, # param1
+                0, # param2
+                0, # param3
+                0, # param4
+                0, # param5
+                0, # param6
+                0) # param7
+            self.master.mav.srcSystem = src_saved
+
     def idle_task(self):
         '''run periodic tasks'''
-        now = time.time()
+        now = self.get_time()
         if now - self.last_button_update > 0.5:
             self.last_button_update = now
             self.update_button_display()
@@ -316,6 +351,9 @@ class CUAVModule(mp_module.MPModule):
                 if target != self.target:
                     self.showJoeZone = False
                     self.toggle_JoeZone()
+        if now - self.last_recall_check > 10:
+            self.last_recall_check = now
+            self.check_recall()
 
     def update_button_display(self):
         '''update the Button display on console'''
