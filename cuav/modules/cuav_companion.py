@@ -246,12 +246,12 @@ class CUAVCompanionModule(mp_module.MPModule):
             max_move = target_radius
             if self.wp_move_count == 0:
                 # don't move more than 50m from center on first move
-                max_move = 50
+                max_move = 35
             if self.wp_move_count == 1:
                 # don't move more than 80m from center on 2nd move
                 max_move = 80
             if dist > max_move:
-                bearing = cuav_util.gps_bearing(lat, lon, target_latitude, target_longitude)
+                bearing = cuav_util.gps_bearing(target_latitude, target_longitude, lat, lon)
                 (lat, lon) = cuav_util.gps_newpos(target_latitude, target_longitude, bearing, max_move)
 
         # we may need to fetch the wp list
