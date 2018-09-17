@@ -396,6 +396,8 @@ class CUAVModule(mp_module.MPModule):
             # disarmed in MANUAL we should be at WP 0
             if mc.seq > 1:
                 self.console.writeln('Incorrect WP %u' % mc.seq, fg='blue')
+                return False
+        return True
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
