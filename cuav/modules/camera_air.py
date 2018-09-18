@@ -264,7 +264,12 @@ class CameraAirModule(mp_module.MPModule):
                                                                      self.c_params.sensorwidth)
 
             t1 = time.time()
-            img_scan = cv2.imread(im, -1)
+            try:
+                img_scan = cv2.imread(im, -1)
+            except Exception:
+                continue
+            if img_scan is None:
+                continue
             (h, w) = img_scan.shape[:2]
             if self.camera_settings.rotate180:
                 M = cv2.getRotationMatrix2D(center, angle180, scale)
@@ -578,6 +583,10 @@ class CameraAirModule(mp_module.MPModule):
             img = cv2.imread(filename, -1)
         except Exception:
             return
+        if img is None:
+            print("Bad image: %s" % filename)
+            return
+
         if not obj.fullres:
             im_small = cv2.resize(img, (0,0), fx=0.5, fy=0.5)
             img = im_small
