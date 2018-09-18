@@ -59,6 +59,7 @@ class CUAVModule(mp_module.MPModule):
                          'cuav check control',
                          ['checkparams',
                           'movetarget',
+                          'resettarget',
                           'showJoeZone',
                           'set (CUAVCHECKSETTING)'])
 
@@ -169,8 +170,16 @@ class CUAVModule(mp_module.MPModule):
                 print("Status bad")
             else:
                 print("Status OK")
+
+            if not self.check_QNH():
+                print("QNH bad")
+            else:
+                print("QNH OK")
+
         elif args[0] == "movetarget":
             self.move_target()
+        elif args[0] == "resettarget":
+            self.reset_target()
         else:
             print(usage)
             return
@@ -195,6 +204,31 @@ class CUAVModule(mp_module.MPModule):
         print("Moving %u waypoints" % (wp_end + 1 - wp_start), wp_center, wp_start, wp_end)
         wpmod.cmd_wp_movemulti([wp_center, wp_start, wp_end], latlon)
 
+    def reset_target(self):
+        '''reset target waypoints'''
+        wpmod = self.module('wp')
+        wploader = wpmod.wploader
+
+        wp_start = self.find_user_wp(wploader, self.cuav_settings.wp_start)
+        wp_center = self.find_user_wp(wploader, self.cuav_settings.wp_center)
+        wp_end = self.find_user_wp(wploader, self.cuav_settings.wp_end)
+        if (wp_center is None or
+            wp_start is None or
+            wp_end is None):
+            print("Target WPs not in mission")
+            return
+        camera = self.module('camera_ground')
+        if camera is None:
+            print("camera_ground module is not loaded")
+            return
+        lat = camera.camera_settings.target_latitude
+        lon = camera.camera_settings.target_longitude
+        if lat == 0 or lon == 0:
+            print("target not set")
+            return
+        print("Resetting %u waypoints" % (wp_end + 1 - wp_start), wp_center, wp_start, wp_end)
+        wpmod.cmd_wp_movemulti([wp_center, wp_start, wp_end], (lat,lon))
+        
     def check_parms(self, parms, set=False):
         '''check parameter settings'''
         ret = True
