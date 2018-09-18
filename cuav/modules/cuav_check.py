@@ -53,7 +53,8 @@ class CUAVModule(mp_module.MPModule):
               MPSetting('wp_start', int, 1, 'start search USER number'),
               MPSetting('wp_end', int, 3, 'end search USER number'),
               MPSetting('wp_land',int, 4, 'landing start USER number'),
-              MPSetting('wp_recall', int, 5, 'recall Kraken USER number') ])
+              MPSetting('wp_recall', int, 5, 'recall Kraken USER number'),
+              MPSetting('wp_release', int, 6, 'release Kraken USER number') ])
         self.add_completion_function('(CUAVCHECKSETTING)', self.cuav_settings.completion)
         self.add_command('cuavcheck', self.cmd_cuavcheck,
                          'cuav check control',
@@ -324,6 +325,7 @@ class CUAVModule(mp_module.MPModule):
             "SYSID_MYGCS" : 254,
             "AFS_WP_COMMS" : 6,
             "AFS_WP_GPS_LOSS" : 8,
+            "Q_WVANE_GAIN" : 0.25,
             }
         if not self.check_parms(keyparams, False):
             ret = False
@@ -362,6 +364,39 @@ class CUAVModule(mp_module.MPModule):
                 0) # param7
             self.master.mav.srcSystem = src_saved
 
+    def check_release(self):
+        '''check for releasing Kraken'''
+        v = self.mav_param.get('Q_ENABLE',None)
+        if v is None or int(v) == 0:
+            return
+        wpmod = self.module('wp')
+        wploader = wpmod.wploader
+        wp_release = self.find_user_wp(wploader, self.cuav_settings.wp_release)
+        if wp_release is None:
+            self.console.writeln('No release WP', fg='blue')
+            return
+        try:
+            mc = self.master.messages['MISSION_CURRENT']
+        except Exception:
+            return
+        if mc.seq == wp_release:
+            self.console.writeln('Releasing Kraken', fg='blue')
+            src_saved = self.master.mav.srcSystem
+            self.master.mav.srcSystem = 253
+            self.master.mav.command_long_send(
+                0,  # target_system
+                0, # target_component
+                mavutil.mavlink.MAV_CMD_USER_2, # command
+                0, # confirmation
+                24, # param1
+                0, # param2
+                0, # param3
+                0, # param4
+                0, # param5
+                0, # param6
+                0) # param7
+            self.master.mav.srcSystem = src_saved
+            
     def idle_task(self):
         '''run periodic tasks'''
         now = self.get_time()
@@ -388,6 +423,7 @@ class CUAVModule(mp_module.MPModule):
         if now - self.last_recall_check > 10:
             self.last_recall_check = now
             self.check_recall()
+            self.check_release()
 
     def update_button_display(self):
         '''update the Button display on console'''
