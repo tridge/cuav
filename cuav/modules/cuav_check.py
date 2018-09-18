@@ -580,6 +580,8 @@ class CUAVModule(mp_module.MPModule):
                 color = 'darkorange'
             elif m.action == 4:
                 color = 'darkred'
+            elif m.action == 6:
+                color = 'yellow'
             else:
                 color = 'red'
             self.console.set_status('DNFZ', 'DNFZ %d %.0fm %.0fm %u' % (
