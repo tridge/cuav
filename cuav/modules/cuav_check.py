@@ -275,6 +275,7 @@ class CUAVModule(mp_module.MPModule):
         ret = self.check_parms(rates, True)
         # some other key parameters, not auto-set
         keyparams = {
+            "ARMING_CHECK"  : 1,
             "FS_GCS_ENABL"  : 0,
             "AVD_W_ACTION"  : 2,
             "FENCE_AUTOENABLE" : 1,
@@ -314,6 +315,7 @@ class CUAVModule(mp_module.MPModule):
         ret = self.check_parms(rates, True)
         # some other key parameters, not auto-set
         keyparams = {
+            "ARMING_CHECK"  : 1,
             "Q_OPTIONS" : 8,
             "AVD_ENABLE" : 1,
             "ADSB_ENABLE" : 1,
