@@ -87,9 +87,10 @@ def playback(mavcon, images, targets, target_lat, target_lon, C_params):
         pass
 
     while True:
-        msg = mlog.recv_match(blocking=True)
+        msg = mlog.recv_match(blocking=False)
         if not msg:
-            break
+            time.sleep(0.1)
+            continue
         mpos.add_msg(msg)
         mtype = msg.get_type()
 
