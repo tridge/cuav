@@ -2,6 +2,9 @@ set moddebug 3
 # redirect Kraken to port 14650
 set vehicle_name Porter
 
+# prefer to use link2
+set link 2
+
 set source_system 254
 
 set streamrate -1
