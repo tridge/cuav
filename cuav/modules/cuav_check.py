@@ -282,6 +282,8 @@ class CUAVModule(mp_module.MPModule):
             "SERIAL1_PROTOCOL" : 2,
             "SYSID_ENFORCE" : 1,
             "SYSID_MYGCS" : 253,
+            "AFS_ENABLE" : 1,
+            "AFS_TERM_ACTION" : 42,
             "AFS_WP_COMMS" : 6,
             "AFS_WP_GPS_LOSS" : 8,
             }
@@ -323,6 +325,8 @@ class CUAVModule(mp_module.MPModule):
             "SERIAL2_PROTOCOL" : 2,
             "SYSID_ENFORCE" : 1,
             "SYSID_MYGCS" : 254,
+            "AFS_ENABLE" : 1,
+            "AFS_TERM_ACTION" : 42,
             "AFS_WP_COMMS" : 6,
             "AFS_WP_GPS_LOSS" : 8,
             "Q_WVANE_GAIN" : 0.25,
