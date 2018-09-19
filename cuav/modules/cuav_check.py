@@ -288,6 +288,7 @@ class CUAVModule(mp_module.MPModule):
             "AFS_WP_COMMS" : 6,
             "AFS_WP_GPS_LOSS" : 8,
             "TERRAIN_FOLLOW" : 1,
+            "THR_FAILSAFE" : 0,
             }
         if not self.check_parms(keyparams, False):
             ret = False
@@ -334,6 +335,7 @@ class CUAVModule(mp_module.MPModule):
             "AFS_WP_GPS_LOSS" : 8,
             "Q_WVANE_GAIN" : 0.25,
             "TERRAIN_FOLLOW" : 1,
+            "THR_FAILSAFE" : 0,
             }
         if not self.check_parms(keyparams, False):
             ret = False
