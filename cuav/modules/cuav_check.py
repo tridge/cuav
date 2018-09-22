@@ -509,15 +509,24 @@ class CUAVModule(mp_module.MPModule):
                 self.last_rpm_announce = now
 
     def update_airspeed_estimate(self, m):
-        '''update airspeed estimate for helicopters'''
-        if self.cuav_settings.wind_speed <= 0:
+        '''update airspeed estimate from wind triangle'''
+        if not 'WIND' in self.master.messages or not 'GLOBAL_POSITION_INT' in self.master.messages:
             return
+        wind = self.master.messages['WIND']
+        gpi = self.master.messages['GLOBAL_POSITION_INT']
         from pymavlink.rotmat import Vector3
-        wind = Vector3(self.cuav_settings.wind_speed*math.cos(math.radians(self.cuav_settings.wind_direction)),
-                       self.cuav_settings.wind_speed*math.sin(math.radians(self.cuav_settings.wind_direction)), 0)
-        ground = Vector3(m.vx*0.01, m.vy*0.01, 0)
-        airspeed = ground + wind
-        self.console.set_status('AirspeedEstimate', 'AirspeedEstimate: %u m/s' % airspeed.length(), row=8)
+        wind3d = Vector3(wind.speed*math.cos(math.radians(wind.direction)),
+                         wind.speed*math.sin(math.radians(wind.direction)), 0)
+        ground = Vector3(gpi.vx*0.01, gpi.vy*0.01, 0)
+        airspeed = (ground + wind3d).length()
+        err = abs(airspeed - m.airspeed)
+        if err > 5:
+            color = 'red'
+        elif err > 3:
+            color = 'orange'
+        else:
+            color = 'green'
+        self.console.set_status('ASEst', 'ASEst: %u m/s' % airspeed, row=8, fg=color)
 
     def check_fence(self):
         try:
@@ -598,7 +607,7 @@ class CUAVModule(mp_module.MPModule):
             dist = m.distance * math.cos(a.roll) * math.cos(a.pitch)
             self.console.set_status('RFind', 'RFind: %.1fm %uft' % (dist, dist*3.28084), row=8)
 
-        if m.get_type() == "GLOBAL_POSITION_INT":
+        if m.get_type() == "VFR_HUD":
             self.update_airspeed_estimate(m)
 
         if m.get_type() == 'NAMED_VALUE_FLOAT' and m.name == 'BAT3VOLT':
