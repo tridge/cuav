@@ -39,6 +39,29 @@ def command_find_string(cmd, s):
             return True
     return False
 
+def command_find_lines(cmd, s):
+    '''find lines containing s'''
+    argv = cmd.split()
+    retlines = []
+    try:
+        ret = subprocess.check_output(argv, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError:
+        return retlines
+    lines = ret.splitlines()
+    for line in lines:
+        if line.find(s) != -1:
+            retlines.append(line)
+    return retlines
+
+def find_interface_gw(name):
+    '''find the gw for an interface'''
+    lines = command_find_lines('route -n', name)
+    for line in lines:
+        a = line.split()
+        if a[0] == '0.0.0.0' and a[-1] == name:
+            return a[1]
+    return None
+
 def ping_check(host):
     '''check if a host is up'''
     return run_command("ping -n -W1 -q -c2 %s" % host)
@@ -80,10 +103,12 @@ while True:
             run_command("sudo route del -host %s dev wlan0" % TRIDGELLNET)
             run_command("sudo route add -host %s gw %s dev eth2" % (TRIDGELLNET, PI_TELSTRA))
     else:
-        if not command_find_string("route -n", [TRIDGELLNET, "wlan0"]):
-            print("Adding tridgell.net route via wlan0")
-            run_command("sudo route del -host %s gw %s dev eth2" % (TRIDGELLNET, PI_TELSTRA))
-            run_command("sudo route add -host %s dev wlan0" % TRIDGELLNET)
+        gw = find_interface_gw('wlan0')
+        if gw is not None:
+            if not command_find_string("route -n", [TRIDGELLNET, "wlan0", gw]):
+                print("Adding tridgell.net route via wlan0")
+                run_command("sudo route del -host %s gw %s dev eth2" % (TRIDGELLNET, PI_TELSTRA))
+                run_command("sudo route add -host %s dev wlan0 gw %s" % (TRIDGELLNET, gw))
 
     if pi_optus_gw_ok:
         if not command_find_string("route -n", [OZLABSORG, PI_OPTUS]):
@@ -91,10 +116,12 @@ while True:
             run_command("sudo route del -host %s dev wlan0" % OZLABSORG)
             run_command("sudo route add -host %s gw %s dev eth2" % (OZLABSORG, PI_OPTUS))
     else:
-        if not command_find_string("route -n", [OZLABSORG, "wlan0"]):
-            print("Adding ozlabs.org route via wlan0")
-            run_command("sudo route del -host %s gw %s dev eth2" % (OZLABSORG, PI_OPTUS))
-            run_command("sudo route add -host %s dev wlan0" % OZLABSORG)
+        gw = find_interface_gw('wlan0')
+        if gw is not None:
+            if not command_find_string("route -n", [OZLABSORG, "wlan0", gw]):
+                print("Adding ozlabs.org route via wlan0")
+                run_command("sudo route del -host %s gw %s dev eth2" % (OZLABSORG, PI_OPTUS))
+                run_command("sudo route add -host %s dev wlan0 gw %s" % (OZLABSORG, gw))
             
     time.sleep(5)
 
