@@ -455,7 +455,6 @@ class CUAVModule(mp_module.MPModule):
         except Exception as ex:
             pass
         if len(a) != 4 or now - mtime > 30:
-            print(now, mtime)
             self.console.set_status('Telstra', 'Telstra: --', row=6, fg='red')
             self.console.set_status('Optus', 'Optus: --', row=6, fg='red')
             return
