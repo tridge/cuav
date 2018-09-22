@@ -436,6 +436,35 @@ class CUAVModule(mp_module.MPModule):
             self.last_recall_check = now
             self.check_recall()
             self.check_release()
+            self.network_status()
+
+    def network_status(self):
+        '''update display of network'''
+        v = self.mav_param.get('Q_ENABLE',None)
+        if v is None:
+            # only on porter GCS
+            return
+        a=[]
+        try:
+            f = open("/tmp/gcs_net.txt", "r")
+            a = f.read().split()
+        except Exception:
+            pass
+        if len(a) != 4:
+            self.console.set_status('Telstra', 'Telstra: --', row=6, fg='red')
+            self.console.set_status('Optus', 'Optus: --', row=6, fg='red')
+            return
+        if a[0:2] != ['1','1']:
+            color = 'red'
+        else:
+            color = 'green'
+        self.console.set_status('Telstra', 'Telstra: %s/%s' % (a[0],a[1]), row=7, fg=color)
+        if a[2:] != ['1','1']:
+            color = 'red'
+        else:
+            color = 'green'
+        self.console.set_status('Optus', 'Optus: %s/%s' % (a[2],a[3]), row=7, fg=color)
+
 
     def update_button_display(self):
         '''update the Button display on console'''
