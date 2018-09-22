@@ -68,6 +68,12 @@ while True:
     print("TelstraGW: %s" % pi_telstra_gw_ok)
     print("OptusGW: %s" % pi_optus_gw_ok)
 
+    try:
+        f = open("/tmp/gcs_net.txt", "w")
+        f.write("%u %u %u %u\n" % (pi_telstra_ok, pi_telstra_gw_ok, pi_optus_ok, pi_optus_gw_ok))
+    except Exception as ex:
+        print(ex)
+
     if pi_telstra_gw_ok:
         if not command_find_string("route -n", [TRIDGELLNET, PI_TELSTRA]):
             print("Adding tridgell.net route via pi-telstra")
