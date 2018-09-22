@@ -6,7 +6,7 @@ Andrew Tridgell
 
 from MAVProxy.modules.lib import mp_module
 from pymavlink import mavutil
-import time, math, functools
+import time, math, functools, os
 from MAVProxy.modules.lib import mp_settings
 from MAVProxy.modules.lib import mp_util
 
@@ -445,12 +445,17 @@ class CUAVModule(mp_module.MPModule):
             # only on porter GCS
             return
         a=[]
+        fname="/tmp/gcs_net.txt"
+        now = time.time()
+        mtime = 0
         try:
-            f = open("/tmp/gcs_net.txt", "r")
+            f = open(fname, "r")
+            mtime = os.stat(fname).st_mtime
             a = f.read().split()
-        except Exception:
+        except Exception as ex:
             pass
-        if len(a) != 4:
+        if len(a) != 4 or now - mtime > 30:
+            print(now, mtime)
             self.console.set_status('Telstra', 'Telstra: --', row=6, fg='red')
             self.console.set_status('Optus', 'Optus: --', row=6, fg='red')
             return
@@ -526,7 +531,8 @@ class CUAVModule(mp_module.MPModule):
             color = 'orange'
         else:
             color = 'green'
-        self.console.set_status('ASEst', 'ASEst: %u m/s' % airspeed, row=8, fg=color)
+        astr = self.speed_string(airspeed)
+        self.console.set_status('ASEst', 'ASEst: %s' % astr, row=8, fg=color)
 
     def check_fence(self):
         try:
