@@ -64,6 +64,9 @@ class CameraGroundModule(mp_module.MPModule):
 
         self.msend = None
         self.msocket = None
+        self.mcount = [0,0,0]
+        self.last_msg_stamp = [0,0,0]
+        self.last_status_update = 0
         
         #self.last_minscore = None
         self.mosaic = None
@@ -231,6 +234,9 @@ class CameraGroundModule(mp_module.MPModule):
 
         self.console.set_status('Thumbs', 'Thumbs %u' % self.thumb_count, row=7)
         self.console.set_status('ThumbSize', 'ThumbSize %.0f' % 0.0, row=7)
+        self.console.set_status('BX1', 'BX1 --', row=7)
+        self.console.set_status('BX2', 'BX2 --', row=7)
+        self.console.set_status('BX3', 'BX3 --', row=7)
 
         # give time for maps to init
         time.sleep(3)
@@ -295,10 +301,22 @@ class CameraGroundModule(mp_module.MPModule):
             return
 
         if isinstance(obj, cuav_command.StampedCommand):
+            bidx = None
+            for i in range(len(self.bsend)):
+                if bsend == self.bsend[i]:
+                    bidx = i+1
+            if bidx is None and bsend == self.msend:
+                bidx = 0
+            if bidx is not None:
+                now = time.time()
+                self.mcount[bidx] += 1
+                self.last_msg_stamp[bidx] = now
+
             if obj.timestamp in self.handled_timestamps:
                 # we've seen this packet before, discard
                 return
             self.handled_timestamps[obj.timestamp] = time.time()
+
 
         if isinstance(obj, cuav_command.HeartBeat):
             self.image_count = obj.icount
@@ -443,6 +461,20 @@ class CameraGroundModule(mp_module.MPModule):
             self.view_thread.join(1.0)
         #shutil.rmtree(self.camera_dir)
         print('camera unload OK')
+
+    def idle_task(self):
+        '''called on idle'''
+        now = time.time()
+        if now - self.last_status_update > 0.9:
+            self.last_status_update = now
+            for i in range(3):
+                if now - self.last_msg_stamp[i] > 20:
+                    color = 'red'
+                elif now - self.last_msg_stamp[i] > 5:
+                    color = 'orange'
+                else:
+                    color = 'green'
+                self.console.set_status('BX%u' % (i+1), 'BX%u %u' % (i+1, self.mcount[i]), row=7, fg=color)
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''

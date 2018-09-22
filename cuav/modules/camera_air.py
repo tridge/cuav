@@ -607,7 +607,10 @@ class CameraAirModule(mp_module.MPModule):
     def send_heartbeat(self):
         '''send a heartbeat'''
         pkt = cuav_command.HeartBeat(self.capture_count)
-        self.transmit_queue.put((pkt, None, None))
+        for b in self.bsend:
+            self.transmit_queue.put((pkt, None, b))
+        if self.msend is not None:
+            self.transmit_queue.put((pkt, None, self.msend))
 
     def send_message(self, msg):
         '''send a message'''
@@ -622,6 +625,8 @@ class CameraAirModule(mp_module.MPModule):
             for bsnd in self.bsend:
                 if bsend != bsnd:
                     bsnd.cancel(obj.blockid)
+            if self.msend is not None:
+                self.msend.cancel(obj.blockid)
 
     def send_object(self, obj, priority=None, linktosend=None):
         '''send an object to all links if linktosend is none
