@@ -64,11 +64,11 @@ def find_interface_gw(name):
 
 def ping_check(host):
     '''check if a host is up'''
-    return run_command("ping -n -W1 -q -c2 %s" % host)
+    return run_command("timed_command 5 ping -n -W1 -q -c2 %s" % host)
 
 def ping_check_remote(host_gw, host):
     '''check if a host is up via ssh'''
-    return run_command("ssh -o ConnectTimeout=2 pi@%s ping -n -W1 -q -c2 %s" % (host_gw, host))
+    return run_command("timed_command 5 ssh -o ConnectTimeout=2 pi@%s ping -n -W1 -q -c2 %s" % (host_gw, host))
 
 while True:
     print(time.asctime())
