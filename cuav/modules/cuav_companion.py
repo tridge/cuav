@@ -281,9 +281,10 @@ class CUAVCompanionModule(mp_module.MPModule):
         '''handle an incoming mavlink packet'''
         now = time.time()
         if m.get_type() == "BUTTON_CHANGE":
-            time_since = max(m.time_boot_ms - m.last_change_ms,0) * 1.0e-3
-            self.button_change_time = time.time() - time_since
-            self.update_led_state()
+            if m.state & 1:
+                time_since = max(m.time_boot_ms - m.last_change_ms,0) * 1.0e-3
+                self.button_change_time = time.time() - time_since
+                self.update_led_state()
         if m.get_type() == 'HEARTBEAT':
             self.update_led_state()
         if m.get_type() == 'COMMAND_ACK' and m.command == mavutil.mavlink.MAV_CMD_DO_SET_RELAY and self.ack_wait > 0:
