@@ -290,6 +290,7 @@ class CUAVModule(mp_module.MPModule):
             "TERRAIN_FOLLOW" : 1,
             "THR_FAILSAFE" : 0,
             "GCS_PID_MASK" : 0,
+            "RTL_AUTOLAND" : 1,
             }
         if not self.check_parms(keyparams, False):
             ret = False
@@ -338,6 +339,7 @@ class CUAVModule(mp_module.MPModule):
             "TERRAIN_FOLLOW" : 1,
             "THR_FAILSAFE" : 0,
             "GCS_PID_MASK" : 0,
+            "RTL_AUTOLAND" : 1,
             }
         if not self.check_parms(keyparams, False):
             ret = False
@@ -411,7 +413,7 @@ class CUAVModule(mp_module.MPModule):
             
     def idle_task(self):
         '''run periodic tasks'''
-        now = self.get_time()
+        now = time.time()
         if now - self.last_button_update > 0.5:
             self.last_button_update = now
             self.update_button_display()
