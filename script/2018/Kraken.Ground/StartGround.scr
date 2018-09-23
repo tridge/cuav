@@ -11,6 +11,7 @@ set height_unit feet
 set dist_unit nm
 
 # set a female voice
+module load cuav.modules.cuav_check
 set speech_voice english+f5
 module load speech
 
