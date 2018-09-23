@@ -402,7 +402,7 @@ class CameraGroundModule(mp_module.MPModule):
             # assume map2 is the search map
             map2 = self.module('map2')
             if map2 is not None:
-                map2.map.set_zoom(250)
+                #map2.map.set_zoom(250)
                 map2.map.set_center(lzresult.latlon[0], lzresult.latlon[1])
                 map2.map.set_follow(0)
             # assume map3 is the lz map
