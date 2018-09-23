@@ -362,21 +362,27 @@ class CUAVModule(mp_module.MPModule):
             return
         if mc.seq == wp_recall:
             self.console.writeln('Recalling Kraken', fg='blue')
-            src_saved = self.master.mav.srcSystem
-            self.master.mav.srcSystem = 253
-            self.master.mav.command_long_send(
-                0,  # target_system
-                0, # target_component
-                mavutil.mavlink.MAV_CMD_USER_2, # command
-                0, # confirmation
-                42, # param1
-                0, # param2
-                0, # param3
-                0, # param4
-                0, # param5
-                0, # param6
-                0) # param7
-            self.master.mav.srcSystem = src_saved
+            # use all links
+            for i in range(len(self.mpstate.mav_master)):
+                m = self.mpstate.mav_master[i]
+                src_saved = m.mav.srcSystem
+                try:
+                    m.mav.srcSystem = 253
+                    m.mav.command_long_send(
+                        0,  # target_system
+                        0, # target_component
+                        mavutil.mavlink.MAV_CMD_USER_2, # command
+                        0, # confirmation
+                        42, # param1
+                        0, # param2
+                        0, # param3
+                        0, # param4
+                        0, # param5
+                        0, # param6
+                        0) # param7
+                except Exception as ex:
+                    print(ex)
+                m.mav.srcSystem = src_saved
 
     def check_release(self):
         '''check for releasing Kraken'''
@@ -395,21 +401,28 @@ class CUAVModule(mp_module.MPModule):
             return
         if mc.seq == wp_release:
             self.console.writeln('Releasing Kraken', fg='blue')
-            src_saved = self.master.mav.srcSystem
-            self.master.mav.srcSystem = 253
-            self.master.mav.command_long_send(
-                0,  # target_system
-                0, # target_component
-                mavutil.mavlink.MAV_CMD_USER_2, # command
-                0, # confirmation
-                24, # param1
-                0, # param2
-                0, # param3
-                0, # param4
-                0, # param5
-                0, # param6
-                0) # param7
-            self.master.mav.srcSystem = src_saved
+            # use all links
+            for i in range(len(self.mpstate.mav_master)):
+                m = self.mpstate.mav_master[i]
+                src_saved = m.mav.srcSystem
+                try:
+                    # use 1st link
+                    m.mav.srcSystem = 253
+                    m.mav.command_long_send(
+                        0,  # target_system
+                        0, # target_component
+                        mavutil.mavlink.MAV_CMD_USER_2, # command
+                        0, # confirmation
+                        24, # param1
+                        0, # param2
+                        0, # param3
+                        0, # param4
+                        0, # param5
+                        0, # param6
+                        0) # param7
+                except Exception as ex:
+                    print(ex)
+                m.mav.srcSystem = src_saved
             
     def idle_task(self):
         '''run periodic tasks'''
