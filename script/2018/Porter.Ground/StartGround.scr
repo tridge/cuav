@@ -55,7 +55,7 @@ module load speech
 # search area map
 module load map
 map2 follow 0
-map2 zoom 240
+map2 zoom 800
 map2 center ${TARGET_LATITUDE} ${TARGET_LONGITUDE}
 
 # lz map
