@@ -55,7 +55,7 @@ class NMEAModule(mp_module.MPModule):
 
         self.nmea_settings = mp_settings.MPSettings(
             [('target_system', int, 1),
-             ('wgs84_to_amsl', float, 0),
+             ('wgs84_to_amsl', float, -41.2),
             ]
         )
         self.add_completion_function('(NMEASETTING)',
