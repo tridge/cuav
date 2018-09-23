@@ -172,10 +172,10 @@ class CUAVModule(mp_module.MPModule):
             else:
                 print("Status OK")
 
-            if not self.check_QNH():
-                print("QNH bad")
-            else:
-                print("QNH OK")
+            #if not self.check_QNH():
+            #    print("QNH bad")
+            #else:
+            #    print("QNH OK")
 
         elif args[0] == "movetarget":
             self.move_target()
