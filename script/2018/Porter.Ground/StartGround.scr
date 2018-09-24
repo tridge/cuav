@@ -47,7 +47,6 @@ module load asterix
 
 module load sensors
 speed
-module load speech
 
 #cuavcheck set wind_speed 4
 #cuavcheck set wind_direction 225

@@ -12,17 +12,23 @@ set dist_unit nm
 
 # set a female voice
 module load cuav.modules.cuav_check
-set speech_voice english+f5
 module load speech
-
-layout load
+set speech_voice english+f5
 
 # throw away sysid2 pkts
 output sysid 2 127.0.0.1:9991
 
 module load cuav.modules.cuav_check
 
-module load map
-
 #output to big screen
 output add udp:127.0.0.1:16001
+
+# 2km map
+module load map
+map follow 0
+map zoom 2000
+map center -27.277209 151.291835
+
+
+layout load
+

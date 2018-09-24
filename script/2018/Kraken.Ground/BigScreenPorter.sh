@@ -8,4 +8,4 @@
 #other UAV
 
 #Packets come from the Porter.GroundBackup
-mavproxy.py --aircraft PorterScreen --master=udp:127.0.0.1:16000 --mav20 --force-connected --console --map $*
+mavproxy.py --aircraft PorterScreen --master=udp:127.0.0.1:16000 --mav20 --force-connected --console --cmd="set heartbeat 0; set vehicle_name PorterScreen; module load map; map follow 1; map zoom 2000; map center -27.277209 151.291835; module load cuav.modules.cuav_check" $*
