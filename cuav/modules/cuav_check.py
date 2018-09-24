@@ -290,7 +290,7 @@ class CUAVModule(mp_module.MPModule):
             "TERRAIN_FOLLOW" : 1,
             "THR_FAILSAFE" : 0,
             "GCS_PID_MASK" : 0,
-            "RTL_AUTOLAND" : 1,
+            "RTL_AUTOLAND" : 2,
             }
         if not self.check_parms(keyparams, False):
             ret = False
@@ -339,7 +339,7 @@ class CUAVModule(mp_module.MPModule):
             "TERRAIN_FOLLOW" : 1,
             "THR_FAILSAFE" : 0,
             "GCS_PID_MASK" : 0,
-            "RTL_AUTOLAND" : 1,
+            "RTL_AUTOLAND" : 2,
             }
         if not self.check_parms(keyparams, False):
             ret = False
