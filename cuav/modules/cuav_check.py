@@ -41,6 +41,7 @@ class CUAVModule(mp_module.MPModule):
         self.showJoeZone = True
         self.target = None
         self.last_recall_check = 0
+        self.is_armed = False
 
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.cuav_settings = MPSettings(
@@ -172,10 +173,10 @@ class CUAVModule(mp_module.MPModule):
             else:
                 print("Status OK")
 
-            #if not self.check_QNH():
-            #    print("QNH bad")
-            #else:
-            #    print("QNH OK")
+            if not self.check_QNH():
+                print("QNH bad")
+            else:
+                print("QNH OK")
 
         elif args[0] == "movetarget":
             self.move_target()
@@ -427,7 +428,31 @@ class CUAVModule(mp_module.MPModule):
                 except Exception as ex:
                     print(ex)
                 m.mav.srcSystem = src_saved
-            
+
+    def check_QNH(self):
+        '''check QNH settings'''
+        if self.is_armed:
+            return True
+        v = self.mav_param.get('AFS_QNH_PRESSURE', None)
+        if v is None:
+            self.console.writeln('AFS_QNH_PRESSURE not available', fg='blue')
+            return False
+        if int(v) == 0:
+            self.console.writeln('AFS_QNH_PRESSURE not set', fg='blue')
+            return False
+        misc = self.module('misc')
+        qest = misc.qnh_estimate()
+        pressure = self.master.field('SCALED_PRESSURE', 'press_abs', 0)
+        ground_temp = self.get_mav_param('GND_TEMP', 21)
+        qnh_alt = misc.altitude_difference(v, pressure, ground_temp)
+        amsl_alt = self.master.field('GLOBAL_POSITION_INT', 'alt', 0) * 0.001
+        err = qnh_alt - amsl_alt
+        if abs(err) > 20:
+            self.console.writeln('QNH Alt error %dm' % int(err), fg='blue')
+            self.console.writeln('AFS_QNH_PRESSURE should be %.1f' % qest, fg='blue')
+            return False
+        return True
+
     def idle_task(self):
         '''run periodic tasks'''
         now = time.time()
@@ -577,8 +602,8 @@ class CUAVModule(mp_module.MPModule):
             mc = self.master.messages['MISSION_CURRENT']
         except Exception:
             return False
-        is_armed = (hb.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
-        if not is_armed and hb.custom_mode == 0:
+        self.is_armed = (hb.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
+        if not self.is_armed and hb.custom_mode == 0:
             # disarmed in MANUAL we should be at WP 0
             if mc.seq > 1:
                 self.console.writeln('Incorrect WP %u' % mc.seq, fg='blue')
@@ -656,9 +681,10 @@ class CUAVModule(mp_module.MPModule):
                 m.id, m.horizontal_minimum_delta, m.altitude_minimum_delta, m.src), row=6, fg=color)
 
         if self.rate_period.trigger():
+            self.check_status()
             self.check_parameters()
             self.check_fence()
-            self.check_status()
+            self.check_QNH()
 
 def init(mpstate):
     '''initialise module'''
