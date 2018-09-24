@@ -55,7 +55,8 @@ class CUAVModule(mp_module.MPModule):
               MPSetting('wp_end', int, 3, 'end search USER number'),
               MPSetting('wp_land',int, 4, 'landing start USER number'),
               MPSetting('wp_recall', int, 5, 'recall Kraken USER number'),
-              MPSetting('wp_release', int, 6, 'release Kraken USER number') ])
+              MPSetting('wp_release', int, 6, 'release Kraken USER number'),
+              MPSetting('qnh_max_err', int, 50, 'maximum QNH error') ])
         self.add_completion_function('(CUAVCHECKSETTING)', self.cuav_settings.completion)
         self.add_command('cuavcheck', self.cmd_cuavcheck,
                          'cuav check control',
@@ -447,7 +448,7 @@ class CUAVModule(mp_module.MPModule):
         qnh_alt = misc.altitude_difference(v, pressure, ground_temp)
         amsl_alt = self.master.field('GLOBAL_POSITION_INT', 'alt', 0) * 0.001
         err = qnh_alt - amsl_alt
-        if abs(err) > 20:
+        if abs(err) > self.cuav_settings.qnh_max_err:
             self.console.writeln('QNH Alt error %dm' % int(err), fg='blue')
             self.console.writeln('AFS_QNH_PRESSURE should be %.1f' % qest, fg='blue')
             return False
