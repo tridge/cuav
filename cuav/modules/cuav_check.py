@@ -383,6 +383,10 @@ class CUAVModule(mp_module.MPModule):
                 except Exception as ex:
                     print(ex)
                 m.mav.srcSystem = src_saved
+            map2 = self.module("map2")
+            if map2:
+                map2.map.set_follow(1)
+                map2.map.set_zoom(2000)
 
     def check_release(self):
         '''check for releasing Kraken'''
