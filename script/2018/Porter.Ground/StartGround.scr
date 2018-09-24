@@ -76,3 +76,19 @@ cuavcheck showJoeZone
 
 # use saved layout
 layout load
+
+@module load graph
+@graph legend NAV_CONTROLLER_OUTPUT.nav_roll NavRoll
+@graph legend NAV_CONTROLLER_OUTPUT.nav_pitch NavPitch
+@graph legend degrees(ATTITUDE.roll) Roll
+@graph legend degrees(ATTITUDE.pitch) Pitch
+@graph legend rangefinder_roll(RANGEFINDER,ATTITUDE,maxdist=120) LidarHgt
+@graph legend TERRAIN_REPORT.current_height AGL
+@graph legend VFR_HUD.airspeed AirSpeed
+@graph legend VFR_HUD.groundspeed GroundSpeed
+@graph NAV_CONTROLLER_OUTPUT.nav_roll NAV_CONTROLLER_OUTPUT.nav_pitch degrees(ATTITUDE.roll) degrees(ATTITUDE.pitch)
+@graph TERRAIN_REPORT.current_height rangefinder_roll(RANGEFINDER,ATTITUDE,maxdist=120)
+@graph VFR_HUD.airspeed VFR_HUD.groundspeed
+
+
+
