@@ -4,6 +4,8 @@
 OZLABS_PROXY1_AIR=udpout:203.11.71.1:10401
 TRIDGELL_PROXY1_AIR=udpout:203.217.61.45:10401
 
+. ../target_loc_dalby.sh
+
 OUT="--out=$OZLABS_PROXY1_AIR"
 OUT="$OUT --out=$TRIDGELL_PROXY1_AIR"
 

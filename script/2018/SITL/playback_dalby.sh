@@ -1,3 +1,6 @@
 #!/bin/bash
 
-nice ./playback_synthetic.py --target-lat -27.343257 --target-lon 151.341535
+
+
+nice ./playback_synthetic.py --target-lat -27.357372 --target-lon 151.240477
+
