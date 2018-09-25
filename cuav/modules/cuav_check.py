@@ -604,6 +604,25 @@ class CUAVModule(mp_module.MPModule):
         except Exception:
             return False
         self.is_armed = (hb.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
+
+        wpmod = self.module('wp')
+        wploader = wpmod.wploader
+        seq = mc.seq
+        wp = wploader.wp(seq)
+        v = self.mav_param.get('Q_ENABLE', 0)
+        if self.is_armed and self.master.flightmode == "AUTO" and wp is not None and v == 0:
+            if wp.command == mavutil.mavlink.MAV_CMD_NAV_DELAY:
+                press1 = self.mav_param.get('GND_ABS_PRESS', None)
+                press2 = self.mav_param.get('GND_ABS_PRESS2', None)
+                if press1 is not None and press1 > 0:
+                    scp = self.master.messages['SCALED_PRESSURE']
+                    gnd_press1 = scp.press_abs * 100
+                    self.master.param_set_send('GND_ABS_PRESS', gnd_press1)
+                if press2 is not None and press2 > 0:
+                    scp = self.master.messages['SCALED_PRESSURE2']
+                    gnd_press2 = scp.press_abs * 100
+                    self.master.param_set_send('GND_ABS_PRESS2', gnd_press2)
+
         if not self.is_armed and hb.custom_mode == 0:
             # disarmed in MANUAL we should be at WP 0
             if mc.seq > 1:
