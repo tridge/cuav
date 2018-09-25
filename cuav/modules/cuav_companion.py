@@ -34,7 +34,7 @@ class CUAVCompanionModule(mp_module.MPModule):
               MPSetting('wp_land',int, 4, 'landing start USER number'),
               MPSetting('lookahead_default',int, 500, 'avoidance lookahead main'),
               MPSetting('lookahead_search',int, 300, 'avoidance lookahead search'),
-              MPSetting('margin_exc_default',int, 60, 'avoidance exc main'),
+              MPSetting('margin_exc_default',int, 100, 'avoidance exc main'),
               MPSetting('margin_exc_search',int, 35, 'avoidance exc margin'),
               MPSetting('auto_mission',bool, True, 'enable auto mission code') ])
         self.add_command('cuav', self.cmd_cuav,
