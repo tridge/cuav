@@ -34,6 +34,8 @@ class CUAVCompanionModule(mp_module.MPModule):
               MPSetting('wp_land',int, 4, 'landing start USER number'),
               MPSetting('lookahead_default',int, 500, 'avoidance lookahead main'),
               MPSetting('lookahead_search',int, 300, 'avoidance lookahead search'),
+              MPSetting('margin_exc_default',int, 60, 'avoidance exc main'),
+              MPSetting('margin_exc_search',int, 35, 'avoidance exc margin'),
               MPSetting('auto_mission',bool, True, 'enable auto mission code') ])
         self.add_command('cuav', self.cmd_cuav,
                          'cuav companion control',
@@ -194,14 +196,22 @@ class CUAVCompanionModule(mp_module.MPModule):
             return
 
         if m.seq >= wp_start and m.seq <= wp_end:
-            lookahead = 300
+            lookahead = self.cuav_settings.lookahead_search
+            margin_exc = self.cuav_settings.margin_exc_search
         else:
-            lookahead = 500
+            lookahead = self.cuav_settings.lookahead_default
+            margin_exc = self.cuav_settings.margin_exc_default
+
         v = self.mav_param.get('AVD_LOOKAHEAD', None)
         if v is not None and abs(v - lookahead) > 1:
-            self.send_message("Set lookahead %u" % lookahead)
+            self.send_message("Set AVD_LOOKAHEAD %u" % lookahead)
             self.master.param_set_send('AVD_LOOKAHEAD', lookahead)
 
+        v = self.mav_param.get('AVD_MARGIN_EXCL', None)
+        if v is not None and abs(v - margin_exc) > 1:
+            self.send_message("Set AVD_MARGIN_EXCL %u" % margin_exc)
+            self.master.param_set_send('AVD_MARGIN_EXCL', margin_exc)
+            
         # run every 5 seconds
         if self.last_attitude_ms - self.last_mission_check_ms < 5000:
             return
