@@ -11,6 +11,8 @@
 OZLABS_PROXY1_GND=udpout:203.11.71.1:10402
 TRIDGELL_PROXY1_GND=udpout:203.217.61.45:10402
 
+. ../target_loc_dalby.sh
+
 [ -z "$UART_GROUND" ] && {
     UART_GROUND="radio1"
 }

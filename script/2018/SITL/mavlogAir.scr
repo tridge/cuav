@@ -16,6 +16,8 @@ camera set minscore 1000
 
 set script_fatal 1
 
+. ../target_loc_dalby.sh
+
 camera set target_latitude ${TARGET_LATITUDE}
 camera set target_longitude ${TARGET_LONGITUDE}
 camera set target_radius 100.0
