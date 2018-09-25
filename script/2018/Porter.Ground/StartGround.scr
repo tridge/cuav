@@ -77,6 +77,16 @@ cuavcheck showJoeZone
 # use saved layout
 layout load
 
+module load cuav.modules.nmea
+nmea udp 192.168.1.90:9500
+nmea log nmea1.log
+
+module load cuav.modules.nmea
+nmea2 set target_system 2
+nmea2 udp 192.168.1.90:9501
+nmea2 log nmea2.log
+
+
 @module load graph
 @graph legend NAV_CONTROLLER_OUTPUT.nav_roll NavRoll
 @graph legend NAV_CONTROLLER_OUTPUT.nav_pitch NavPitch
