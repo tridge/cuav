@@ -32,6 +32,8 @@ class CUAVCompanionModule(mp_module.MPModule):
               MPSetting('wp_start', int, 1, 'start search USER number'),
               MPSetting('wp_end', int, 3, 'end search USER number'),
               MPSetting('wp_land',int, 4, 'landing start USER number'),
+              MPSetting('lookahead_default',int, 500, 'avoidance lookahead main'),
+              MPSetting('lookahead_search',int, 300, 'avoidance lookahead search'),
               MPSetting('auto_mission',bool, True, 'enable auto mission code') ])
         self.add_command('cuav', self.cmd_cuav,
                          'cuav companion control',
@@ -170,10 +172,11 @@ class CUAVCompanionModule(mp_module.MPModule):
                 return i+1
         return None
 
-    def update_mission(self):
+    def update_mission(self, m):
         '''update mission status'''
         if not self.cuav_settings.auto_mission:
             return
+
         wpmod = self.module('wp')
         wploader = wpmod.wploader
         if wploader.count() < 2 and self.last_attitude_ms - self.last_wp_list_ms > 5000:
@@ -189,6 +192,15 @@ class CUAVCompanionModule(mp_module.MPModule):
             wp_end is None):
             # not configured
             return
+
+        if m.seq >= wp_start and m.seq <= wp_end:
+            lookahead = 300
+        else:
+            lookahead = 500
+        v = self.mav_param.get('AVD_LOOKAHEAD', None)
+        if v is not None and abs(v - lookahead) > 1:
+            self.send_message("Set lookahead %u" % lookahead)
+            self.master.param_set_send('AVD_LOOKAHEAD', lookahead)
 
         # run every 5 seconds
         if self.last_attitude_ms - self.last_mission_check_ms < 5000:
@@ -301,7 +313,7 @@ class CUAVCompanionModule(mp_module.MPModule):
                 self.button_change_time = 0
             self.last_attitude_ms = m.time_boot_ms
         if m.get_type() == 'MISSION_CURRENT':
-            self.update_mission()
+            self.update_mission(m)
 
 def init(mpstate):
     '''initialise module'''
