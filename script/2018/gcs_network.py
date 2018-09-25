@@ -123,5 +123,7 @@ while True:
                 run_command("sudo route del -host %s gw %s dev eth2" % (OZLABSORG, PI_OPTUS))
                 run_command("sudo route add -host %s dev wlan0 gw %s" % (OZLABSORG, gw))
             
+    run_command("sudo ifconfig eth2:1 192.168.1.155 up")
+    run_command("/bin/bash /home/tridge/bin/video.obc2018")
     time.sleep(5)
 
