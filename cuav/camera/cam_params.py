@@ -86,18 +86,18 @@ class CameraParams:
 
   @staticmethod
   def fromstring(strung):
-    dic = json.loads(strung)
+    dic = json.loads(str(strung))
     return CameraParams.fromdict(dic)
 
   def save(self, filename):
-    f = open(filename,"wb")
+    f = open(filename,"w")
     # dump json form
     f.write(str(self)+"\n")
     f.close()
 
   @staticmethod
   def fromfile(filename):
-    f = open(filename,"rb")
+    f = open(filename,"r")
     # dump json form
     d = f.read(65535)
     f.close()

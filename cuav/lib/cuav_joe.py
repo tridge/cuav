@@ -6,7 +6,7 @@ Andrew Tridgell
 May 2012
 '''
 
-import os, sys, cPickle, time
+import os, sys, pickle, time
 from cuav.lib import cuav_util, mav_position
 
 
@@ -52,7 +52,7 @@ class JoeLog():
     joe = JoePosition(latlon, frame_time, r, pos, image_filename, thumb_filename)
     if self.log is not None:
       with open(self.filename, "ab") as f:
-        f.write(cPickle.dumps(joe, protocol=cPickle.HIGHEST_PROTOCOL))
+        f.write(pickle.dumps(joe, protocol=pickle.HIGHEST_PROTOCOL))
         f.flush()
         
   def add_regions(self, frame_time, regions, pos, image_filename, thumb_filename=None):
@@ -75,7 +75,7 @@ class JoeIterator():
       # Read the data
       while True:
         try:
-          o = cPickle.load(in_s)
+          o = pickle.load(in_s)
           self.joes.append(o)
         except EOFError:
           break

@@ -5,8 +5,10 @@ Andrew Tridgell
 May 2012
 '''
 
-import numpy, os, cv2, sys, cuav_util, time, math, functools, cuav_region
+import numpy, os, cv2, sys, time, math, functools
 
+from cuav.lib import cuav_util
+from cuav.lib import cuav_region
 from MAVProxy.modules.lib import mp_image
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 from MAVProxy.modules.lib.mp_menu import *
@@ -51,7 +53,7 @@ class MosaicImage:
 
 def ExtractThumbs(img, count):
     '''extract thumbnails from a composite thumbnail image'''
-    thumb_size = cuav_util.image_width(img) / count
+    thumb_size = cuav_util.image_width(img) // count
     thumbs = []
     for i in range(count):
         thumb = cuav_util.SubImage(img, (i*thumb_size, 0, thumb_size, thumb_size))
@@ -145,12 +147,12 @@ class Mosaic():
                     for c in categories.category:
                         self.categories.append((c.get('shortcut') or '', c.text))
                         if c.text in cat_names:
-                            print 'WARNING: category name',c.text,'used more than once'
+                            print('WARNING: category name',c.text,'used more than once')
                         else:
                             cat_names.add(c.text)
                 except AttributeError as ex:
-                    print ex
-                    print 'failed to load any categories for classification'
+                    print(ex)
+                    print('failed to load any categories for classification')
             self.region_class = lxml.objectify.E.regions()
 
         self.add_menus()
@@ -215,7 +217,7 @@ class Mosaic():
             grid_height = 1
         ridx = self.page * self.display_regions
         self.display_regions = grid_width * grid_height
-        self.page = ridx / self.display_regions
+        self.page = ridx // self.display_regions
         self.redisplay_mosaic()
 
     def show_region(self, ridx, view_the_image=False):
@@ -371,7 +373,11 @@ class Mosaic():
             return
         if not isinstance(event, mp_slipmap.SlipMouseEvent):
             return
-        if event.event.m_middleDown:
+        if hasattr(event.event, 'ButtonIsDown'):
+            middle_button_down = event.event.ButtonIsDown(wx.MOUSE_BTN_MIDDLE)
+        else:
+            middle_button_down = event.event.middleIsDown
+        if middle_button_down:
             # show closest image from history
             self.show_closest(event.latlon, event.selected)
             return
@@ -446,7 +452,7 @@ class Mosaic():
         self.page = page
         if self.page < 0:
             self.page = 0
-        max_page = (len(self.regions_sorted)-1) / self.display_regions
+        max_page = (len(self.regions_sorted)-1) // self.display_regions
         if max_page < 0:
             max_page = 0
         if self.page > max_page:
@@ -621,7 +627,7 @@ class Mosaic():
         '''work out region for a clicked position on the mosaic'''
         x = pos.x
         y = pos.y
-        page_idx = (x/self.thumb_size) + (self.width/self.thumb_size)*(y/self.thumb_size)
+        page_idx = int((x/self.thumb_size) + (self.width/self.thumb_size)*(y/self.thumb_size))
         ridx = page_idx + self.page * self.display_regions
         if ridx < 0 or ridx >= len(self.regions_sorted):
             return None
@@ -642,7 +648,7 @@ class Mosaic():
         if event.X < 0 or event.Y < 0:
             # sometimes get events when the mouse cursor is not on the mosaic
             return
-        #print 'cuav_mosaic mouse_event',event.__dict__
+        #print('cuav_mosaic mouse_event',event.__dict__)
 
         # work out which region they want, taking into account wrap
         region = self.pos_to_region(wx.Point(event.X, event.Y))
@@ -654,8 +660,14 @@ class Mosaic():
             if event.EventType == 10037: # double-click
                 self.popup_show_image(region)
 
-        if event.m_leftDown: # TODO is this dangerous
-            self.show_region(region.ridx, event.m_middleDown)
+        if hasattr(event.event, 'ButtonIsDown'):
+            left_button_down = event.event.ButtonIsDown(wx.MOUSE_BTN_LEFT)
+            middle_button_down = event.event.ButtonIsDown(wx.MOUSE_BTN_MIDDLE)
+        else:
+            left_button_down = event.event.leftIsDown
+            middle_button_down = event.event.middleIsDown
+        if left_button_down: # TODO is this dangerous
+            self.show_region(region.ridx, middle_button_down)
             if region.latlon != (None,None):
                 self.slipmap.add_object(mp_slipmap.SlipCenter(region.latlon))
         else:
@@ -726,7 +738,7 @@ class Mosaic():
         width = (self.width // self.thumb_size) * self.thumb_size
         page_idx = ridx - self.page * self.display_regions
         dest_x = (page_idx * self.thumb_size) % width
-        dest_y = ((page_idx * self.thumb_size) / width) * self.thumb_size
+        dest_y = ((page_idx * self.thumb_size) // width) * self.thumb_size
 
         if region == self.mouse_region:
             thumb = cv2.resize(region.small_thumbnail, (self.thumb_size, self.thumb_size))
@@ -736,7 +748,7 @@ class Mosaic():
         thumb = self.change_brightness(thumb)
         
         # overlay thumbnail on mosaic
-        #print dest_x, dest_y, self.width, self.height, self.thumb_size, cuav_util.image_width(region.small_thumbnail)
+        #print(dest_x, dest_y, self.width, self.height, self.thumb_size, cuav_util.image_width(region.small_thumbnail))
         try:
             cuav_util.OverlayImage(self.mosaic, thumb, dest_x, dest_y)
         except Exception:
@@ -751,7 +763,7 @@ class Mosaic():
             self.display_mosaic_region(ridx)
 
         self.image_mosaic.set_image(self.mosaic)
-        max_page = (len(self.regions_sorted)-1) / self.display_regions
+        max_page = (len(self.regions_sorted)-1) // self.display_regions
         self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
 
     def make_thumb(self, full, r, size):
@@ -795,7 +807,7 @@ class Mosaic():
             self.regions.append(MosaicRegion(ridx, r, filename, pos, thumbs[i], thumb, latlon=(lat,lon)))
             self.regions_sorted.append(self.regions[-1])
 
-            max_page = (len(self.regions_sorted)-1) / self.display_regions
+            max_page = (len(self.regions_sorted)-1) // self.display_regions
             self.image_mosaic.set_title("Mosaic (Page %u of %u)" % (self.page+1, max(max_page+1, 1)))
 
             frame_time = cuav_util.parse_frame_time(filename)

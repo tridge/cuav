@@ -1199,19 +1199,65 @@ static PyMethodDef ScannerMethods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
+#if PY_MAJOR_VERSION >= 3
+
+struct module_state {
+    PyObject *error;
+};
+
+#define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
+
+static int scanner_traverse(PyObject *m, visitproc visit, void *arg) {
+    Py_VISIT(GETSTATE(m)->error);
+    return 0;
+}
+
+static int scanner_clear(PyObject *m) {
+    Py_CLEAR(GETSTATE(m)->error);
+    return 0;
+}
+
+
+static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "scanner",
+        NULL,
+        sizeof(struct module_state),
+        ScannerMethods,
+        NULL,
+        scanner_traverse,
+        scanner_clear,
+        NULL
+};
+
+PyMODINIT_FUNC
+PyInit_scanner(void)
+
+#else
 PyMODINIT_FUNC
 initscanner(void)
+#endif
 {
-	PyObject *m;
+#if PY_MAJOR_VERSION >= 3
+    PyObject *m = PyModule_Create(&moduledef);
+    if (m == NULL) {
+        return m;
+    }
+#else
+    PyObject *m = Py_InitModule("scanner", ScannerMethods);
+    if (m == NULL) {
+        return;
+    }
+#endif
 
-	m = Py_InitModule("scanner", ScannerMethods);
-	if (m == NULL)
-		return;
+    import_array();
 
-	import_array();
+    ScannerError = PyErr_NewException("scanner.error", NULL, NULL);
+    Py_INCREF(ScannerError);
+    PyModule_AddObject(m, "error", ScannerError);
 
-	ScannerError = PyErr_NewException("scanner.error", NULL, NULL);
-	Py_INCREF(ScannerError);
-	PyModule_AddObject(m, "error", ScannerError);
+#if PY_MAJOR_VERSION >= 3
+    return m;
+#endif
 }
 

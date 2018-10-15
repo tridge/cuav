@@ -380,7 +380,10 @@ class CameraAirModule(mp_module.MPModule):
         while (not self.unload_event.wait(0.05)) or self.airstart_triggered:
             for bsnd in self.bsend:
                 bsnd.tick(packet_count=1000, max_queue=self.camera_settings.maxqueue)
-                self.check_commands(bsnd)
+                try:
+                    self.check_commands(bsnd)
+                except Exception as ex:
+
             if self.msend is not None:
                 self.msend.tick(packet_count=1000, max_queue=self.camera_settings.m_maxqueue)
                 self.check_commands(self.msend)
@@ -575,7 +578,11 @@ class CameraAirModule(mp_module.MPModule):
 
     def handle_image_request(self, obj, bsend):
         '''handle ImageRequest from GCS. Only sends to the requesting GCS'''
-        filename = self.imagefilenamemapping[str(obj.frame_time)]
+        strname = str(obj.frame_time)
+        if not strname in self.imagefilenamemapping:
+            print("Unknown image %s" % strname)
+            return
+        filename = self.imagefilenamemapping[]
         if not os.path.exists(filename):
             print("No file: %s" % filename)
             return

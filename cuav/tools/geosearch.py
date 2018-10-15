@@ -96,7 +96,7 @@ def process(args):
 
   if args.mavlog:
     mpos = mav_position.MavInterpolator()
-    mpos.set_logfile(args.mavlog.name)
+    mpos.set_logfile(args.mavlog)
   else:
     mpos = None
 
@@ -106,19 +106,19 @@ def process(args):
     gamma = None
 
   if args.kmzlog:
-    kmzpos = mav_position.KmlPosition(args.kmzlog.name)
+    kmzpos = mav_position.KmlPosition(args.kmzlog)
   else:
     kmzpos = None
 
   if args.triggerlog:
-    triggerpos = mav_position.TriggerPosition(args.triggerlog.name)
+    triggerpos = mav_position.TriggerPosition(args.triggerlog)
   else:
     triggerpos = None
 
   # create a simple lens model using the focal length
 
   if args.camera_params:
-    C_params = cam_params.CameraParams.fromfile(args.camera_params.name)
+    C_params = cam_params.CameraParams.fromfile(args.camera_params)
   else:
     im_orig = cv2.imread(files[0])
     (w,h) = cuav_util.image_shape(im_orig)
@@ -346,16 +346,16 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Search images for Joe')
     parser.add_argument("--vehicle-type", default="Plane", help="vehicle type", choices=('Plane','Copter'))
     parser.add_argument("directory", default=None, help="directory containing image files")
-    parser.add_argument("--mission", default=None, type=file, help="mission file to display")
-    parser.add_argument("--mavlog", default=None, type=file, help="MAVLink telemetry log file")
-    parser.add_argument("--kmzlog", default=None, type=file, help="kmz file for image positions")
-    parser.add_argument("--triggerlog", default=None, type=file, help="robota trigger file for image positions")
+    parser.add_argument("--mission", default=None, type=str, help="mission file to display")
+    parser.add_argument("--mavlog", default=None, type=str, help="MAVLink telemetry log file")
+    parser.add_argument("--kmzlog", default=None, type=str, help="kmz file for image positions")
+    parser.add_argument("--triggerlog", default=None, type=str, help="robota trigger file for image positions")
     parser.add_argument("--time-offset", type=float, default=0, help="offset between camera and mavlink log times (seconds)")
     parser.add_argument("--view", action='store_true', default=False, help="show images")
     parser.add_argument("--lens", default=28.0, type=float, help="lens focal length")
     parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
     parser.add_argument("--service", default='MicrosoftSat', choices=('GoogleSat', 'MicrosoftSat', 'OviSat', 'OpenStreetMap', 'MicrosoftHyb', 'OviHybrid', 'GoogleMap'), help="map service")
-    parser.add_argument("--camera-params", default=None, type=file, help="camera calibration json file from OpenCV")
+    parser.add_argument("--camera-params", default=None, type=str, help="camera calibration json file from OpenCV")
     parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
     parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
     parser.add_argument("--pitch-stabilised", default=False, action='store_true', help="assume pitch stabilised camera")

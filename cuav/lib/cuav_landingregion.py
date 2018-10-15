@@ -2,7 +2,7 @@
 '''Class for determining and plotting a landing location for a UAV, based on a set
 of detected regions.'''
 
-import cuav_util
+from cuav.lib import cuav_util
 
 class LandingZoneDisplay:
     '''this is a landing zone object for transmitting to the GCS for display purposes'''

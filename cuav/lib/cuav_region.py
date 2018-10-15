@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 '''CanberraUAV utility functions for dealing with image regions'''
 
-import numpy, sys, os, time, cuav_util, cv2, math
+import numpy, sys, os, time, cv2, math
 from numpy import shape
+from cuav.lib import cuav_util
 
 class Region:
     '''a object representing a recognised region in an image'''
@@ -202,8 +203,8 @@ def score_region(img, r, filter_type='simple'):
     '''filter a list of regions using HSV values'''
     (x1, y1, x2, y2) = r.tuple()
     (w,h) = cuav_util.image_shape(img)
-    x = (x1+x2)/2
-    y = (y1+y2)/2
+    x = (x1+x2)//2
+    y = (y1+y2)//2
     x1 = max(x-10,0)
     x2 = min(x+10,w)
     y1 = max(y-10,0)
@@ -257,17 +258,17 @@ def CompositeThumbnail(img, regions, thumb_size=100):
     composite = []
     for i in range(len(regions)):
         (x1,y1,x2,y2) = regions[i].tuple()
-        midx = (x1+x2)/2
-        midy = (y1+y2)/2
+        midx = (x1+x2)//2
+        midy = (y1+y2)//2
 
         if (x2-x1) > thumb_size or (y2-y1) > thumb_size:
             # we need to shrink the region
             rsize = max(x2+1-x1, y2+1-y1)
-            src = cuav_util.SubImage(img, (midx-rsize/2,midy-rsize/2,rsize,rsize))
+            src = cuav_util.SubImage(img, (midx-rsize//2,midy-rsize//2,rsize,rsize))
             thumb = cv2.resize(src, (thumb_size, thumb_size))
         else:
-            x1 = midx - thumb_size/2
-            y1 = midy - thumb_size/2
+            x1 = midx - thumb_size//2
+            y1 = midy - thumb_size//2
             thumb = cuav_util.SubImage(img, (x1, y1, thumb_size, thumb_size))
         if composite == []:
             composite = thumb
