@@ -123,8 +123,7 @@ class Mosaic():
             self.allmaps.append(self.search_map)
         if self.lz_map:
             self.allmaps.append(self.lz_map)
-        print("allmaps: ", self.allmaps)
-            
+
         self.selected_region = 0
         self.have_selected_region = False
 
@@ -151,7 +150,6 @@ class Mosaic():
                         else:
                             cat_names.add(c.text)
                 except AttributeError as ex:
-                    print(ex)
                     print('failed to load any categories for classification')
             self.region_class = lxml.objectify.E.regions()
 
@@ -264,7 +262,7 @@ class Mosaic():
                 self.images[i].shape = (w,h)
         for r in self.regions:
             if r.filename == filename:
-                r.region.draw_rectangle(img, colour=(255,0,0), linewidth=min(max(w/600,1),3), offset=max(w/200,1))
+                r.region.draw_rectangle(img, colour=(255,0,0), linewidth=int(min(max(w/600,1),3)), offset=int(max(w/200,1)))
         if self.view_image is None or not self.view_image.is_alive():
             import wx
             viewwidth = w
@@ -627,7 +625,7 @@ class Mosaic():
         '''work out region for a clicked position on the mosaic'''
         x = pos.x
         y = pos.y
-        page_idx = int((x/self.thumb_size) + (self.width/self.thumb_size)*(y/self.thumb_size))
+        page_idx = int((x/self.thumb_size) + (self.width//self.thumb_size)*(y//self.thumb_size))
         ridx = page_idx + self.page * self.display_regions
         if ridx < 0 or ridx >= len(self.regions_sorted):
             return None
@@ -660,12 +658,12 @@ class Mosaic():
             if event.EventType == 10037: # double-click
                 self.popup_show_image(region)
 
-        if hasattr(event.event, 'ButtonIsDown'):
-            left_button_down = event.event.ButtonIsDown(wx.MOUSE_BTN_LEFT)
-            middle_button_down = event.event.ButtonIsDown(wx.MOUSE_BTN_MIDDLE)
+        if hasattr(event, 'ButtonIsDown'):
+            left_button_down = event.ButtonIsDown(wx.MOUSE_BTN_LEFT)
+            middle_button_down = event.ButtonIsDown(wx.MOUSE_BTN_MIDDLE)
         else:
-            left_button_down = event.event.leftIsDown
-            middle_button_down = event.event.middleIsDown
+            left_button_down = event.leftIsDown
+            middle_button_down = event.middleIsDown
         if left_button_down: # TODO is this dangerous
             self.show_region(region.ridx, middle_button_down)
             if region.latlon != (None,None):
