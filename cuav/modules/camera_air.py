@@ -149,8 +149,8 @@ class CameraAirModule(mp_module.MPModule):
 
     def get_bsend_index(self, bsnd):
         '''get a bsend index from a bsend object. This avoids pickling a block xmit object'''
-        if bsend is None or isinstance(bsend, int) or bsnd == 'msend':
-            return bsend
+        if bsnd is None or isinstance(bsnd, int) or bsnd == 'msend':
+            return bsnd
         if bsnd == self.msend:
             return 'msend'
         return self.bsend.index(bsnd)
@@ -412,7 +412,7 @@ class CameraAirModule(mp_module.MPModule):
                 try:
                     self.check_commands(bsnd)
                 except Exception as ex:
-                    print("Failed command")
+                    print("Failed command", ex)
             if self.msend is not None:
                 self.msend.tick(packet_count=1000, max_queue=self.camera_settings.m_maxqueue)
                 self.check_commands(self.msend)
