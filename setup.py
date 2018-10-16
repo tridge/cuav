@@ -3,7 +3,7 @@ import numpy as np
 import platform, os
 import sys
 
-version = '1.4.0'
+version = '1.5.0'
 
 ext_modules = []
 
