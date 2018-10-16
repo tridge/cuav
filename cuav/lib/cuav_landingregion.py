@@ -68,11 +68,11 @@ class LandingZone:
 
         # throw away bottom 25% by score
         regions.sort(key = lambda r : r.score, reverse=True)
-        regions = regions[:-len(regions)/4]
+        regions = regions[:-len(regions)//4]
 
         # throw away bottom 25% by angle
         regions.sort(key = lambda r : r.angle, reverse=False)
-        regions = regions[:-len(regions)/4]
+        regions = regions[:-len(regions)//4]
 
         # remove outliers
         outlier_distance = 15

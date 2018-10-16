@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import numpy, os, time, cv2, sys, math, sys, glob, argparse
-import multiprocessing
+
 
 from cuav.lib import cuav_util, cuav_landingregion
 from cuav.image import scanner
@@ -9,6 +9,7 @@ from cuav.lib import cuav_mosaic, mav_position, cuav_joe, cuav_region
 from cuav.camera import cam_params
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 from MAVProxy.modules.lib import mp_image
+from MAVProxy.modules.lib import multiproc
 from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
 
 slipmap = None
@@ -380,7 +381,7 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    multiprocessing.freeze_support()
+    multiproc.freeze_support()
     args = parse_args()
 
     # main program

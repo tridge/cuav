@@ -103,3 +103,9 @@ class CameraParams:
     f.close()
     return CameraParams.fromstring(d)
 
+if __name__ == '__main__':
+    import sys
+    f = open(sys.argv[1],'r')
+    contents = f.read()
+    c = CameraParams.fromstring(contents)
+    print(c)

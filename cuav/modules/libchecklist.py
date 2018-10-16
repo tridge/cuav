@@ -5,6 +5,8 @@
   Created by Stephen Dade (stephen_dade@hotmail.com)
 """
 
+from MAVProxy.modules.lib import multiproc
+
 class CheckItem():
     '''Checklist item used for information transfer
     between threads/processes/pipes'''
@@ -19,11 +21,10 @@ class UI():
     '''
 
     def __init__(self):
-        import multiprocessing
-        self.parent_pipe,self.child_pipe = multiprocessing.Pipe()
-        self.close_event = multiprocessing.Event()
+        self.parent_pipe,self.child_pipe = multiproc.Pipe()
+        self.close_event = multiproc.Event()
         self.close_event.clear()
-        self.child = multiprocessing.Process(target=self.child_task)
+        self.child = multiproc.Process(target=self.child_task)
         self.child.start()
 
 
