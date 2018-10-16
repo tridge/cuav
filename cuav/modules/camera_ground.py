@@ -4,7 +4,7 @@ It takes in sent images from camera_air and displays them
 via a GUI'''
 
 
-import time, threading, os, cPickle
+import time, threading, os, pickle, sys
 import functools, cv2, pkg_resources
 
 from MAVProxy.modules.lib import mp_module, mp_image
@@ -154,6 +154,8 @@ class CameraGroundModule(mp_module.MPModule):
         if self.camera_settings.camparms is None:
             return False
         camfiletxt = pkg_resources.resource_string("cuav", self.camera_settings.camparms)
+        if sys.version_info.major >= 3:
+            camfiletxt = camfiletxt.decode('utf-8')
         try:
             self.c_params = CameraParams.fromstring(camfiletxt)
             return True
@@ -294,10 +296,11 @@ class CameraGroundModule(mp_module.MPModule):
         if buf is None:
             return
         try:
-            obj = cPickle.loads(str(buf))
+            obj = pickle.loads(buf)
             if obj is None:
                 return
         except Exception as e:
+            print(e)
             return
 
         if isinstance(obj, cuav_command.StampedCommand):
@@ -514,7 +517,7 @@ class CameraGroundModule(mp_module.MPModule):
                 self.msend.cancel(obj.blockid)
 
     def send_object(self, obj, priority, bsnd=None):
-        buf = cPickle.dumps(obj, cPickle.HIGHEST_PROTOCOL)
+        buf = pickle.dumps(obj, pickle.HIGHEST_PROTOCOL)
         #only send if the queue is not clogged
         if bsnd is not None:
             if bsnd.sendq_size() < self.camera_settings.maxqueue:

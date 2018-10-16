@@ -10,10 +10,18 @@ them in realtime, geotags and sends to the GCS'''
 # todo:
 #    - add ability to lower score and get past images sent
 
-import time, threading, sys, os, numpy, Queue, cPickle, cStringIO
+import time, threading, sys, os, numpy, pickle
 import functools, cv2, pkg_resources
 
+try:
+    # py2
+    from StringIO import StringIO
+except ImportError:
+    # py3
+    from io import StringIO
+
 from MAVProxy.modules.lib import mp_module
+from MAVProxy.modules.lib import multiproc
 
 from cuav.image import scanner
 from cuav.lib import mav_position, cuav_util, cuav_joe, block_xmit, cuav_region, cuav_command, cuav_landingregion
@@ -94,8 +102,8 @@ class CameraAirModule(mp_module.MPModule):
         self.error_msg = None
         self.region_count = 0
         self.scan_fps = 0
-        self.scan_queue = Queue.Queue()
-        self.transmit_queue = Queue.Queue()
+        self.scan_queue = multiproc.Queue()
+        self.transmit_queue = multiproc.Queue()
         self.have_set_gps_time = False
 
         self.c_params = None
@@ -131,6 +139,22 @@ class CameraAirModule(mp_module.MPModule):
         
         print("camera initialised")
 
+    def get_bsend(self, bsnd):
+        '''get a bsend object, given a tag name'''
+        if bsnd is None:
+            return None
+        if bsnd == 'msend':
+            return self.msend
+        return self.bsend[bsnd]
+
+    def get_bsend_index(self, bsnd):
+        '''get a bsend index from a bsend object. This avoids pickling a block xmit object'''
+        if bsend is None or isinstance(bsend, int) or bsnd == 'msend':
+            return bsend
+        if bsnd == self.msend:
+            return 'msend'
+        return self.bsend.index(bsnd)
+    
     def cmd_camera(self, args):
         '''camera commands'''
         usage = "usage: camera <start|airstart|stop|status|queue|set>"
@@ -209,6 +233,8 @@ class CameraAirModule(mp_module.MPModule):
         if self.camera_settings.camparms is None:
             return False
         camfiletxt = pkg_resources.resource_string("cuav", self.camera_settings.camparms)
+        if sys.version_info.major >= 3:
+            camfiletxt = camfiletxt.decode('utf-8')
         try:
             self.c_params = CameraParams.fromstring(camfiletxt)
             return True
@@ -219,7 +245,7 @@ class CameraAirModule(mp_module.MPModule):
         '''image capture thread, via monitoring the
         link for changed linked filenames'''
         prev_image = None
-        self.scan_queue = Queue.Queue()
+        self.scan_queue = multiproc.Queue()
         while not self.unload_event.wait(0.05):
             try:
                 filename = os.path.realpath(self.camera_settings.imagefile)
@@ -245,10 +271,9 @@ class CameraAirModule(mp_module.MPModule):
     def scan_threadfunc(self):
         '''image scanning thread'''
         while not self.unload_event.wait(0.05):
-            try:
-                (frame_time,im) = self.scan_queue.get()
-            except Queue.Empty:
+            if self.scan_queue.empty():
                 continue
+            (frame_time,im) = self.scan_queue.get()
             scan_parms = {}
             for name in self.image_settings.list():
                 scan_parms[name] = self.image_settings.get(name)
@@ -328,11 +353,15 @@ class CameraAirModule(mp_module.MPModule):
             if len(regions) > 0 and pos is not None:
                 for r in regions:
                     self.lz.checkaddregion(r, pos)
-                lzresult = self.lz.calclandingzone()
+                try:
+                    lzresult = self.lz.calclandingzone()
+                except Exception as ex:
+                    print("calclandingzone failed: ", ex)
+                    continue
                 if lzresult:
                     self.transmit_queue.put((lzresult, 100000, None))
                     if self.msend:
-                        self.transmit_queue.put((lzresult, 100000, self.msend))
+                        self.transmit_queue.put((lzresult, 100000, 'msend'))
                     
             if len(regions) > 0 and self.camera_settings.transmit:
                 # send a region message with thumbnails to the ground station
@@ -345,7 +374,7 @@ class CameraAirModule(mp_module.MPModule):
                 if self.transmit_queue.qsize() < 100:
                     self.transmit_queue.put((pkt, None, None))
                     if self.msend is not None and high_score >= self.camera_settings.m_minscore:  
-                        self.transmit_queue.put((pkt, None, self.msend))
+                        self.transmit_queue.put((pkt, None, 'msend'))
                 else:
                     self.send_message("Warning: image Tx queue too long")
                     print("Warning: image Tx queue too long")
@@ -356,7 +385,7 @@ class CameraAirModule(mp_module.MPModule):
             pos = self.mpos.position(frame_time, 0, roll=roll, maxroll=self.camera_settings.roll_limit)
             return pos
         except mav_position.MavInterpolatorException as e:
-            print str(e)
+            print(str(e))
             return None
 
     def log_joe_position(self, pos, frame_time, regions, filename=None, thumb_filename=None):
@@ -383,7 +412,7 @@ class CameraAirModule(mp_module.MPModule):
                 try:
                     self.check_commands(bsnd)
                 except Exception as ex:
-
+                    print("Failed command")
             if self.msend is not None:
                 self.msend.tick(packet_count=1000, max_queue=self.camera_settings.m_maxqueue)
                 self.check_commands(self.msend)
@@ -400,6 +429,7 @@ class CameraAirModule(mp_module.MPModule):
 
             while not self.transmit_queue.empty():
                 (pkt, priority, linktosend) = self.transmit_queue.get()
+                linktosend = self.get_bsend(linktosend)
                 self.send_object(pkt, priority, linktosend)
 
             #update the stats
@@ -427,7 +457,7 @@ class CameraAirModule(mp_module.MPModule):
         self.jpeg_size = 0.95 * self.jpeg_size + 0.05 * len(jpeg)
 
         pkt = cuav_command.ImagePacket(frame_time, jpeg, pos, priority)
-        self.transmit_queue.put((pkt, priority, linktosend))
+        self.transmit_queue.put((pkt, priority, self.get_bsend_index(linktosend)))
 
     def send_preview(self, img):
         '''send a preview image object to the GCS'''
@@ -455,7 +485,7 @@ class CameraAirModule(mp_module.MPModule):
         # send over all links
         self.transmit_queue.put((pkt, 20000, None))
         if self.msend:
-            self.transmit_queue.put((pkt, 20000, self.msend))
+            self.transmit_queue.put((pkt, 20000, 'msend'))
         
     def start_aircraft_bsend(self):
         '''start bsend for aircraft side'''
@@ -499,7 +529,7 @@ class CameraAirModule(mp_module.MPModule):
         if buf is None:
             return
         try:
-            obj = cPickle.loads(str(buf))
+            obj = pickle.loads(buf)
             if obj == None:
                 return
         except Exception as e:
@@ -582,7 +612,7 @@ class CameraAirModule(mp_module.MPModule):
         if not strname in self.imagefilenamemapping:
             print("Unknown image %s" % strname)
             return
-        filename = self.imagefilenamemapping[]
+        filename = self.imagefilenamemapping[strname]
         if not os.path.exists(filename):
             print("No file: %s" % filename)
             return
@@ -614,17 +644,17 @@ class CameraAirModule(mp_module.MPModule):
     def send_heartbeat(self):
         '''send a heartbeat'''
         pkt = cuav_command.HeartBeat(self.capture_count)
-        for b in self.bsend:
-            self.transmit_queue.put((pkt, None, b))
+        for bidx in range(len(self.bsend)):
+            self.transmit_queue.put((pkt, None, bidx))
         if self.msend is not None:
-            self.transmit_queue.put((pkt, None, self.msend))
+            self.transmit_queue.put((pkt, None, 'msend'))
 
     def send_message(self, msg):
         '''send a message'''
         pkt = cuav_command.CameraMessage(msg)
         self.transmit_queue.put((pkt, 100, None))
         if self.msend is not None:
-            self.transmit_queue.put((pkt, 100, self.msend))
+            self.transmit_queue.put((pkt, 100, 'msend'))
 
     def send_object_complete(self, obj, bsend):
         '''called on complete of an send_object, cancelling send on other links'''
@@ -638,7 +668,11 @@ class CameraAirModule(mp_module.MPModule):
     def send_object(self, obj, priority=None, linktosend=None):
         '''send an object to all links if linktosend is none
         otherwise just send to the specified link'''
-        buf = cPickle.dumps(obj, cPickle.HIGHEST_PROTOCOL)
+        try:
+            buf = pickle.dumps(obj, pickle.HIGHEST_PROTOCOL)
+        except Exception as ex:
+            print("dump failed: ", ex)
+            return
         if priority is None:
             priority = 10000
         #only send if the queue is not clogged
@@ -657,13 +691,13 @@ class CameraAirModule(mp_module.MPModule):
     def handle_command_packet(self, obj, bsend):
         '''handle CommandPacket from other end'''
         stdout_saved = sys.stdout
-        buf = cStringIO.StringIO()
+        buf = StringIO()
         sys.stdout = buf
         self.mpstate.functions.process_stdin(obj.command, immediate=True)
         sys.stdout = stdout_saved
         if str(buf.getvalue().strip()):
             pkt = cuav_command.CommandResponse(str(buf.getvalue()).strip())
-            self.transmit_queue.put((pkt, None, bsend))
+            self.transmit_queue.put((pkt, None, self.get_bsend_index(bsend)))
 
 def init(mpstate):
     '''initialise module'''
