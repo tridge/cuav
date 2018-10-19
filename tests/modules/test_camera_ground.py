@@ -113,12 +113,12 @@ def test_camera_thumbs(mpstate, image_file):
     capture_thread = sim_camera()
     time.sleep(0.05)
     loadedModuleAir.cmd_camera(["start"])
-    time.sleep(2.0)
+    time.sleep(4.0)
 
     #and request a fullsize image
     filename = os.path.join(os.getcwd(), 'tests', 'testdata', 'raw2016111223465160Z.png')
     frame_time = cuav_util.parse_frame_time(filename)
-    loadedModuleGround.mosaic.image_requests[frame_time] = 'fetchImageFull'
+    loadedModuleGround.mosaic.tag_image(frame_time)
     time.sleep(2.0)
 
     loadedModuleAir.unload()

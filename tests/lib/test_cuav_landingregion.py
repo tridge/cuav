@@ -19,7 +19,7 @@ def test_addLandingZone():
         r.score = 20
         lz.checkaddregion(r, pos)
 
-    assert len(lz.regionClumps) == 1
+    assert len(lz.regions) == 10
 
 def test_addLandingZoneMany():
     lz = cuav_landingregion.LandingZone()
@@ -30,8 +30,22 @@ def test_addLandingZoneMany():
         pos = mav_position.MavPosition(r.latlon[0], r.latlon[1], 80, 0, 0, 0, 1)
         lz.checkaddregion(r, pos)
 
-    assert len(lz.regionClumps) == 100
+    assert len(lz.regions) == 100
 
+def test_averagepos():
+    lz = cuav_landingregion.LandingZone()
+    rg = []
+    for i in range(0, 100):
+        r = cuav_region.Region(1020, 658, 1050, 678, (30, 30))
+        r.latlon = (random.uniform(-90, 90), random.uniform(-180, 180))
+        r.score = random.randint(0, 1000)
+        pos = mav_position.MavPosition(r.latlon[0], r.latlon[1], 80, 0, 0, 0, 1)
+        rg.append(r)
+        
+    ret = lz.average_pos(rg)
+    assert ret[0] > -90 and ret[0] < 90
+    assert ret[1] > -180 and ret[1] < 180
+    
 def test_calcLandingZone():
     lz = cuav_landingregion.LandingZone()
     for i in range(0, 100):
@@ -42,6 +56,10 @@ def test_calcLandingZone():
         lz.checkaddregion(r, pos)
 
     ret = lz.calclandingzone()
-    assert ret == True
+    assert ret.latlon[0] > -90 and ret.latlon[0] < 90
+    assert ret.latlon[1] > -180 and ret.latlon[1] < 180
+    assert ret.maxrange > 0
+    assert ret.avgscore > 0
+    assert ret.numregions > 0
 
 

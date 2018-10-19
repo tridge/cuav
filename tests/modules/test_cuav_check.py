@@ -21,6 +21,17 @@ class MPStatusMock(object):
     def __init__(self):
         self.logdir = None
 
+
+class MPMasterMock(object):
+    '''hold status information about the mavproxy'''
+    def __init__(self):
+        self.messages = {}
+        
+    def __call__(self):
+        ret = mock.Mock()
+        ret.messages = {}
+        return ret
+
 class mstatetmp(object):
     def __init__(self):
         self.public_modules = {}
@@ -32,6 +43,7 @@ class mstatetmp(object):
         self.functions = mock.Mock()
         self.status = MPStatusMock()
         self.status.logdir = os.path.join(os.getcwd(), 'gnd')
+        self.master = MPMasterMock()
 
     def module(self, name):
         '''Find a public module (most modules are private)'''
@@ -41,10 +53,6 @@ class mstatetmp(object):
 
     @property
     def console(self):
-        return mock.Mock()
-
-    @property
-    def master(self):
         return mock.Mock()
 
     @property
@@ -107,16 +115,6 @@ def test_toggle_JoeZone(mpstate):
     loadedModule.module('camera_ground').camera_settings.target_longitude = -45
     loadedModule.toggle_JoeZone()
     assert loadedModule.target == (-34, -45, 100)
-
-    loadedModule.unload()
-
-
-def test_check_rate(mpstate):
-    '''Test the check_rates and check_parms functions'''
-    loadedModule = cuav_check.init(mpstate)
-    loadedModule.mpstate.mav_param["SR0_EXTRA1"] = 4.0
-
-    loadedModule.check_rates()
 
     loadedModule.unload()
 
