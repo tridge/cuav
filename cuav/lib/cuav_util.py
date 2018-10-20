@@ -3,7 +3,6 @@
 
 import numpy, cv2, math, sys, os, time, struct, calendar, re, datetime
 
-import six; from six.moves import cPickle as pickle
 from cuav.camera.cam_params import CameraParams
 from . import rotmat
 

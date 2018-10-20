@@ -6,8 +6,12 @@
 import sys
 import pytest
 import os
-import mock
 import threading, time
+
+if sys.version_info >= (3, 3):
+    from unittest import mock
+else:
+    import mock
 
 #for generating mocked mavlink messages
 from pymavlink.dialects.v20 import common, ardupilotmega

@@ -1,7 +1,7 @@
 """
   MAVProxy checklists
 
-  uses lib/libchecklist.py for UI
+  uses lib/cuav_libchecklist.py for UI
 """
 
 import os, sys, math
@@ -9,19 +9,19 @@ import os, sys, math
 mpstate = None
 
 from MAVProxy.modules.lib import mp_module
-import libchecklist
+from cuav.lib import cuav_libchecklist
 
 class ChecklistModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(ChecklistModule, self).__init__(mpstate, "checklist", "checklist handling")
-        self.checklist = libchecklist.UI()
+        self.checklist = cuav_libchecklist.UI()
 
     def mavlink_packet(self, msg):
         '''handle an incoming mavlink packet'''
-        if not isinstance(self.checklist, libchecklist.UI):
+        if not isinstance(self.checklist, cuav_libchecklist.UI):
             return
         if not self.checklist.is_alive():
-            self.libchecklist = None
+            self.checklist = None
             return
 
         type = msg.get_type()

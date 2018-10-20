@@ -4,6 +4,7 @@
   MAVProxy checklist, implemented in a child process
   Created by Stephen Dade (stephen_dade@hotmail.com)
 """
+import sys
 
 from MAVProxy.modules.lib import multiproc
 
@@ -30,7 +31,10 @@ class UI():
 
     def child_task(self):
         '''child process - this holds all the GUI elements'''
-        import Tkinter as tk
+        if sys.version_info >= (3, 0):
+            import tkinter as tk
+        else:
+            import Tkinter as tk
 
         '''curStep is which step in the list we are up to, increments +1 for each list completed
         it is the same as the column number of the checklist item'''

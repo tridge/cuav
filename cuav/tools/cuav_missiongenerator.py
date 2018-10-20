@@ -105,14 +105,14 @@ class MissionGenerator():
                 (name, lat, lon) = self.parsePlacemark(point)
                 if name == entPoint:
                     self.entryPoints.append((lat, lon, alt))
-                    print "Entry - " + str(self.entryPoints[-1])
+                    print("Entry - " + str(self.entryPoints[-1]))
 
         for exPoint in listexit:
             for point in airf:
                 (name, lat, lon) = self.parsePlacemark(point)
                 if name == exPoint:
                     self.exitPoints.append((lat, lon, alt))
-                    print "Exit - " + str(self.exitPoints[-1])
+                    print("Exit - " + str(self.exitPoints[-1]))
 
     def CreateSearchPattern(self, width=50.0, overlap=10.0, offset=10, wobble=10, alt=100):
         '''Generate the waypoints for the search pattern, using alternating strips
@@ -175,15 +175,15 @@ class MissionGenerator():
             self.crossBearing = (self.searchBearing - 90) % 360
             self.searchBearing = (self.searchBearing - 180) % 360
 
-        print "Search bearing is " + str(self.searchBearing) + "/" + str((self.searchBearing + 180) % 360)
-        print "Cross bearing is: " + str(self.crossBearing)
+        print("Search bearing is " + str(self.searchBearing) + "/" + str((self.searchBearing + 180) % 360))
+        print("Cross bearing is: " + str(self.crossBearing))
 
         #the distance between runs is this:
         self.deltaRowDist = width - width*(float(overlap)/100)
         if self.deltaRowDist <= 0:
-            print "Error, overlap % is too high"
+            print("Error, overlap % is too high")
             return
-        print "Delta row = " + str(self.deltaRowDist)
+        print("Delta row = " + str(self.deltaRowDist))
 
         #expand the search area to 1/2 deltaRowDist to ensure full coverage
 
@@ -191,7 +191,7 @@ class MissionGenerator():
         #first waypoint is right near the Search Area boundary (without being on it) (10% of deltaRowDist
         #on an opposite bearing (so behind the search area)
         nextWaypoint =  cuav_util.gps_newpos(nearest[0], nearest[1], self.crossBearing, self.deltaRowDist/10)
-        print "First = " + str(nextWaypoint)
+        print("First = " + str(nextWaypoint))
         #self.SearchPattern.append(firstWaypoint)
 
         #mow the lawn, every 2nd row:
@@ -219,7 +219,7 @@ class MissionGenerator():
                 nextWaypoint = cuav_util.gps_newpos(nextW[0], nextW[1], self.crossBearing, self.deltaRowDist*2)
                 self.searchBearing = (self.searchBearing + 180) % 360
 
-            print "Next = " + str(nextWaypoint)
+            print("Next = " + str(nextWaypoint))
         
         #go back and do the rows we missed. There still might be one more row to do in 
         # the crossbearing direction, so check for that first
@@ -255,7 +255,7 @@ class MissionGenerator():
                 nextWaypoint = cuav_util.gps_newpos(nextW[0], nextW[1], self.crossBearing, self.deltaRowDist*2)
                 self.searchBearing = (self.searchBearing + 180) % 360
 
-            print "Next(alt) = " + str(nextWaypoint)
+            print("Next(alt) = " + str(nextWaypoint))
 
         #add in the altitude points (relative to airfield home)
         for point in self.SearchPattern:
@@ -450,7 +450,7 @@ class MissionGenerator():
         #make a fake waypoint loader for testing purposes, if we're not
         #running within MAVProxy
         if self.MAVpointLoader is None:
-            print "No loader - creating one"
+            print("No loader - creating one")
             self.MAVpointLoader = mavwp.MAVWPLoader()
         MAVpointLoader = self.MAVpointLoader
 
@@ -620,7 +620,7 @@ class MissionGenerator():
         waytxt = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..',
                               'data', outname)
         MAVpointLoader.save(waytxt)
-        print "Waypoints exported to %s" % waytxt
+        print("Waypoints exported to %s" % waytxt)
 
         # create fence.txt
         fenceloader = mavwp.MAVFenceLoader()
@@ -635,7 +635,7 @@ class MissionGenerator():
         fenceloader.add(fp)
         fencetxt = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'data', "fence.txt")
         fenceloader.save(fencetxt)
-        print "Fence exported to %s" % fencetxt
+        print("Fence exported to %s" % fencetxt)
 
 
         #print strMAV
@@ -678,7 +678,7 @@ if __name__ == "__main__":
     #are we using the camera params to get the size of each search strip?
     if args.width == 0:
         groundWidth = gen.getCameraWidth(args.altitude, args.mpp100, args.camerares)
-    print "Strip width = " + str(groundWidth)
+    print("Strip width = " + str(groundWidth))
 
     gen.CreateSearchPattern(width = groundWidth, overlap=args.overlap, offset=args.searchAreaOffset, wobble=args.wobble, alt=args.altitude)
     
@@ -689,7 +689,7 @@ if __name__ == "__main__":
     sm.add_object(mp_slipmap.SlipPolygon('Search Pattern', gen.getMapPolygon(), layer=1, linewidth=2, colour=(0,255,0)))
 
     #get the search pattern distance
-    print "Total Distance = " + str(gen.getPolygonLength()) + "m"
+    print("Total Distance = " + str(gen.getPolygonLength()) + "m")
 
     #and export to MAVProxy
     gen.exportToMAVProxy(args.loiterInSearchArea, args.basealt, args.outname)

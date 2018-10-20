@@ -11,11 +11,10 @@ from cuav.lib import mav_position
 from cuav.lib import cuav_mosaic
 from cuav.camera.cam_params import CameraParams
 
-#Python 2/3 compatibility
-try:
-    import mock
-except ImportError:
+if sys.version_info >= (3, 3):
     from unittest import mock
+else:
+    import mock
 
 def test_MosaicRegion():
     regOne = cuav_region.Region(1020, 658, 1050, 678, (30, 30))
@@ -64,11 +63,24 @@ def test_Mosaic():
     img = cv2.imread(f)
     pos = mav_position.MavPosition(-30, 145, 34.56, 20, -56.67, 345, frame_time=1478994408.76)
     regions = []
-    regions.append(cuav_region.Region(1020, 658, 1050, 678, (30, 30), scan_score=20))
-    regions.append(cuav_region.Region(30, 54, 50, 74, (20, 20), scan_score=15))
-    regions.append(cuav_region.Region(30, 54, 55, 79, (25, 25), scan_score=10))
+    r = cuav_region.Region(1020, 658, 1050, 678, (30, 30), scan_score=20)
+    r.score = 20
+    r.whiteness = 100
+    regions.append(r)
+    r = cuav_region.Region(30, 54, 50, 74, (20, 20), scan_score=15)
+    r.score = 34
+    r.whiteness = 134
+    regions.append(r)
+    r = cuav_region.Region(30, 54, 55, 79, (25, 25), scan_score=10)
+    r.score = 12
+    r.whiteness = 97
+    regions.append(r)
+    
     for i in range(40):
-        regions.append(cuav_region.Region(200, 600, 220, 620, (20, 20), scan_score=45))
+        r = cuav_region.Region(200, 600, 220, 620, (20, 20), scan_score=45)
+        r.score = 56
+        r.whiteness = 45
+        regions.append(r)
     composite = cuav_region.CompositeThumbnail(img, regions)
     thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
     mosaic.add_regions(regions, thumbs, f, pos)

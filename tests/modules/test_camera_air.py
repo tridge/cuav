@@ -6,8 +6,12 @@
 import sys
 import pytest
 import os
-import mock
-import threading, time, cPickle
+import threading, time, pickle
+
+if sys.version_info >= (3, 3):
+    from unittest import mock
+else:
+    import mock
 
 #for generating mocked mavlink messages
 from pymavlink.dialects.v20 import common
@@ -104,8 +108,8 @@ def test_camera_start(mpstate, image_file):
     #get the sent data
     b2.tick()
     b1.tick()
-    blk1 = cPickle.loads(str(b1.recv(0.1)))
-    blk2 = cPickle.loads(str(b2.recv(0.1)))
+    blk1 = pickle.loads(str(b1.recv(0.1)))
+    blk2 = pickle.loads(str(b2.recv(0.1)))
     time.sleep(0.05)
     loadedModule.cmd_camera(["status"])
     loadedModule.cmd_camera(["stop"])
@@ -131,7 +135,7 @@ def test_camera_command(mpstate, image_file):
 
     pkt = cuav_command.ChangeCameraSetting("minscore", 50)
     b1 = block_xmit.BlockSender(dest_ip='127.0.0.1', port = 14550, dest_port = 14560)
-    buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+    buf = pickle.dumps(pkt)
 
     loadedModule.cmd_camera(["start"])
     time.sleep(0.1)
@@ -155,7 +159,7 @@ def test_camera_image_request(mpstate, image_file):
 
     filename = os.path.join(os.getcwd(), 'tests', 'testdata', 'raw2016111223465160Z.png')
     pkt = cuav_command.ImageRequest(cuav_util.parse_frame_time(filename), True)
-    buf = cPickle.dumps(pkt, cPickle.HIGHEST_PROTOCOL)
+    buf = pickle.dumps(pkt)
 
     capture_thread = sim_camera()
     time.sleep(0.05)
@@ -173,13 +177,13 @@ def test_camera_image_request(mpstate, image_file):
     while True:
         try:
             b1.tick()
-            blk = cPickle.loads(str(b1.recv(0.01, True)))
+            blk = pickle.loads(str(b1.recv(0.01, True)))
             #only want paricular packets - discard all the heartbeats, etc
             if isinstance(blk, cuav_command.ImagePacket):
                 blkret.append(blk)
                 break
             time.sleep(0.05)
-        except cPickle.UnpicklingError:
+        except pickle.UnpicklingError:
             continue
 
     loadedModule.cmd_camera(["stop"])
@@ -217,11 +221,11 @@ def test_camera_airstart(mpstate, image_file):
     while True:
         try:
             b1.tick()
-            blk = cPickle.loads(str(b1.recv(0.01, True)))
+            blk = pickle.loads(b1.recv(0.01, True))
             if isinstance(blk, cuav_command.CommandResponse) or isinstance(blk, cuav_command.CameraMessage):
                 blkret.append(blk)
             time.sleep(0.05)
-        except cPickle.UnpicklingError:
+        except pickle.UnpicklingError:
             break
     loadedModule.cmd_camera(["stop"])
     loadedModule.unload()

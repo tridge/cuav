@@ -43,7 +43,7 @@ class geodetic:
         band = 'Z'
     else:
       zone = int((lon-self.CMZ1+self.ZoneWidth/2.0)/self.ZoneWidth) + 1;
-      band = self.BAND_LOOKUP[int(lat+80)/8]
+      band = self.BAND_LOOKUP[int((lat+80)/8)]
 
     return (zone, band)
 
