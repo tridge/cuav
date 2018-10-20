@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 '''
-tests for rotmat.py
+tests for mav_position.py
 '''
 
 import sys, os, time, random, functools, math, datetime, fractions

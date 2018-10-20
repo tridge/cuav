@@ -4,7 +4,7 @@
 import numpy, cv2, math, sys, os, time, struct, calendar, re, datetime
 
 from cuav.camera.cam_params import CameraParams
-from . import rotmat
+from pymavlink import rotmat
 
 radius_of_earth = 6378100.0 # in meters
 
