@@ -1,0 +1,88 @@
+environment:
+  global:
+    # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
+    # /E:ON and /V:ON options are not enabled in the batch script intepreter
+    # See: http://stackoverflow.com/a/13751649/163740
+    CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
+
+  matrix:
+    # Pre-installed Python versions, which Appveyor may upgrade to
+    # a later point release.
+    # See: https://www.appveyor.com/docs/installed-software#python
+    - PYTHON: "C:\\Python27"
+      PYTHON_VERSION: "2.7.x" # currently 2.7.15
+      PYTHON_ARCH: "32"
+
+
+install:
+  # If there is a newer build queued for the same PR, cancel this one.
+  # The AppVeyor 'rollout builds' option is supposed to serve the same
+  # purpose but it is problematic because it tends to cancel builds pushed
+  # directly to master instead of just PR builds (or the converse).
+  # credits: JuliaLang developers.
+  - ps: if ($env:APPVEYOR_PULL_REQUEST_NUMBER -and $env:APPVEYOR_BUILD_NUMBER -ne ((Invoke-RestMethod `
+        https://ci.appveyor.com/api/projects/$env:APPVEYOR_ACCOUNT_NAME/$env:APPVEYOR_PROJECT_SLUG/history?recordsNumber=50).builds | `
+        Where-Object pullRequestId -eq $env:APPVEYOR_PULL_REQUEST_NUMBER)[0].buildNumber) { `
+          throw "There are newer queued builds for this pull request, failing early." }
+
+
+  # Check that we have the expected version and architecture for Python
+  - "python --version"
+  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
+  
+  # Install the build dependencies of the project. If some dependencies contain
+  # compiled extensions and are not provided as pre-built wheel packages,
+  # pip will build them from source using the MSVC compiler matching the
+  # target Python version and architecture
+  - "pip install -U pywin32 lxml pymavlink numpy matplotlib pyserial opencv-python pyreadline PyYAML Pygame Pillow wxpython"
+  - "pip install pyinstaller setuptools packaging"
+  - "pip install MAVProxy pytest pytest-mock scons"
+  
+  #We're using Inno Setup to build an installer
+  - cinst -y InnoSetup
+  
+  #Debug for getting a list of what packages/version were used for this build
+  - "pip list"
+
+  #Download pyexiv2
+  - "wget https://launchpad.net/pyexiv2/0.3.x/0.3.2/+download/pyexiv2-0.3.2.tar.bz2"
+  - "tar -xjvf pyexiv2-0.3.2.tar.bz2"
+  #Download SRTM data, because MAVProxy fails without it cached
+  #It returns a None if needs to download in the background (need to fix this)
+  - "mkdir -p $HOME/.tilecache/SRTM"
+  - "cp ./tests/testdata/filelist_python $HOME/.tilecache/SRTM/filelist_python"
+  - "cd $HOME/.tilecache/SRTM"
+  - "wget http://firmware.ardupilot.org/SRTM/Africa/S16E011.hgt.zip"
+  - "wget http://firmware.ardupilot.org/SRTM/Australia/S21E145.hgt.zip"
+  - "wget http://firmware.ardupilot.org/SRTM/Africa/S28E020.hgt.zip"
+  - "wget http://firmware.ardupilot.org/SRTM/Australia/S35E148.hgt.zip"
+  - "wget http://firmware.ardupilot.org/SRTM/Australia/S35E149.hgt.zip"
+  - "wget http://firmware.ardupilot.org/SRTM/Australia/S36E148.hgt.zip"
+  - "wget http://firmware.ardupilot.org/SRTM/Australia/S36E149.hgt.zip"
+  - "wget http://firmware.ardupilot.org/SRTM/Australia/S37E148.hgt.zip"
+  - "wget http://firmware.ardupilot.org/SRTM/Islands/S47E037.hgt.zip"
+  - "cd $env:$APPVEYOR_BUILD_FOLDER"
+
+  #Build pyexiv2
+  - "cd ./pyexiv2-0.3.2"
+  - "scons"
+  - "scons install"
+  - "cd $env:$APPVEYOR_BUILD_FOLDER"
+  
+build_script:
+  # Build the compiled extension
+  - "python setup.py build install"
+
+test_script:
+  # Run the project tests and store results in .xml log
+  - "py.test ./tests/"
+      
+after_test:
+  # If tests are successful, create binary packages for the project.
+
+#on_success:
+#  - TODO: upload the content of dist/*.whl to a public wheelhouse
+#
+
+on_finish:
+  # Upload test results to AppVeyor
