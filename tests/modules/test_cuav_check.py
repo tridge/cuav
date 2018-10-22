@@ -35,6 +35,10 @@ class MPMasterMock(object):
         ret = mock.Mock()
         ret.messages = {}
         return ret
+        
+    def field(pkt, field, n):
+        if pkt == 'VFR_HUD' and field == 'throttle':
+            return 100
 
 class mstatetmp(object):
     def __init__(self):

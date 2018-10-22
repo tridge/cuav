@@ -12,19 +12,6 @@ addons:
     - libexiv2-dev
     - libboost-python-dev
 before_install:
-  # get Conda
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
-    else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  # Useful for debugging any issues with conda
-  - conda info -a
   #Download pyexiv2
   - wget https://launchpad.net/pyexiv2/0.3.x/0.3.2/+download/pyexiv2-0.3.2.tar.bz2
   - tar -xjvf pyexiv2-0.3.2.tar.bz2
@@ -44,14 +31,13 @@ before_install:
   - wget http://firmware.ardupilot.org/SRTM/Islands/S47E037.hgt.zip
   - cd $TRAVIS_BUILD_DIR
 install:
-  - conda install -c https://conda.anaconda.org/travis wxpython
   - pip install scons opencv-python future
   #Build pyexiv2, as the apt-get doesn't work in Travis (virtualenv issues)
   - cd ./pyexiv2-0.3.2
   - scons 
   - scons install
   - cd ../
-  - pip install pymavlink MAVProxy pytest pytest-mock 
+  - pip install pymavlink MAVProxy pytest pytest-mock wxpython
   - python setup.py build install
 before_script:
   - ls

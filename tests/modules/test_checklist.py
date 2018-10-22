@@ -29,6 +29,7 @@ class mstatetmp(object):
         self.mav_param = mavparm.MAVParmDict()
         self.functions = mock.Mock()
         self.status = mock.Mock()
+        self.status.altitude = 30
 
     def module(self, name):
         '''Find a public module (most modules are private)'''

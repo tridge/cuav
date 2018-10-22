@@ -108,8 +108,8 @@ def test_camera_start(mpstate, image_file):
     #get the sent data
     b2.tick()
     b1.tick()
-    blk1 = pickle.loads(str(b1.recv(0.1)))
-    blk2 = pickle.loads(str(b2.recv(0.1)))
+    blk1 = pickle.loads(b1.recv(0.01))
+    blk2 = pickle.loads(b2.recv(0.01))
     time.sleep(0.05)
     loadedModule.cmd_camera(["status"])
     loadedModule.cmd_camera(["stop"])
@@ -177,13 +177,13 @@ def test_camera_image_request(mpstate, image_file):
     while True:
         try:
             b1.tick()
-            blk = pickle.loads(str(b1.recv(0.01, True)))
+            blk = pickle.loads(b1.recv(0.01, True))
             #only want paricular packets - discard all the heartbeats, etc
             if isinstance(blk, cuav_command.ImagePacket):
                 blkret.append(blk)
                 break
             time.sleep(0.05)
-        except pickle.UnpicklingError:
+        except TypeError:
             continue
 
     loadedModule.cmd_camera(["stop"])
@@ -224,13 +224,13 @@ def test_camera_airstart(mpstate, image_file):
             blk = pickle.loads(b1.recv(0.01, True))
             if isinstance(blk, cuav_command.CommandResponse) or isinstance(blk, cuav_command.CameraMessage):
                 blkret.append(blk)
-            time.sleep(0.05)
-        except pickle.UnpicklingError:
+            time.sleep(0.6)
+        except TypeError:
             break
     loadedModule.cmd_camera(["stop"])
     loadedModule.unload()
 
-    assert len(blkret) == 2
+    assert len(blkret) >= 2
     assert blkret[0].msg == "cuav airstart ready"
     assert blkret[1].msg == "Started cuav running"
 
