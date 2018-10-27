@@ -1,6 +1,7 @@
 # http://travis-ci.org/#!/CanberraUAV/cuav
 language: python
 python:
+  - 3.5
   - 2.7
 cache:
   pip: true
@@ -31,9 +32,12 @@ before_install:
   - wget http://firmware.ardupilot.org/SRTM/Islands/S47E037.hgt.zip
   - cd $TRAVIS_BUILD_DIR
 install:
+  #Prerequisites
   - pip install opencv-python future
-  #Build pyexiv2, as the apt-get doesn't work in Travis (virtualenv issues)
-  - pip install pymavlink MAVProxy pytest pytest-mock wxpython piexif
+  - pip install pymavlink MAVProxy pytest pytest-mock piexif
+  #Using pip install wxpython takes waaay too long, so downloading precompiled version instead
+  - pip install -U -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-14.04 wxPython
+  
   - python setup.py build install
 before_script:
   - ls
