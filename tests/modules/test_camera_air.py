@@ -13,6 +13,9 @@ if sys.version_info >= (3, 3):
 else:
     import mock
 
+if sys.platform.startswith("win"):
+    pytest.skip("Skipping camera_air tests on Windows", allow_module_level=True)
+    
 #for generating mocked mavlink messages
 from pymavlink.dialects.v20 import common
 
@@ -79,6 +82,7 @@ def test_module_settings(mpstate):
 
     loadedModule.unload()
 
+@pytest.mark.nowindows
 def test_camera_start(mpstate, image_file):
     '''put a few images through the module and check they come
     out via the block xmit'''
@@ -174,6 +178,7 @@ def test_camera_image_request(mpstate, image_file):
     #b1.tick()
     time.sleep(0.1)
     blkret = []
+    t = time.time()
     while True:
         try:
             b1.tick()
@@ -183,6 +188,8 @@ def test_camera_image_request(mpstate, image_file):
                 blkret.append(blk)
                 break
             time.sleep(0.05)
+            if time.time() - t > 5:
+                break
         except TypeError:
             continue
 
@@ -218,6 +225,7 @@ def test_camera_airstart(mpstate, image_file):
     loadedModule.mavlink_packet(msg)
     #get the packets
     time.sleep(0.1)
+    t = time.time()
     while True:
         try:
             b1.tick()
@@ -225,6 +233,8 @@ def test_camera_airstart(mpstate, image_file):
             if isinstance(blk, cuav_command.CommandResponse) or isinstance(blk, cuav_command.CameraMessage):
                 blkret.append(blk)
             time.sleep(0.6)
+            if time.time() - t > 10:
+                break
         except TypeError:
             break
     loadedModule.cmd_camera(["stop"])

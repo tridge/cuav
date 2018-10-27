@@ -36,25 +36,25 @@ def test_Fraction():
     assert fr == fractions.Fraction(3, 10)
     
 def test_dms_to_decimal():
-    assert mav_position.dms_to_decimal(10, 10, 10) == 10.169444444444444
-    assert mav_position.dms_to_decimal(8, 9, 10, 'S') == -8.152777777777779
+    assert mav_position.dms_to_decimal((10, 1), (10, 1), (10, 1)) == 10.169444444444444
+    assert mav_position.dms_to_decimal((8, 1), (9, 1), (10, 200), b'S') == -8.15001388888889
     
 def test_decimal_to_dms():
-    assert mav_position.decimal_to_dms(50.445891) == [fractions.Fraction(50, 1), fractions.Fraction(26, 1), fractions.Fraction(113019, 2500)]
-    assert mav_position.decimal_to_dms(-125.976893) == [fractions.Fraction(125, 1), fractions.Fraction(58, 1), fractions.Fraction(92037, 2500)]
-    
+    assert mav_position.decimal_to_dms(50.445891) == [(50, 1), (26, 1), (113019, 2500)]
+    assert mav_position.decimal_to_dms(-125.976893) == [(125, 1), (58, 1), (92037, 2500)]
+
 def test_exif_position():
-    testfile = os.path.join(os.getcwd(), 'tests', 'testdata', 'exif2016111223464876Z.png')
-    testfiletwo = os.path.join(os.getcwd(), 'tests', 'testdata', 'exif2016111223465337Z.png')
+    testfile = os.path.join(os.getcwd(), 'tests', 'testdata', 'exifimg2018021100040450Z.jpg')
+    testfiletwo = os.path.join(os.getcwd(), 'tests', 'testdata', 'exifimg2018021100041320Z.jpg')
     pos = mav_position.exif_position(testfile)
     postwo = mav_position.exif_position(testfiletwo)
     #Note all altitudes are AGL
-    assert pos.lat == -35.36233013408103 and pos.lon == 149.16527170571393
-    assert pos.altitude == 12.202238082998873 and pos.time == 1478994408.76
+    assert pos.lat == -35.36327931731889 and pos.lon == 149.16453320132894
+    assert pos.altitude == 93.741455078125 and pos.time == 1518307444.5
     assert pos.yaw == 0
-    assert postwo.lat == -35.362217222827866 and postwo.lon == 149.16496808821856
-    assert postwo.altitude == 22.817455291831344 and postwo.time == 1478994413.37
-    assert postwo.yaw == 294.51373509551973
+    assert postwo.lat == -35.36223437803768 and postwo.lon == 149.1643464050329
+    assert postwo.altitude == 83.53874206542969 and postwo.time == 1518307453.2
+    assert postwo.yaw == 351.7056906395551
     
 def test_KmlPosition():
     testfile = os.path.join(os.getcwd(), 'tests', 'testdata', 'OBC Waypoints.kml')
@@ -63,7 +63,8 @@ def test_KmlPosition():
     assert pos.lat == -26.577306 and pos.lon == 151.8403333333334
     assert pos.altitude == 0 and pos.time == 0
     assert pos.yaw == 0
-    
+
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="SRTM caching broken in Windows")
 def test_TriggerPosition():
     testfile = os.path.join(os.getcwd(), 'tests', 'testdata', 'robota.trigger')
     testpng = os.path.join(os.getcwd(), 'tests', 'testdata', 'exif2016111223464876Z.png')
@@ -73,6 +74,7 @@ def test_TriggerPosition():
     assert pos.lat == -20.1234 and pos.lon == 145.456
     assert pos.altitude == 10 and (pos.time == 1478954763.0 or pos.time == 1478994363.0)
     assert pos.yaw == 0
-    
+
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="SRTM caching broken in Windows")
 def test_get_ground_alt():
     assert mav_position.get_ground_alt(-35, 149) == 596.8509306748258

@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <unistd.h>
+//#include <unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -40,8 +40,6 @@
 
 static PyObject *ScannerError;
 
-#define PACKED __attribute__((__packed__))
-
 #define ALLOCATE(p) (p) = malloc(sizeof(*p))
 
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -49,7 +47,7 @@ static PyObject *ScannerError;
 
 #define MAX_REGIONS 4000
 
-#ifdef __MINGW32__
+#ifdef _MSC_VER
     #define __LITTLE_ENDIAN 1
     #define __BYTE_ORDER 1
 #endif
@@ -65,16 +63,29 @@ struct scan_params {
     bool blue_emphasis;
 };
 
-static const struct scan_params scan_params_640_480 = {
-	min_region_area : 8,
-        max_region_area : 400,
-        min_region_size_xy : 2,
-        max_region_size_xy : 30,
-        histogram_count_threshold : 50,
-        region_merge : 1,
-        save_intermediate : false,
-        blue_emphasis : false
-};
+#ifdef _MSC_VER
+    static const struct scan_params scan_params_640_480 = {
+            8,
+            400,
+            2,
+            30,
+            50,
+            1,
+            false,
+            false
+    };
+#else
+    static const struct scan_params scan_params_640_480 = {
+            min_region_area : 8,
+            max_region_area : 400,
+            min_region_size_xy : 2,
+            max_region_size_xy : 30,
+            histogram_count_threshold : 50,
+            region_merge : 1,
+            save_intermediate : false,
+            blue_emphasis : false
+    };
+#endif
 
 struct regions {
         uint16_t height;
@@ -856,7 +867,18 @@ static void mark_regions(struct bgr_image *img, const struct regions *r)
 	}
 }
 
-
+/*
+  map a value based on the threshold
+ */
+uint8_t map_value(float v, const float threshold) {
+    if (v > threshold) {
+        float p = 1.0 - (v - threshold) / (1.0 - threshold);
+        return 255*p;
+    }
+    float p = 1.0 - (threshold - v) / threshold;
+    return 255*p;
+}
+            
 /*
   convert a 16 bit thermal image to a colour image
  */
@@ -913,14 +935,7 @@ scanner_thermal_convert(PyObject *self, PyObject *args)
                 swab(&value, &value, 2);
             }
             value >>= 2;
-            uint8_t map_value(float v, const float threshold) {
-                if (v > threshold) {
-                    float p = 1.0 - (v - threshold) / (1.0 - threshold);
-                    return 255*p;
-                }
-                float p = 1.0 - (threshold - v) / threshold;
-                return 255*p;
-            }
+
             float v = 0;
             if (value >= clip_high) {
                 v = 1.0;

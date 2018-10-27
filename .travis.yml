@@ -9,12 +9,12 @@ addons:
   apt:
     packages:
     - python-numpy
-    - libexiv2-dev
-    - libboost-python-dev
+    - libgstreamer-plugins-base0.10-dev
+    - libnotify-dev
+    - libgtk-3-dev 
+    - libwebkitgtk-3.0-dev
+    - libgstreamer-plugins-base1.0-dev
 before_install:
-  #Download pyexiv2
-  - wget https://launchpad.net/pyexiv2/0.3.x/0.3.2/+download/pyexiv2-0.3.2.tar.bz2
-  - tar -xjvf pyexiv2-0.3.2.tar.bz2
   #Download SRTM data, because MAVProxy fails without it cached
   #It returns a None if needs to download in the background (need to fix this)
   - mkdir -p $HOME/.tilecache/SRTM
@@ -31,13 +31,9 @@ before_install:
   - wget http://firmware.ardupilot.org/SRTM/Islands/S47E037.hgt.zip
   - cd $TRAVIS_BUILD_DIR
 install:
-  - pip install scons opencv-python future
+  - pip install opencv-python future
   #Build pyexiv2, as the apt-get doesn't work in Travis (virtualenv issues)
-  - cd ./pyexiv2-0.3.2
-  - scons 
-  - scons install
-  - cd ../
-  - pip install pymavlink MAVProxy pytest pytest-mock wxpython
+  - pip install pymavlink MAVProxy pytest pytest-mock wxpython piexif
   - python setup.py build install
 before_script:
   - ls

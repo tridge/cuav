@@ -9,11 +9,25 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-#define PACKED __attribute__((__packed__))
+#ifdef _MSC_VER
+    #define PACKED( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop) )
+#else
+    #define PACKED __attribute__((__packed__))
+#endif
 
-struct PACKED bgr {
-	uint8_t b, g, r;
-};
+#ifdef _MSC_VER
+    PACKED(
+    struct bgr
+    {
+        uint8_t b;
+        uint8_t g;
+        uint8_t r;
+    });
+#else
+    struct PACKED bgr {
+        uint8_t b, g, r;
+    };
+#endif
 
 /*
   greyscale 8 bit image

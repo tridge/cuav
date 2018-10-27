@@ -8,6 +8,7 @@ import pytest
 import os
 import cuav.tools.agl_mission as agl_mission
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="SRTM caching broken in Windows")
 def test_do_aglmission():
     missionfile = os.path.join(os.getcwd(), 'tests', 'testdata', 'cmac-image-wp.txt')
     outfile = os.path.join(os.getcwd(), 'tests', 'testdata', 'cmac-image-wp-new.txt')

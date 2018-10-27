@@ -21,6 +21,9 @@ import cuav.modules.camera_air as camera_air
 from cuav.lib import cuav_command
 from cuav.lib import cuav_util
 
+if sys.platform.startswith("win"):
+    pytest.skip("Skipping camera_ground tests on Windows", allow_module_level=True)
+    
 @pytest.fixture
 def mpstate():
     mpstatetmp = mock.Mock() #mpstatedummy.MPState()

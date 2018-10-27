@@ -297,62 +297,58 @@ class Fraction(fractions.Fraction):
         """Should be compatible with Python 2.6, though untested."""
         return fractions.Fraction.from_float(value).limit_denominator(99999)
 
-def dms_to_decimal(degrees, minutes, seconds, sign=' '):
+def dms_to_decimal(degrees, minutes, seconds, sign=b' '):
     """Convert degrees, minutes, seconds into decimal degrees.
 
-    >>> dms_to_decimal(10, 10, 10)
+    >>> dms_to_decimal((10, 1), (10, 1), (10, 1))
     10.169444444444444
-    >>> dms_to_decimal(8, 9, 10, 'S')
+    >>> dms_to_decimal((8, 1), (9, 1), (10, 1), 'S')
     -8.152777777777779
     """
-    return (-1 if sign[0] in 'SWsw' else 1) * (
-        float(degrees)        +
-        float(minutes) / 60   +
-        float(seconds) / 3600
+    return (-1 if sign in b'SWsw' else 1) * (
+        float(degrees[0]/degrees[1])        +
+        float(minutes[0]/minutes[1]) / 60   +
+        float(seconds[0]/seconds[1]) / 3600
     )
 
 def decimal_to_dms(decimal):
     """Convert decimal degrees into degrees, minutes, seconds.
 
     >>> decimal_to_dms(50.445891)
-    [Fraction(50, 1), Fraction(26, 1), Fraction(113019, 2500)]
+    [(50, 1), (26, 1), (113019, 2500)]
     >>> decimal_to_dms(-125.976893)
-    [Fraction(125, 1), Fraction(58, 1), Fraction(92037, 2500)]
+    [(125, 1), (58, 1), (92037, 2500)]
     """
     remainder, degrees = math.modf(abs(decimal))
     remainder, minutes = math.modf(remainder * 60)
-    return [Fraction(n) for n in (degrees, minutes, remainder * 60)]
+    return [(Fraction(n).numerator, Fraction(n).denominator) for n in (degrees, minutes, remainder * 60)]
 
 _last_position = None
 
 def exif_position(filename):
         '''get a MavPosition from exif tags
-
-        See: http://stackoverflow.com/questions/10799366/geotagging-jpegs-with-pyexiv2
         '''
-        import pyexiv2
+        import piexif
         global _last_position
         
-        m = pyexiv2.ImageMetadata(filename)
-        m.read()
-        GPS = 'Exif.GPSInfo.GPS'
-        try:
-                lat_ns = str(m[GPS + 'LatitudeRef'].value)
-                lng_ns = str(m[GPS + 'LongitudeRef'].value)
-                latitude = dms_to_decimal(m[GPS + 'Latitude'].value[0],
-                                          m[GPS + 'Latitude'].value[1],
-                                          m[GPS + 'Latitude'].value[2],
-                                          lat_ns)
-                longitude = dms_to_decimal(m[GPS + 'Longitude'].value[0],
-                                           m[GPS + 'Longitude'].value[1],
-                                           m[GPS + 'Longitude'].value[2],
-                                           lng_ns)
-        except Exception:
-                latitude = 0
-                longitude = 0
-                
+        exif_dict = piexif.load(filename)
 
-        altitude = float(m[GPS + 'Altitude'].value)
+        if piexif.GPSIFD.GPSLatitudeRef in exif_dict["GPS"]:
+            lat_ns = exif_dict["GPS"][piexif.GPSIFD.GPSLatitudeRef]
+            latitude = dms_to_decimal(exif_dict["GPS"][piexif.GPSIFD.GPSLatitude][0],
+                                      exif_dict["GPS"][piexif.GPSIFD.GPSLatitude][1],
+                                      exif_dict["GPS"][piexif.GPSIFD.GPSLatitude][2],
+                                      lat_ns)
+            lng_ew = exif_dict["GPS"][piexif.GPSIFD.GPSLongitudeRef]
+            longitude = dms_to_decimal(exif_dict["GPS"][piexif.GPSIFD.GPSLongitude][0],
+                                      exif_dict["GPS"][piexif.GPSIFD.GPSLongitude][1],
+                                      exif_dict["GPS"][piexif.GPSIFD.GPSLongitude][2],
+                                      lng_ew)
+            altitude = float(exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][0]/exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][1])
+        else:
+            latitude = 0
+            longitude = 0
+            altitude = 0
 
         timestamp = (os.path.splitext(os.path.basename(filename))[0])
         m = re.search("\d", timestamp)
@@ -363,10 +359,10 @@ def exif_position(filename):
         frame_time = cuav_util.datetime_to_float(frame_time)
         
         if _last_position is None:
-                yaw = 0
+            yaw = 0
         else:
-                yaw = cuav_util.gps_bearing(_last_position.lat, _last_position.lon,
-                                            latitude, longitude)
+            yaw = cuav_util.gps_bearing(_last_position.lat, _last_position.lon,
+                                        latitude, longitude)
         pos = MavPosition(latitude, longitude, altitude, 0, 0, yaw, frame_time)
         _last_position = pos
         return pos

@@ -48,7 +48,8 @@ def test_ExtractThumbs():
     thumbs = cuav_mosaic.ExtractThumbs(composite, 3)
     assert len(thumbs) == 3
     assert cuav_util.image_shape(thumbs[0]) == (100,100)
-    
+   
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="Broken in Windows")   
 def test_Mosaic():
     #slipmap = mp_slipmap.MPSlipMap(service='GoogleSat', elevation=True, title='Map')
     #mocked_slipmap.return_value = 1

@@ -424,7 +424,7 @@ class CameraAirModule(mp_module.MPModule):
                 if not self.spacewarning and stat.f_bfree*stat.f_bsize < 20971520:
                     self.send_message("Warning: <200Mb disk space left on cuav_air")
                     self.spacewarning = True
-            except OSError:
+            except AttributeError:
                 pass
 
             while not self.transmit_queue.empty():
