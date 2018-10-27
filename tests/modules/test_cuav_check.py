@@ -25,7 +25,17 @@ class MPStatusMock(object):
     def __init__(self):
         self.logdir = None
 
+class MPFieldMock(object):
+    '''hold status information about the mavproxy'''
+    def __init__(self):
+        self.messages = {}
+        self.messages['VFR_HUD'] = common.MAVLink_vfr_hud_message(20, 25, 0, 100, 0, 0)
 
+    def __call__(self, type, field, default=None):
+        if not type in self.messages:
+            return default
+        return getattr(self.messages[type], field, default)
+        
 class MPMasterMock(object):
     '''hold status information about the mavproxy'''
     def __init__(self):
@@ -34,11 +44,9 @@ class MPMasterMock(object):
     def __call__(self):
         ret = mock.Mock()
         ret.messages = {}
+        ret.field = MPFieldMock()
         return ret
         
-    def field(pkt, field, n):
-        if pkt == 'VFR_HUD' and field == 'throttle':
-            return 100
 
 class mstatetmp(object):
     def __init__(self):
