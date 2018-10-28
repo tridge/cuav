@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import numpy, os, time, cv2, sys, math, sys, glob, argparse
-
+from gooey import Gooey, GooeyParser
 
 from cuav.lib import cuav_util, cuav_landingregion
 from cuav.image import scanner
@@ -342,6 +342,44 @@ def process(args):
       mosaic.check_events()
       time.sleep(0.2)
 
+@Gooey
+def parse_args_gooey():
+    '''parse command line arguments'''
+    parser = GooeyParser(description='Search images for Joe') 
+    parser.add_argument("--vehicle-type", default="Plane", help="vehicle type", choices=['Plane','Copter'])
+    parser.add_argument("directory", default=None, help="directory containing image files", widget='DirChooser')
+    parser.add_argument("--mission", default=None, help="mission file to display", widget='FileChooser')
+    parser.add_argument("--mavlog", default=None, help="MAVLink telemetry log file", widget='FileChooser')
+    parser.add_argument("--kmzlog", default=None, help="kmz file for image positions", widget='FileChooser')
+    parser.add_argument("--triggerlog", default=None, help="robota trigger file for image positions", widget='FileChooser')
+    parser.add_argument("--time-offset", type=float, default=0, help="offset between camera and mavlink log times (seconds)")
+    parser.add_argument("--view", action='store_true', default=False, help="show images")
+    parser.add_argument("--saveview", action='store_true', default=False, help="save image view")
+    parser.add_argument("--lens", default=28.0, type=float, help="lens focal length")
+    parser.add_argument("--sensorwidth", default=35.0, type=float, help="sensor width")
+    parser.add_argument("--service", default='MicrosoftSat', 
+    choices=['GoogleSat', 'MicrosoftSat', 'OviSat', 'OpenStreetMap', 'MicrosoftHyb', 'OviHybrid', 'GoogleMap'], help="map service")
+    parser.add_argument("--camera-params", default=None, help="camera calibration json file from OpenCV", widget='FileChooser')
+    parser.add_argument("--debug", default=False, action='store_true', help="enable debug info")
+    parser.add_argument("--roll-stabilised", default=False, action='store_true', help="assume roll stabilised camera")
+    parser.add_argument("--pitch-stabilised", default=False, action='store_true', help="assume pitch stabilised camera")
+    parser.add_argument("--pitch-offset", default=0, type=float, help="camera pitch offset from autopilot pitch (degrees)")
+    parser.add_argument("--roll-offset", default=0, type=float, help="camera roll offset from autopilot pitch (degrees)")
+    parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
+    parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
+    parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")
+    parser.add_argument("--map-thumbsize", default=60, type=int, help="map thumbnail size")
+    parser.add_argument("--minscore", default=100, type=int, help="minimum score")
+    parser.add_argument("--gammalog", default=None, type=str, help="gamma.log from flight", widget='FileChooser')
+    parser.add_argument("--target", default=None, type=str, help="lat,lon,radius target")
+    parser.add_argument("--categories", default=None, type=str, help="xml file containing categories for classification", widget='FileChooser')
+    parser.add_argument("--flag", default=[], type=str, action='append', help="flag positions"),
+    parser.add_argument("--blue-emphasis", default=False, action='store_true', help="enable blue emphasis in scanner")
+    parser.add_argument("--start", default=False, action='store_true', help="start straight away")
+    parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
+    parser.add_argument("--showlz", default=False, action='store_true', help="Show calculated landing zone from regions")
+    return parser.parse_args()
+
 def parse_args():
     '''parse command line arguments'''
     parser = argparse.ArgumentParser(description='Search images for Joe')
@@ -379,10 +417,13 @@ def parse_args():
     return parser.parse_args()
 
 
-
 if __name__ == '__main__':
     multiproc.freeze_support()
-    args = parse_args()
+    
+    if not len(sys.argv) > 1:
+        args = parse_args_gooey()
+    else:
+        args = parse_args()
 
     # main program
     process(args)

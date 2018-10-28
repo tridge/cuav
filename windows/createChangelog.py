@@ -25,20 +25,19 @@ f = open("changelog.txt","w")
 #go through all the commits
 for comm in all_commits:
     #if it's a version raise, add a special message
-    if "raise version" in comm.message:
+    if "raise version" in comm.message or "release" in comm.message[0:7]:
         commit_date = time.strftime("%d-%m-%Y", time.gmtime(comm.committed_date))
         tree = comm.tree
         #get setup.py and grab the version number from the file
         blob = tree['setup.py']
         data = blob.data_stream.read()
         curversion = ""
-        for line in data.split('\n'):
-            if "version = " in line: 
+        for line in data.split(b'\n'):
+            if b"version = " in line: 
                 curversion =  line[11:len(line)-1]
-                break
-            
+                break          
         f.write("\n")
-        f.write("CUAV " + curversion + " (" + commit_date + ")\n")
+        f.write("CUAV " + curversion.decode("utf-8")  + " (" + commit_date  + ")\n")
     else:
         #just print the summary (1st line) of the commit message
         comm.message.split('\n', 1)[0]

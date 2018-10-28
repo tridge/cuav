@@ -1,12 +1,27 @@
 #!/usr/bin/python
 
-import os, time, math, glob, re
+import os, time, math, glob, sys, re
 import piexif, datetime, argparse
 import dateutil.parser, shutil
+from gooey import Gooey, GooeyParser
 
 from cuav.lib import cuav_util, mav_position
 
+@Gooey
+def parse_args_gooey():
+    '''parse command line arguments (GUI)'''
+    parser = GooeyParser(description="Geotag (EXIF) images from flight log")    
 
+    parser.add_argument("files", default=None, help="Image folder (jpegs only)", widget='DirChooser')
+    parser.add_argument("mavlog", default=None, help="flight log for geo-referencing", widget='FileChooser')
+    parser.add_argument("--max-deltat", default=0.0, type=float, help="max deltat for interpolation")
+    parser.add_argument("--roll-stabilised", default=False, action='store_true', help="Is camera roll stabilised?")
+    parser.add_argument("--gps-lag", default=0.0, type=float, help="GPS lag in seconds")
+    parser.add_argument("--destdir", default=None, help="destination directory", widget='DirChooser')
+    parser.add_argument("--inplace", default=False, action='store_true', help="modify images in-place?")
+    return parser.parse_args()
+
+    
 def parse_args():
     '''parse command line arguments'''
     parser = argparse.ArgumentParser("Geotag images from flight log")
@@ -111,10 +126,13 @@ def process(args):
             print("%s %.7f %.7f [%u/%u %.1f%%]" % (os.path.basename(outfile),
                                                    lat_deg, lng_deg, count, num_files, (100.0*count)/num_files))
             set_gps_location(outfile, lat_deg, lng_deg, pos.altitude, pos.time)
-
+  
 # main program
 if __name__ == '__main__':
-    args = parse_args()
+    if not len(sys.argv) > 1:
+        args = parse_args_gooey()
+    else:
+        args = parse_args()
     
     process(args)
 

@@ -7,7 +7,8 @@ from MAVProxy.modules.mavproxy_map import mp_elevation
 from pymavlink import mavutil
 from cuav.lib import cuav_util
 
-EleModel = mp_elevation.ElevationModel()
+if not sys.platform.startswith("win"):
+    EleModel = mp_elevation.ElevationModel()
 
 class MavInterpolatorException(Exception):
     '''interpolator error class'''
@@ -496,15 +497,18 @@ class TriggerPosition(object):
 
 def get_ground_alt(lat, lon):
     '''get highest ground altitide around a point'''
-    global EleModel
-    ground = EleModel.GetElevation(lat, lon)
-    surrounds = []
-    for bearing in range(0, 360, 45):
-        surrounds.append((150, bearing))
-    for (dist, bearing) in surrounds:
-        (lat2, lon2) = cuav_util.gps_newpos(lat, lon, bearing, dist)
-        el = EleModel.GetElevation(lat2, lon2)
-        if el > ground:
-            ground = el
-    return ground
+    if not sys.platform.startswith("win"):
+        global EleModel
+        ground = EleModel.GetElevation(lat, lon)
+        surrounds = []
+        for bearing in range(0, 360, 45):
+            surrounds.append((150, bearing))
+        for (dist, bearing) in surrounds:
+            (lat2, lon2) = cuav_util.gps_newpos(lat, lon, bearing, dist)
+            el = EleModel.GetElevation(lat2, lon2)
+            if el > ground:
+                ground = el
+        return ground
+    else:
+        return 0
 
