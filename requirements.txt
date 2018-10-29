@@ -1,0 +1,14 @@
+lxml
+pymavlink
+numpy
+matplotlib
+pyserial
+opencv-python
+pyreadline
+PyYAML
+Pygame
+Pillow
+wxpython
+piexif
+MAVProxy
+gooey

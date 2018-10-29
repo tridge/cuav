@@ -1,0 +1,6 @@
+pyinstaller
+setuptools
+packaging
+wheel
+pytest
+pytest-mock

@@ -28,10 +28,7 @@ rem ----Copy the files----
 mkdir .\dist\cuav
 xcopy .\dist\geotag\* .\dist\cuav /Y /E
 xcopy .\dist\geosearch\* .\dist\cuav /Y /E
-rem Need to copy scanner binary over, but don't know which python version is running
-xcopy .\build\lib.win32-3.5\cuav\image\scanner.cp35-win32.pyd .\dist\cuav\cuav\image\scanner.pyd /Y
-xcopy .\build\lib.win32-3.6\cuav\image\scanner.cp36-win32.pyd .\dist\cuav\cuav\image\scanner.pyd /Y
-xcopy .\build\lib.win32-3.7\cuav\image\scanner.cp37-win32.pyd .\dist\cuav\cuav\image\scanner.pyd /Y
+
 
 rem -----Create version Info-----
 @echo off
@@ -41,6 +38,6 @@ rem -----Create version Info-----
 rem -----Build the Installer-----
 cd  .\windows\
 rem Newer Inno Setup versions do not require a -compile flag, please add it if you have an old version
-rem "%INNOSETUP%\ISCC.exe" /dMyAppVersion=%VERSION% cuav.iss
+"%INNOSETUP%\ISCC.exe" /dMyAppVersion=%VERSION% cuav.iss
 
 pause

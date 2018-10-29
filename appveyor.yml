@@ -41,9 +41,9 @@ install:
   # compiled extensions and are not provided as pre-built wheel packages,
   # pip will build them from source using the MSVC compiler matching the
   # target Python version and architecture
-  - "pip install -U pywin32 lxml pymavlink numpy matplotlib pyserial opencv-python pyreadline PyYAML Pygame Pillow wxpython piexif"
-  - "pip install -U pyinstaller setuptools packaging wheel"
-  - "pip install -U MAVProxy pytest pytest-mock"
+  - "pip install -U pywin32"
+  - "pip install -U -r requirements.txt"
+  - "pip install -U -r ./tests/requirements-test.txt"
   
   #We're using Inno Setup to build an installer
   - cinst -y InnoSetup
@@ -73,11 +73,42 @@ build_script:
 
 test_script:
   # Run the project tests and store results in .xml log
-  - "py.test .\\tests\\"
+  - "py.test --junitxml=.\\unittests.xml .\\tests\\" 
+  - ps: | 
+      $wc = New-Object 'System.Net.WebClient'
+      $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\unittests.xml))
+  - "del /Q coverage.xml"
       
 after_test:
   # If tests are successful, create binary packages for the project.
+  #run pyinstaller
+  - "%PYTHON_INSTALL%\\Scripts\\pyinstaller -y --clean .\\windows\\cuav.spec"
+  
+  #create version txt file
+  - "cd  .\\windows\\"
+  - "for /f \"tokens=*\" %%a in ( \'python returnVersion.py\' ) do ( set VERSION=%%a )"
+  - "@echo off"
+  - "@echo %VERSION%> version.txt"
+  - "@echo on"
+  - "cd ..\\"
+  
+  #copy files
+  - "mkdir .\\dist\\cuav"
+  - "xcopy .\\dist\\geotag\\* .\\dist\\cuav /Y /E"
+  - "xcopy .\\dist\\geosearch\\* .\\dist\\cuav /Y /E"
 
+  #run setup
+  - "cd  .\\windows\\"
+  - "ISCC.exe /dMyAppVersion=%VERSION% cuav.iss"
+  - "cd ..\\"
+
+artifacts:
+  # Archive the generated packages in the ci.appveyor.com build report.
+  - path: dist\cuav
+    name: WindowsCompiledFiles
+  - path: windows\Output\
+    name: WindowsInstaller
+    
 #on_success:
 #  - TODO: upload the content of dist/*.whl to a public wheelhouse
 #

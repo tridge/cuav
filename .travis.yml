@@ -34,7 +34,8 @@ before_install:
 install:
   #Prerequisites
   - pip install opencv-python future
-  - pip install pymavlink MAVProxy pytest pytest-mock piexif
+  - pip install pymavlink MAVProxy piexif
+  - pip install -r ./tests/requirements-test.txt
   #Using pip install wxpython takes waaay too long, so downloading precompiled version instead
   - pip install -U -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-14.04 wxPython
   
@@ -42,4 +43,4 @@ install:
 before_script:
   - ls
 script:
-  - py.test ./tests/
+  - py.test  --junitxml=./unittests.xml ./tests/

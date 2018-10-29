@@ -167,39 +167,40 @@ class CameraGroundModule(mp_module.MPModule):
         regions = []
         last_thumbfile = None
         last_joe = None
-        joes = []
+        joes = None
         if os.path.isfile(self.joelog.filename):
             joes = cuav_joe.JoeIterator(self.joelog.filename)
-        for joe in joes.getjoes():
-            if joe.thumb_filename == last_thumbfile or last_thumbfile is None:
-                regions.append(joe.r)
-                last_joe = joe
-                last_thumbfile = joe.thumb_filename
-            else:
+        if joes and len(joes.joes) > 0:
+            for joe in joes.getjoes():
+                if joe.thumb_filename == last_thumbfile or last_thumbfile is None:
+                    regions.append(joe.r)
+                    last_joe = joe
+                    last_thumbfile = joe.thumb_filename
+                else:
+                    try:
+                        composite = cv.LoadImage(last_joe.thumb_filename)
+                        thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
+                        mosaic.add_regions(regions, thumbs, last_joe.image_filename, last_joe.pos)
+                    except Exception:
+                        pass
+                    regions = []
+                    last_joe = None
+                    last_thumbfile = None
+            if last_joe:
                 try:
                     composite = cv.LoadImage(last_joe.thumb_filename)
                     thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
                     mosaic.add_regions(regions, thumbs, last_joe.image_filename, last_joe.pos)
                 except Exception:
                     pass
-                regions = []
-                last_joe = None
-                last_thumbfile = None
-        if last_joe:
-            try:
-                composite = cv.LoadImage(last_joe.thumb_filename)
-                thumbs = cuav_mosaic.ExtractThumbs(composite, len(regions))
-                mosaic.add_regions(regions, thumbs, last_joe.image_filename, last_joe.pos)
-            except Exception:
-                pass
 
     def start_gcs_bsend(self):
         '''start up block senders for GCS side'''
-        if self.msend is None:
-            self.msocket = cuav_command.MavSocket(self.mpstate.mav_master[0])
-            self.msend = block_xmit.BlockSender(mss=96, sock=self.msocket, dest_ip='mavlink',
-                                                dest_port=0, backlog=5, debug=False)
-            self.msend.set_bandwidth(500)
+        #if self.msend is None:
+        #    self.msocket = cuav_command.MavSocket(self.mpstate.mav_master[0])
+        #    self.msend = block_xmit.BlockSender(mss=96, sock=self.msocket, dest_ip='mavlink',
+        #                                        dest_port=0, backlog=5, debug=False)
+        #    self.msend.set_bandwidth(500)
         if len(self.bsend) == 0:
             for lnk in self.camera_settings.air_address.split(','):
                 try:

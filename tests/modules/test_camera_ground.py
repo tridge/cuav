@@ -8,6 +8,9 @@ import pytest
 import os
 import threading, time
 
+#for generating mocked mavlink messages
+from pymavlink.dialects.v20 import common
+
 if sys.version_info >= (3, 3):
     from unittest import mock
 else:
@@ -109,24 +112,43 @@ def test_camera_thumbs(mpstate, image_file):
     loadedModuleAir.cmd_camera(["set", "camparms", parms])
     loadedModuleAir.cmd_camera(["set", "imagefile", image_file])
     loadedModuleAir.cmd_camera(["set", "minscore", "0"])
-    loadedModuleAir.cmd_camera(["set", "gcs_address", "127.0.0.1:14000:15000:45, 127.0.0.1:14500:15500:60000"])
+    loadedModuleAir.cmd_camera(["set", "gcs_address", "127.0.0.1:14000:15000:5000, 127.0.0.1:14500:15500:6000000"])
 
     loadedModuleGround = camera_ground.init(mpstate)
     loadedModuleGround.cmd_camera(["set", "camparms", parms])
-    loadedModuleGround.cmd_camera(["set", "air_address", "127.0.0.1:15000:14000:45, 127.0.0.1:15500:14500:60000"])
+    loadedModuleGround.cmd_camera(["set", "air_address", "127.0.0.1:15000:14000:5000, 127.0.0.1:15500:14500:6000000"])
     loadedModuleGround.cmd_camera(["view"])
 
-    #start the image stream and modules
+    #start the image stream and modules (and mavlink messages)
     capture_thread = sim_camera()
     time.sleep(0.05)
+    m = common.MAVLink_global_position_int_message(1478994400, 230000000, -344500000, 100000, 45000, 2, 3, 4, 12)
+    m._timestamp = 1478994400
+    loadedModuleAir.mpos.add_msg(m)
+    m = common.MAVLink_attitude_message(1478994400, 10, 5, 0, 0, 0, 0)
+    m._timestamp = 1478994400
+    loadedModuleAir.mpos.add_msg(m)
+    m = common.MAVLink_global_position_int_message(1478994408, 230100000, -344501000, 100000, 45000, 2, 3, 4, 12)
+    m._timestamp = 1478994408
+    loadedModuleAir.mpos.add_msg(m)
+    m = common.MAVLink_attitude_message(1478994408, 10, 5, 0, 0, 0, 0)
+    m._timestamp = 1478994408
+    loadedModuleAir.mpos.add_msg(m)
+    m = common.MAVLink_global_position_int_message(1478994415, 230200000, -344502000, 100000, 45000, 2, 3, 4, 12)
+    m._timestamp = 1478994415
+    loadedModuleAir.mpos.add_msg(m)
+    m = common.MAVLink_attitude_message(1478994415, 10, 5, 0, 0, 0, 0)
+    m._timestamp = 1478994415
+    loadedModuleAir.mpos.add_msg(m)
     loadedModuleAir.cmd_camera(["start"])
     time.sleep(4.0)
 
     #and request a fullsize image
     filename = os.path.join(os.getcwd(), 'tests', 'testdata', 'raw2016111223465160Z.png')
     frame_time = cuav_util.parse_frame_time(filename)
-    loadedModuleGround.mosaic.tag_image(frame_time)
-    time.sleep(2.0)
+    #loadedModuleGround.mosaic.tag_image(frame_time)
+    loadedModuleGround.mosaic.image_requests[frame_time] = True
+    time.sleep(4.0)
 
     loadedModuleAir.unload()
     loadedModuleGround.unload()

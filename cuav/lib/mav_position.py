@@ -307,9 +307,9 @@ def dms_to_decimal(degrees, minutes, seconds, sign=b' '):
     -8.152777777777779
     """
     return (-1 if sign in b'SWsw' else 1) * (
-        float(degrees[0]/degrees[1])        +
-        float(minutes[0]/minutes[1]) / 60   +
-        float(seconds[0]/seconds[1]) / 3600
+        float(degrees[0])/float(degrees[1])        +
+        float(minutes[0])/float(minutes[1]) / 60.0   +
+        float(seconds[0])/float(seconds[1]) / 3600.0
     )
 
 def decimal_to_dms(decimal):
@@ -345,7 +345,7 @@ def exif_position(filename):
                                       exif_dict["GPS"][piexif.GPSIFD.GPSLongitude][1],
                                       exif_dict["GPS"][piexif.GPSIFD.GPSLongitude][2],
                                       lng_ew)
-            altitude = float(exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][0]/exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][1])
+            altitude = float(exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][0])/float(exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][1])
         else:
             latitude = 0
             longitude = 0

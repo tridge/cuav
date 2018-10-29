@@ -1,11 +1,19 @@
 # -*- mode: python -*-
 # spec file for pyinstaller to build cuav for windows
-from PyInstaller.utils.hooks import collect_submodules, collect_data_files
+from PyInstaller.utils.hooks import collect_submodules 
 
 import gooey
 gooey_root = os.path.dirname(gooey.__file__)
 gooey_languages = Tree(os.path.join(gooey_root, 'languages'), prefix = 'gooey/languages')
 gooey_images = Tree(os.path.join(gooey_root, 'images'), prefix = 'gooey/images')
+
+import MAVProxy.modules.mavproxy_map
+map_root = os.path.dirname(MAVProxy.modules.mavproxy_map.__file__)
+map_data = Tree(os.path.join(map_root, 'data'), prefix = 'MAVProxy/modules/mavproxy_map/data')
+
+import cuav.image.scanner
+cuav_root = os.path.dirname(cuav.image.scanner.__file__)
+cuav_data = Tree(os.path.join(cuav_root, ''), prefix = 'cuav/image')
 
 geotagAny = Analysis(['..\\cuav\\tools\\geotag.py'],
              pathex=[os.path.abspath('.')],
@@ -17,8 +25,7 @@ geotagAny = Analysis(['..\\cuav\\tools\\geotag.py'],
                             'wx.lib.agw.genericmessagedialog', 'wx.lib.wordwrap', 'wx.lib.buttons',
                             'wx.lib.embeddedimage', 'wx.lib.imageutils', 'wx.lib.agw.aquabutton', 
                             'wx.lib.agw.gradientbutton',
-                            'six','packaging', 'packaging.version', 'packaging.specifiers', 'cuav.image.scanner'] + collect_submodules('MAVProxy.modules') + 
-                            collect_submodules('pymavlink'),
+                            'six','packaging', 'packaging.version', 'packaging.specifiers'] + collect_submodules('pymavlink'),
              excludes=['tcl', 'tk', 'Tkinter', 'tkinter', '_tkinter', 'sphinx', 'docutils', 'alabaster'],
              hookspath=None,
              runtime_hooks=None)
@@ -33,10 +40,9 @@ geosearchAny = Analysis(['..\\cuav\\tools\\geosearch.py'],
                             'wx.lib.agw.genericmessagedialog', 'wx.lib.wordwrap', 'wx.lib.buttons',
                             'wx.lib.embeddedimage', 'wx.lib.imageutils', 'wx.lib.agw.aquabutton', 
                             'wx.lib.agw.gradientbutton',
-                            'six','packaging', 'packaging.version', 'packaging.specifiers'] + collect_submodules('pymavlink'),
+                            'six','packaging', 'packaging.version', 'packaging.specifiers'] + collect_submodules('pymavlink') +  collect_submodules('MAVProxy'),
              excludes=['tcl', 'tk', 'Tkinter', 'tkinter', '_tkinter', 'sphinx', 'docutils', 'alabaster'],
              hookspath=None,
-             datas= [ ('modules\\mavproxy_map\\data\\*.*', 'MAVProxy\\modules\\mavproxy_map\\data' ) ],
              runtime_hooks=None)
              
 geotag_pyz = PYZ(geotagAny.pure)
@@ -73,6 +79,8 @@ geosearch_coll = COLLECT(geosearch_exe,
                geosearchAny.datas,
                gooey_languages,
                gooey_images,
+               map_data,
+               cuav_data,
                strip=None,
                upx=True,
                name='geosearch')
