@@ -58,7 +58,10 @@ def playback(filename, images, argout, argbaudrate, argcondition, argspeedup, li
             continue
         if msg.get_type() == 'PARAM_VALUE':
             params.append(msg)
-        mout.write(msg.get_msgbuf())
+        try:
+            mout.write(msg.get_msgbuf())
+        except TypeError:
+            continue
         deltat = msg._timestamp - last_timestamp
         if len(images) == 0 or images[0].frame_time > msg._timestamp + 2:
             # run at high speed except for the portions where we have images
