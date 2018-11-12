@@ -453,7 +453,7 @@ class TriggerPosition(object):
                         return defvalue
                 v = vals[self.colmap[colname]]
                 if v.endswith('Z'):
-                        v = time.mktime(datetime.datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ").timetuple())
+                        v = cuav_util.datetime_to_float(datetime.datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ"))
                 else:
                         v = float(v)
                 return v
