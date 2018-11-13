@@ -63,29 +63,16 @@ struct scan_params {
     bool blue_emphasis;
 };
 
-#ifdef _MSC_VER
     static const struct scan_params scan_params_640_480 = {
-            8,
-            400,
-            2,
-            30,
-            50,
-            1,
-            false,
-            false
+            8,          //min_region_area
+            400,        //max_region_area
+            2,          //min_region_size_xy
+            30,         //max_region_size_xy
+            50,         //histogram_count_threshold
+            1,          //region_merge
+            false,      //save_intermediate
+            false       //blue_emphasis
     };
-#else
-    static const struct scan_params scan_params_640_480 = {
-            min_region_area : 8,
-            max_region_area : 400,
-            min_region_size_xy : 2,
-            max_region_size_xy : 30,
-            histogram_count_threshold : 50,
-            region_merge : 1,
-            save_intermediate : false,
-            blue_emphasis : false
-    };
-#endif
 
 struct regions {
         uint16_t height;
