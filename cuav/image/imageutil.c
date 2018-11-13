@@ -17,7 +17,7 @@
 void *any_matrix(uint8_t dimension, uint16_t el_size, uint32_t header_size, ...)
 { 
     #ifdef _MSC_VER
-        uint16_t *dims = dimension*sizeof(uint16_t);
+        uint16_t *dims = (uint16_t *)_alloca(dimension);
     #else
         uint16_t dims[dimension];
     #endif
