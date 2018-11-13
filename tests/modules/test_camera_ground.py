@@ -148,7 +148,7 @@ def test_camera_thumbs(mpstate, image_file):
     frame_time = cuav_util.parse_frame_time(filename)
     #loadedModuleGround.mosaic.tag_image(frame_time)
     loadedModuleGround.mosaic.image_requests[frame_time] = True
-    time.sleep(4.0)
+    time.sleep(6.0)
 
     loadedModuleAir.unload()
     loadedModuleGround.unload()

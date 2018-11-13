@@ -196,11 +196,11 @@ class CameraGroundModule(mp_module.MPModule):
 
     def start_gcs_bsend(self):
         '''start up block senders for GCS side'''
-        #if self.msend is None:
-        #    self.msocket = cuav_command.MavSocket(self.mpstate.mav_master[0])
-        #    self.msend = block_xmit.BlockSender(mss=96, sock=self.msocket, dest_ip='mavlink',
-        #                                        dest_port=0, backlog=5, debug=False)
-        #    self.msend.set_bandwidth(500)
+        if self.msend is None:
+            self.msocket = cuav_command.MavSocket(self.mpstate.mav_master[0])
+            self.msend = block_xmit.BlockSender(mss=96, sock=self.msocket, dest_ip='mavlink',
+                                                dest_port=0, backlog=5, debug=False)
+            self.msend.set_bandwidth(500)
         if len(self.bsend) == 0:
             for lnk in self.camera_settings.air_address.split(','):
                 try:

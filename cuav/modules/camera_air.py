@@ -499,10 +499,10 @@ class CameraAirModule(mp_module.MPModule):
                 except:
                     print("Bad GCS endpoint (must be remIP:remport:localport:bw): " + str(lnk))
                     pass
-        #if self.msend is None:
-        #    self.msocket = cuav_command.MavSocket(self.mpstate.mav_master[0])
-        #    self.msend = block_xmit.BlockSender(mss=96, sock=self.msocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
-        #    self.msend.set_bandwidth(self.camera_settings.m_bandwidth)
+        if self.msend is None:
+            self.msocket = cuav_command.MavSocket(self.mpstate.mav_master[0])
+            self.msend = block_xmit.BlockSender(mss=96, sock=self.msocket, dest_ip='mavlink', dest_port=0, backlog=5, debug=False)
+            self.msend.set_bandwidth(self.camera_settings.m_bandwidth)
 
     def start_thread(self, fn):
         '''start a thread running'''
