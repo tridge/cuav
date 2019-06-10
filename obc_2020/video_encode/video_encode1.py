@@ -17,6 +17,7 @@ ap.add_argument("--outfile", type=str, default='out.cvid')
 ap.add_argument("--delay", type=int, default=0)
 ap.add_argument("--quality", type=int, default=50)
 ap.add_argument("--minarea", type=int, default=32)
+ap.add_argument("--threshold", type=int, default=100)
 ap.add_argument("imgs", type=str, nargs='+')
 args = ap.parse_args()
 
@@ -25,9 +26,10 @@ if len(args.imgs) < 2:
     sys.exit(1)
 
 class VideoWriter(object):
-    def __init__(self, outname, quality=50, min_area=8):
+    def __init__(self, outname, quality=50, min_area=8, threshold=100):
         self.quality = quality
         self.min_area = min_area
+        self.threshold = threshold
         self.f = open(outname, 'wb')
         self.total_size = 0
         self.num_frames = 0
@@ -93,7 +95,7 @@ class VideoWriter(object):
         (score, diff) = compare_ssim(gray1, gray2, full=True)
         diff = (diff * 255).astype("uint8")
 
-        thresh = cv2.threshold(diff, 200, 255, cv2.THRESH_BINARY)[1]
+        thresh = cv2.threshold(diff, self.threshold, 255, cv2.THRESH_BINARY)[1]
         thresh_inv = cv2.bitwise_not(thresh)
 
         # find contours
@@ -146,7 +148,7 @@ class VideoWriter(object):
         print("Encoded %u frames %u deltas at %u bytes/frame" % (self.num_frames, self.num_deltas, self.total_size/self.num_frames))
 
 # instantiate video delta encoder
-vid = VideoWriter(args.outfile, quality=args.quality, min_area=args.minarea)
+vid = VideoWriter(args.outfile, quality=args.quality, min_area=args.minarea, threshold=args.threshold)
 
 # load first image
 image1 = cv2.imread(args.imgs[0])
