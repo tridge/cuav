@@ -25,8 +25,8 @@ class VideoReader(object):
 
     def get_image(self):
         '''get next image or None'''
-        header = self.f.read(8)
-        (enclen,x,y) = struct.unpack("<IHH", header)
+        header = self.f.read(10)
+        (enclen,x,y,dt) = struct.unpack("<IHHH", header)
         encimg = self.f.read(enclen)
         barray = numpy.asarray(bytearray(encimg), dtype="uint8")
         jimg = cv2.imdecode(barray, 1)
@@ -35,7 +35,7 @@ class VideoReader(object):
         else:
             (height,width,depth) = jimg.shape
             self.img[y:y+height,x:x+width] = jimg
-        return self.img
+        return (self.img,dt)
 
     def close(self):
         '''close video file'''
@@ -45,6 +45,7 @@ class VideoReader(object):
 vid = VideoReader(args.vidfile)
 
 while True:
-    img = vid.get_image()
-    cv2.imshow("Image", img)
-    cv2.waitKey(args.delay)
+    (img,dt) = vid.get_image()
+    if dt > 0:
+        cv2.imshow("Image", img)
+        cv2.waitKey(dt)

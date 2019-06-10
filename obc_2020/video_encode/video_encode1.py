@@ -16,6 +16,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--outfile", type=str, default='out.cvid')
 ap.add_argument("--delay", type=int, default=0)
 ap.add_argument("--quality", type=int, default=50)
+ap.add_argument("--minarea", type=int, default=8)
 ap.add_argument("imgs", type=str, nargs='+')
 args = ap.parse_args()
 
@@ -33,7 +34,7 @@ class VideoWriter(object):
         self.last_image = None
         self.shape = None
 
-    def add_delta(self, img, x, y):
+    def add_delta(self, img, x, y, dt):
         '''add a delta image located at x,y'''
 
         # encode delta as jpeg
@@ -41,20 +42,20 @@ class VideoWriter(object):
         result, encimg = cv2.imencode('.jpg', img, encode_param)
 
         enclen = len(encimg)
-        header = struct.pack("<IHH", enclen, x, y)
+        header = struct.pack("<IHHH", enclen, x, y, dt)
         self.f.write(header)
         self.f.write(encimg)
         self.total_size += len(header) + len(encimg)
         self.num_frames += 1
 
-    def add_image(self, img):
+    def add_image(self, img, dt):
         '''add an image to video, using delta encoding'''
         if self.image is None:
             # initial image
             self.shape = img.shape
             self.image = img.copy()
             self.last_image = self.image
-            self.add_delta(self.image, 0, 0)
+            self.add_delta(self.image, 0, 0, 0)
             return
 
         gray1 = cv2.cvtColor(self.last_image, cv2.COLOR_BGR2GRAY)
@@ -101,7 +102,7 @@ class VideoWriter(object):
         # overwrite the current image with that area
         self.image[y1:y2,x1:x2] = changed
 
-        vid.add_delta(changed, x1, y1)
+        vid.add_delta(changed, x1, y1, dt)
         self.last_image = img.copy()
         
     def close(self):
@@ -125,7 +126,7 @@ image = image1
 
 for f in args.imgs[1:]:
     img = cv2.imread(f)
-    vid.add_image(img)
+    vid.add_image(img, 1000)
     vid.report()
 
 vid.close()
