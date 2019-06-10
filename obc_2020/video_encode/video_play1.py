@@ -13,8 +13,9 @@ import struct
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("--delay", type=int, default=1000)
-ap.add_argument("vidfile", type=str, nargs='?')
+ap.add_argument("--delay", type=int, default=0)
+ap.add_argument("--avi", type=str, default=None, help='also output to avi file')
+ap.add_argument("infile", type=str, nargs='?')
 args = ap.parse_args()
 
 
@@ -26,6 +27,8 @@ class VideoReader(object):
     def get_image(self):
         '''get next image or None'''
         header = self.f.read(10)
+        if len(header) < 10:
+            return (None,0)
         (enclen,x,y,dt) = struct.unpack("<IHHH", header)
         encimg = self.f.read(enclen)
         barray = numpy.asarray(bytearray(encimg), dtype="uint8")
@@ -42,10 +45,25 @@ class VideoReader(object):
         self.f.close()
         self.f = None
 
-vid = VideoReader(args.vidfile)
+vid = VideoReader(args.infile)
+avi = None
 
 while True:
     (img,dt) = vid.get_image()
+    if img is None:
+        break
     if dt > 0:
         cv2.imshow("Image", img)
-        cv2.waitKey(dt)
+        if args.delay > 0:
+            cv2.waitKey(args.delay)
+        else:
+            cv2.waitKey(dt)
+        if args.avi is not None:
+            if avi is None:
+                (height,width,depth) = img.shape
+                avi = cv2.VideoWriter(args.avi,cv2.VideoWriter_fourcc(*'PIM1'), 1.0, (width,height))
+            if avi is not None:
+                avi.write(img)
+
+if avi is not None:
+    avi.release()
