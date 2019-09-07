@@ -4,29 +4,13 @@ video encoder that looks for structural differences and only sends changed image
 areas that are above a threshold
 '''
 
-import argparse
 import imutils
 import cv2
-import sys
 import struct
 from skimage.measure import compare_ssim
 
-# construct the argument parse and parse the arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("--outfile", type=str, default='out.cvid')
-ap.add_argument("--delay", type=int, default=0)
-ap.add_argument("--quality", type=int, default=50)
-ap.add_argument("--minarea", type=int, default=32)
-ap.add_argument("--threshold", type=int, default=100)
-ap.add_argument("imgs", type=str, nargs='+')
-args = ap.parse_args()
-
-if len(args.imgs) < 2:
-    print("Need at least 2 images")
-    sys.exit(1)
-
 class VideoWriter(object):
-    def __init__(self, outname, quality=50, min_area=8, threshold=100):
+    def __init__(self, outname, quality=50, min_area=8, threshold=225, crop=None):
         self.quality = quality
         self.min_area = min_area
         self.threshold = threshold
@@ -38,13 +22,22 @@ class VideoWriter(object):
         self.last_image = None
         self.shape = None
         self.timestamp_base_ms = 0
+        if crop:
+            c=crop.split(",")
+            if len(c) == 4:
+                self.crop = (int(c[0]), int(c[1]), int(c[2]), int(c[3]))
+            else:
+                print("Bad VideoWriter crop: ", crop)
+                self.crop = None
+        else:
+            self.crop = None
 
     def add_delta(self, img, x, y, dt):
         '''add a delta image located at x,y'''
 
-        # encode delta as jpeg
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.quality]
-        result, encimg = cv2.imencode('.jpg', img, encode_param)
+        # encode delta
+        encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), self.quality]
+        result, encimg = cv2.imencode('.webp', img, encode_param)
 
         enclen = len(encimg)
         header = struct.pack("<IHHH", enclen, x, y, dt)
@@ -74,9 +67,17 @@ class VideoWriter(object):
             if area >= min_area:
                 count += 1
         return count
+
+    def crop_image(self, img):
+        '''crop image as requested'''
+        if self.crop is None:
+            return img
+        (x,y,w,h) = self.crop
+        return img[y:y+h,x:x+w]
     
     def add_image(self, img, timestamp_ms):
         '''add an image to video, using delta encoding'''
+        img = self.crop_image(img)
         if self.image is None:
             # initial image
             self.shape = img.shape
@@ -105,6 +106,9 @@ class VideoWriter(object):
         min_area = max(min(self.min_area, self.largest_area(cnts)),4)
         num_areas = self.count_areas(cnts, min_area)
         count = 0
+        
+        #if len(cnts) == 0:
+        #    print("No contours")
 
         for c in cnts:
             (x, y, w, h) = cv2.boundingRect(c)
@@ -147,22 +151,41 @@ class VideoWriter(object):
         '''show encoding size'''
         print("Encoded %u frames %u deltas at %u bytes/frame" % (self.num_frames, self.num_deltas, self.total_size/self.num_frames))
 
-# instantiate video delta encoder
-vid = VideoWriter(args.outfile, quality=args.quality, min_area=args.minarea, threshold=args.threshold)
+if __name__ == '__main__':
+    import argparse
+    import sys
+    
+    # construct the argument parse and parse the arguments
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--outfile", type=str, default='out.cvid')
+    ap.add_argument("--delay", type=int, default=0)
+    ap.add_argument("--quality", type=int, default=50)
+    ap.add_argument("--minarea", type=int, default=32)
+    ap.add_argument("--threshold", type=int, default=225)
+    ap.add_argument("--crop", type=str, default=None)
+    ap.add_argument("imgs", type=str, nargs='+')
+    args = ap.parse_args()
 
-# load first image
-image1 = cv2.imread(args.imgs[0])
-image = image1
+    if len(args.imgs) < 2:
+        print("Need at least 2 images")
+        sys.exit(1)
+    
+    # instantiate video delta encoder
+    vid = VideoWriter(args.outfile, quality=args.quality, min_area=args.minarea, threshold=args.threshold, crop=args.crop)
 
-# get image shape
-(height,width,depth) = image.shape
+    # load first image
+    image1 = cv2.imread(args.imgs[0])
+    image = image1
 
-timestamp_ms = 0
+    # get image shape
+    (height,width,depth) = image.shape
 
-for f in args.imgs[1:]:
-    img = cv2.imread(f)
-    vid.add_image(img, timestamp_ms)
-    vid.report()
-    timestamp_ms += 1000
+    timestamp_ms = 0
 
-vid.close()
+    for f in args.imgs[1:]:
+        img = cv2.imread(f)
+        vid.add_image(img, timestamp_ms)
+        vid.report()
+        timestamp_ms += 1000
+
+    vid.close()

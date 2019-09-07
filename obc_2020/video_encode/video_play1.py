@@ -15,6 +15,7 @@ import struct
 ap = argparse.ArgumentParser()
 ap.add_argument("--delay", type=int, default=0)
 ap.add_argument("--avi", type=str, default=None, help='also output to avi file')
+ap.add_argument("--scale", type=float, default=None, help='scale displayed images')
 ap.add_argument("infile", type=str, nargs='?')
 args = ap.parse_args()
 
@@ -52,6 +53,8 @@ while True:
     (img,dt) = vid.get_image()
     if img is None:
         break
+    if args.scale is not None:
+        img = cv2.resize(img, (0,0), fx=args.scale, fy=args.scale)
     if dt > 0:
         cv2.imshow("Image", img)
         if args.delay > 0:
