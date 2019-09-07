@@ -123,11 +123,15 @@ class CameraAirModule(mp_module.MPModule):
             
     def capture_threadfunc(self):
         '''image capture thread'''
+        last_t = time.time()
         while True:
             if not self.running:
                 time.sleep(0.1)
                 continue
-            time.sleep(1.0)
+            target_t = last_t + 0.95
+            now = time.time()
+            if now < target_t:
+                time.sleep(target_t - now)
             img = self.cap_image_CV()
             now = time.time()
             if self.start_time is None:
