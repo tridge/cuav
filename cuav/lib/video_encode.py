@@ -1,20 +1,21 @@
 #!/usr/bin/env python
 '''
 video encoder that looks for structural differences and only sends changed image
-areas that are above a threshold
+areas
 '''
 
 import imutils
 import cv2
 import struct
+import numpy
 from skimage.measure import compare_ssim
-
+from MAVProxy.modules.lib import mp_image
 
 class VideoWriter(object):
-    def __init__(self, quality=50, min_area=8, threshold=225, crop=None):
+    def __init__(self, initial_quality=20, quality=50, min_area=8, crop=None):
+        self.initial_quality = initial_quality
         self.quality = quality
         self.min_area = min_area
-        self.threshold = threshold
         self.total_size = 0
         self.num_frames = 0
         self.num_deltas = 0
@@ -43,11 +44,13 @@ class VideoWriter(object):
         else:
             self.crop = None
             
-    def add_delta(self, img, x, y, dt):
+    def add_delta(self, img, x, y, dt, quality=None):
         '''add a delta image located at x,y'''
+        if quality is None:
+            quality = self.quality
 
         # encode delta
-        encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), self.quality]
+        encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), quality]
         result, encimg = cv2.imencode('.webp', img, encode_param)
 
         enclen = len(encimg)
@@ -94,71 +97,63 @@ class VideoWriter(object):
             self.image = img.copy()
             self.last_image = self.image
             self.timestamp_base_ms = timestamp_ms
-            return self.add_delta(self.image, 0, 0, 0)
+            return self.add_delta(self.image, 0, 0, 0, quality=self.initial_quality)
 
         dt = timestamp_ms - self.timestamp_base_ms
         self.timestamp_base_ms = timestamp_ms
 
-        gray1 = cv2.cvtColor(self.last_image, cv2.COLOR_BGR2GRAY)
-        gray2 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        threshold = None
+        ret = bytearray()
 
-        (score, diff) = compare_ssim(gray1, gray2, full=True)
-        diff = (diff * 255).astype("uint8")
+        delta = None
+        count = 0
+        max_count = 4
 
         while True:
-            thresh = cv2.threshold(diff, self.threshold, 255, cv2.THRESH_BINARY)[1]
-            thresh_inv = cv2.bitwise_not(thresh)
+            gray1 = cv2.cvtColor(self.last_image, cv2.COLOR_BGR2GRAY)
+            gray2 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-            # find contours
-            cnts = cv2.findContours(thresh_inv.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-            cnts = imutils.grab_contours(cnts)
-
-            min_area = max(min(self.min_area, self.largest_area(cnts)),4)
-            num_areas = self.count_areas(cnts, min_area)
-            count = 0
-            if len(cnts) > 0 and len(cnts) < 5:
+            (score, diff) = compare_ssim(gray1, gray2, full=True)
+            minvalue = numpy.amin(diff)
+            if threshold is None:
+                threshold = min(1.05*(minvalue + 0.02), 0.9)
+            elif minvalue > threshold or count > max_count:
                 break
-            if len(cnts) == 0:
-                if self.threshold > 230:
-                    break
-                self.threshold += 1
-            if len(cnts) >= 5:
-                if self.threshold < 50:
-                    break
-                self.threshold -= 1
 
-        ret = bytearray()
-        
-        for c in cnts:
-            (x, y, w, h) = cv2.boundingRect(c)
-            area = w*h
-            if area < min_area:
-                continue
+            if delta is not None:
+                ret += self.add_delta(delta[0], delta[1], delta[2], 0)
+                delta = None
+
+            minloc = numpy.where(diff == minvalue)
+            y = int(minloc[0])
+            x = int(minloc[1])
+
+            w = 16
+            x = max(x-w//2,0)
+            y = max(y-w//2,0)
+
             # expand area
-            expansion = 5
-            (height,width,depth) = self.shape
-            (x1, y1, w, h) = cv2.boundingRect(c)
+            (x1, y1, w, h) = (x, y, w, w)
             x2 = x1 + w
             y2 = y1 + h
-            x1 = max(x1-expansion, 0)
-            y1 = max(y1-expansion, 0)
-            x2 = min(x2+expansion, width)
-            y2 = min(y2+expansion, height)
+            (height, width, depth) = img.shape
+            x2 = min(x2, width)
+            y2 = min(y2, height)
 
             # cut out the changed area from image
             changed = img[y1:y2,x1:x2]
 
+            #print(minvalue, threshold, x, y)
+
             # overwrite the current image with that area
             self.image[y1:y2,x1:x2] = changed
 
+            delta = (changed, x1, y1)
             count += 1
-            if count < num_areas:
-                dt_delta = 0
-            else:
-                dt_delta = dt
+            self.last_image[y1:y2,x1:x2] = changed
 
-            ret += self.add_delta(changed, x1, y1, dt_delta)
-
+        if delta is not None:
+            ret += self.add_delta(delta[0], delta[1], delta[2], dt)
         self.last_image = img.copy()
         return ret
         
@@ -175,8 +170,8 @@ if __name__ == '__main__':
     ap.add_argument("--outfile", type=str, default='out.cvid')
     ap.add_argument("--delay", type=int, default=0)
     ap.add_argument("--quality", type=int, default=50)
+    ap.add_argument("--initial-quality", type=int, default=20)
     ap.add_argument("--minarea", type=int, default=32)
-    ap.add_argument("--threshold", type=int, default=225)
     ap.add_argument("--crop", type=str, default=None)
     ap.add_argument("imgs", type=str, nargs='+')
     args = ap.parse_args()
@@ -187,7 +182,7 @@ if __name__ == '__main__':
     
     # instantiate video delta encoder
     outf = open(args.outfile, 'wb')
-    vid = VideoWriter(quality=args.quality, min_area=args.minarea, threshold=args.threshold, crop=args.crop)
+    vid = VideoWriter(initial_quality=args.initial_quality, quality=args.quality, min_area=args.minarea, crop=args.crop)
 
     timestamp_ms = 0
 
