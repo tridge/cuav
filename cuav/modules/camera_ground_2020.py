@@ -14,7 +14,6 @@ import functools
 import cv2
 import pkg_resources
 import io
-import picamera
 import Queue
 
 try:
@@ -27,6 +26,7 @@ except ImportError:
 from MAVProxy.modules.lib import mp_module
 from MAVProxy.modules.lib import multiproc
 from MAVProxy.modules.lib import mp_settings
+from MAVProxy.modules.lib import mp_image
 from pymavlink import mavutil
 
 from cuav.lib import block_xmit, cuav_command
@@ -45,6 +45,7 @@ class CameraGroundModule(mp_module.MPModule):
         self.image = None
         self.last_capture_count = None
         self.handled_timestamps = {}
+        self.viewer = mp_image.MPImage(title='Image', width=200, height=200, auto_size=True)
 
         from MAVProxy.modules.lib.mp_settings import MPSettings, MPSetting
         self.camera_settings = MPSettings(
@@ -230,16 +231,14 @@ class CameraGroundModule(mp_module.MPModule):
         s.seek(0)
         (img,dt) = self.decoder.get_image(s)
         if img is None:
+            print("no image")
             return
         self.capture_count += 1
-        self.image = img
-        cv2.imwrite("c%u.jpg" % self.capture_count, img)
+        self.viewer.set_image(img)
 
     def idle_task(self):
         '''idle time handler'''
-        if self.image is not None and self.capture_count != self.last_capture_count:
-            self.last_capture_count = self.capture_count
-            cv2.imshow("Image", self.image)
+        pass
         
 
 def init(mpstate):
