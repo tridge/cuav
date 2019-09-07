@@ -56,6 +56,7 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('cropW', int, 0, 'crop width', range=(0,2000), increment=1, tab='GCS'),
               MPSetting('cropH', int, 0, 'crop height', range=(0,2000), increment=1, tab='GCS'),
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),
+              MPSetting('min_width', int, 32, 'min delta width'),
               MPSetting('m_bandwidth', int, 5000, 'max bandwidth on mavlink', increment=1, tab='GCS'),
               MPSetting('m_maxqueue', int, 20, 'Maximum images queue for mavlink', tab='GCS'),
               MPSetting('minspeed', int, 20, 'For airstart, minimum speed for capture to start'),
@@ -137,6 +138,8 @@ class CameraAirModule(mp_module.MPModule):
             if self.start_time is None:
                 self.start_time = now
             tstamp_ms = int((now - self.start_time)*1000)
+            self.encoder.min_width = self.camera_settings.min_width
+            self.encoder.quality = self.camera_settings.quality
             enc = self.encoder.add_image(img, tstamp_ms)
             self.encoder.report()
             if len(enc) == 0:

@@ -12,10 +12,10 @@ from skimage.measure import compare_ssim
 from MAVProxy.modules.lib import mp_image
 
 class VideoWriter(object):
-    def __init__(self, initial_quality=20, quality=50, min_area=8, crop=None):
+    def __init__(self, initial_quality=20, quality=50, min_width=32, crop=None):
         self.initial_quality = initial_quality
         self.quality = quality
-        self.min_area = min_area
+        self.min_width = min_width
         self.total_size = 0
         self.num_frames = 0
         self.num_deltas = 0
@@ -71,16 +71,6 @@ class VideoWriter(object):
                 largest_area = area
         return largest_area
 
-    def count_areas(self, cnts, min_area):
-        '''work out how many deltas we will send'''
-        count = 0
-        for c in cnts:
-            (x, y, w, h) = cv2.boundingRect(c)
-            area = w*h
-            if area >= min_area:
-                count += 1
-        return count
-
     def crop_image(self, img):
         '''crop image as requested'''
         if self.crop is None:
@@ -128,7 +118,7 @@ class VideoWriter(object):
             y = int(minloc[0])
             x = int(minloc[1])
 
-            w = 16
+            w = self.min_width
             x = max(x-w//2,0)
             y = max(y-w//2,0)
 
@@ -171,7 +161,7 @@ if __name__ == '__main__':
     ap.add_argument("--delay", type=int, default=0)
     ap.add_argument("--quality", type=int, default=50)
     ap.add_argument("--initial-quality", type=int, default=20)
-    ap.add_argument("--minarea", type=int, default=32)
+    ap.add_argument("--min-width", type=int, default=16)
     ap.add_argument("--crop", type=str, default=None)
     ap.add_argument("imgs", type=str, nargs='+')
     args = ap.parse_args()
@@ -182,7 +172,7 @@ if __name__ == '__main__':
     
     # instantiate video delta encoder
     outf = open(args.outfile, 'wb')
-    vid = VideoWriter(initial_quality=args.initial_quality, quality=args.quality, min_area=args.minarea, crop=args.crop)
+    vid = VideoWriter(initial_quality=args.initial_quality, quality=args.quality, min_width=args.min_width, crop=args.crop)
 
     timestamp_ms = 0
 
