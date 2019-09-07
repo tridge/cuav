@@ -9,12 +9,12 @@ import cv2
 import struct
 from skimage.measure import compare_ssim
 
+
 class VideoWriter(object):
-    def __init__(self, outname, quality=50, min_area=8, threshold=225, crop=None):
+    def __init__(self, quality=50, min_area=8, threshold=225, crop=None):
         self.quality = quality
         self.min_area = min_area
         self.threshold = threshold
-        self.f = open(outname, 'wb')
         self.total_size = 0
         self.num_frames = 0
         self.num_deltas = 0
@@ -22,16 +22,27 @@ class VideoWriter(object):
         self.last_image = None
         self.shape = None
         self.timestamp_base_ms = 0
+        self.crop = None
         if crop:
-            c=crop.split(",")
-            if len(c) == 4:
-                self.crop = (int(c[0]), int(c[1]), int(c[2]), int(c[3]))
-            else:
-                print("Bad VideoWriter crop: ", crop)
-                self.crop = None
+            self.set_cropstr(crop)
+
+    def set_cropstr(self, cropstr):
+        '''setup cropping'''
+        c = cropstr.split(",")
+        if len(c) == 4:
+            self.set_crop((int(c[0]), int(c[1]), int(c[2]), int(c[3])))
         else:
+            print("Bad VideoWriter crop: ", cropstr)
             self.crop = None
 
+    def set_crop(self, crop):
+        '''setup cropping'''
+        (x,y,w,h) = crop
+        if w > 0 and h > 0:
+            self.crop = crop
+        else:
+            self.crop = None
+            
     def add_delta(self, img, x, y, dt):
         '''add a delta image located at x,y'''
 
@@ -41,12 +52,11 @@ class VideoWriter(object):
 
         enclen = len(encimg)
         header = struct.pack("<IHHH", enclen, x, y, dt)
-        self.f.write(header)
-        self.f.write(encimg)
         self.total_size += len(header) + len(encimg)
         self.num_deltas += 1
         if dt > 0 or self.num_frames == 0:
             self.num_frames += 1
+        return bytearray(header) + bytearray(encimg)
 
     def largest_area(self, cnts):
         '''find largest contour by area'''
@@ -84,8 +94,7 @@ class VideoWriter(object):
             self.image = img.copy()
             self.last_image = self.image
             self.timestamp_base_ms = timestamp_ms
-            self.add_delta(self.image, 0, 0, 0)
-            return
+            return self.add_delta(self.image, 0, 0, 0)
 
         dt = timestamp_ms - self.timestamp_base_ms
         self.timestamp_base_ms = timestamp_ms
@@ -96,20 +105,30 @@ class VideoWriter(object):
         (score, diff) = compare_ssim(gray1, gray2, full=True)
         diff = (diff * 255).astype("uint8")
 
-        thresh = cv2.threshold(diff, self.threshold, 255, cv2.THRESH_BINARY)[1]
-        thresh_inv = cv2.bitwise_not(thresh)
+        while True:
+            thresh = cv2.threshold(diff, self.threshold, 255, cv2.THRESH_BINARY)[1]
+            thresh_inv = cv2.bitwise_not(thresh)
 
-        # find contours
-        cnts = cv2.findContours(thresh_inv.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-        cnts = imutils.grab_contours(cnts)
+            # find contours
+            cnts = cv2.findContours(thresh_inv.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+            cnts = imutils.grab_contours(cnts)
 
-        min_area = max(min(self.min_area, self.largest_area(cnts)),4)
-        num_areas = self.count_areas(cnts, min_area)
-        count = 0
+            min_area = max(min(self.min_area, self.largest_area(cnts)),4)
+            num_areas = self.count_areas(cnts, min_area)
+            count = 0
+            if len(cnts) > 0 and len(cnts) < 5:
+                break
+            if len(cnts) == 0:
+                if self.threshold > 230:
+                    break
+                self.threshold += 1
+            if len(cnts) >= 5:
+                if self.threshold < 50:
+                    break
+                self.threshold -= 1
+
+        ret = bytearray()
         
-        #if len(cnts) == 0:
-        #    print("No contours")
-
         for c in cnts:
             (x, y, w, h) = cv2.boundingRect(c)
             area = w*h
@@ -138,15 +157,11 @@ class VideoWriter(object):
             else:
                 dt_delta = dt
 
-            vid.add_delta(changed, x1, y1, dt_delta)
+            ret += self.add_delta(changed, x1, y1, dt_delta)
 
         self.last_image = img.copy()
+        return ret
         
-    def close(self):
-        '''close video file'''
-        self.f.close()
-        self.f = None
-
     def report(self):
         '''show encoding size'''
         print("Encoded %u frames %u deltas at %u bytes/frame" % (self.num_frames, self.num_deltas, self.total_size/self.num_frames))
@@ -171,21 +186,16 @@ if __name__ == '__main__':
         sys.exit(1)
     
     # instantiate video delta encoder
-    vid = VideoWriter(args.outfile, quality=args.quality, min_area=args.minarea, threshold=args.threshold, crop=args.crop)
-
-    # load first image
-    image1 = cv2.imread(args.imgs[0])
-    image = image1
-
-    # get image shape
-    (height,width,depth) = image.shape
+    outf = open(args.outfile, 'wb')
+    vid = VideoWriter(quality=args.quality, min_area=args.minarea, threshold=args.threshold, crop=args.crop)
 
     timestamp_ms = 0
 
-    for f in args.imgs[1:]:
+    for f in args.imgs:
         img = cv2.imread(f)
-        vid.add_image(img, timestamp_ms)
+        enc = vid.add_image(img, timestamp_ms)
+        outf.write(enc)
         vid.report()
         timestamp_ms += 1000
 
-    vid.close()
+    outf.close()

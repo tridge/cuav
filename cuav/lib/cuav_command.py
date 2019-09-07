@@ -17,6 +17,14 @@ class ImagePacket(StampedCommand):
         self.pos = pos
         self.priority = priority
 
+class ImageDelta(StampedCommand):
+    '''an image delta sent to the ground station'''
+    def __init__(self, frame_time, delta, priority):
+        StampedCommand.__init__(self)
+        self.frame_time = frame_time
+        self.delta = delta
+        self.priority = priority
+        
 class PreviewPacket(StampedCommand):
     '''a jpeg image sent to the ground station for preview window'''
     def __init__(self, jpeg):
