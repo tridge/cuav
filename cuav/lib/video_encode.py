@@ -10,6 +10,7 @@ import struct
 import numpy
 from skimage.measure import compare_ssim
 from MAVProxy.modules.lib import mp_image
+import time
 
 class VideoWriter(object):
     def __init__(self, initial_quality=20, quality=50, min_width=32, crop=None):
@@ -24,6 +25,7 @@ class VideoWriter(object):
         self.shape = None
         self.timestamp_base_ms = 0
         self.crop = None
+        self.dt = 0
         if crop:
             self.set_cropstr(crop)
 
@@ -43,6 +45,10 @@ class VideoWriter(object):
             self.crop = crop
         else:
             self.crop = None
+
+    def reset(self):
+        '''reset deltas'''
+        self.image = None
             
     def add_delta(self, img, x, y, dt, quality=None):
         '''add a delta image located at x,y'''
@@ -103,8 +109,11 @@ class VideoWriter(object):
             gray1 = cv2.cvtColor(self.last_image, cv2.COLOR_BGR2GRAY)
             gray2 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
+            t1 = time.time()
             (score, diff) = compare_ssim(gray1, gray2, full=True)
             minvalue = numpy.amin(diff)
+            t2 = time.time()
+            print(t2-t1)
             if threshold is None:
                 threshold = min(1.05*(minvalue + 0.02), 0.9)
             elif minvalue > threshold or count > max_count:
@@ -145,11 +154,15 @@ class VideoWriter(object):
         if delta is not None:
             ret += self.add_delta(delta[0], delta[1], delta[2], dt)
         self.last_image = img.copy()
+        self.dt = dt
         return ret
         
     def report(self):
         '''show encoding size'''
-        print("Encoded %u frames %u deltas at %u bytes/frame" % (self.num_frames, self.num_deltas, self.total_size/self.num_frames))
+        print("Encoded %u frames %u deltas at %u bytes/frame dt=%.1f" % (self.num_frames,
+                                                                         self.num_deltas,
+                                                                         self.total_size/self.num_frames,
+                                                                         self.dt))
 
 if __name__ == '__main__':
     import argparse
