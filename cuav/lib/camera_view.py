@@ -34,13 +34,18 @@ if args.crop:
         crop = (int(c[0]), int(c[1]), int(c[2]), int(c[3]))
         
 
+def crop_image(img):
+    '''crop image as requested'''
+    if crop is None:
+        return img
+    (x,y,w,h) = crop
+    return img[y:y+h,x:x+w]
+        
 while True:
     img = cap_image_CV()
     if args.flipV:
         img = cv2.flip(img, 0)[:,:]
     if args.flipH:
         img = cv2.flip(img, 1)[:,:]
-    if crop is not None:
-        (x,y,w,h) = crop
-        img = img[y:y+h,x:x+w]
+    img = crop_image(img)
     viewer.set_image(img,bgr=True)
