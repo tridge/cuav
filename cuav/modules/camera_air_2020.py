@@ -93,7 +93,7 @@ class CameraAirModule(mp_module.MPModule):
         if args[0] == "start":
             if not self.running:
                 self.encoder.set_crop((self.camera_settings.cropX,
-                                       self.camera_settings.cropX,
+                                       self.camera_settings.cropY,
                                        self.camera_settings.cropW,
                                        self.camera_settings.cropH))
                 self.capture_thread = self.start_thread(self.capture_threadfunc)

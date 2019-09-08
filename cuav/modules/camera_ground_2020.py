@@ -239,7 +239,7 @@ class CameraGroundModule(mp_module.MPModule):
         if self.capture_count == 0:
             print("Got first image: ", img.shape)
         self.capture_count += 1
-        self.viewer.set_image(img)
+        self.viewer.set_image(img,bgr=True)
 
     def idle_task(self):
         '''idle time handler'''
