@@ -137,7 +137,13 @@ class CameraAirModule(mp_module.MPModule):
         last_t = time.time()
         while True:
             if not self.running:
+                self.encoder.reset()
                 time.sleep(0.1)
+                continue
+            if self.is_armed:
+                self.encoder.reset()
+                self.capture_count = 0
+                time.sleep(1)
                 continue
             target_t = last_t + 0.95
             now = time.time()

@@ -176,6 +176,8 @@ class CameraGroundModule(mp_module.MPModule):
             self.cmd_camera(["status" if self.mpstate.status.watch == "camera" else "queue"])
         if m.get_type() == "HEARTBEAT" and m.type != mavutil.mavlink.MAV_TYPE_GCS:
             self.is_armed = (m.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
+            if self.is_armed:
+                self.capture_count = 0
         if m.get_type() in [ 'DATA16', 'DATA32', 'DATA64', 'DATA96' ]:
             if self.msocket is not None:
                 self.msocket.incoming.append(m)                
