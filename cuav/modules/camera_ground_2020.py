@@ -226,13 +226,18 @@ class CameraGroundModule(mp_module.MPModule):
 
     def handle_image_delta(self, obj, bsend):
         '''handle a ImageDelta packet'''
+        if self.capture_count == 0:
+            if obj.priority < 10000:
+                print("Skipping early image")
+                return
         s = io.BytesIO()
         s.write(obj.delta)
         s.seek(0)
         (img,dt) = self.decoder.get_image(s)
         if img is None:
-            print("no image")
             return
+        if self.capture_count == 0:
+            print("Got first image: ", img.shape)
         self.capture_count += 1
         self.viewer.set_image(img)
 

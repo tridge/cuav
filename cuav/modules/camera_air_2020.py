@@ -56,8 +56,11 @@ class CameraAirModule(mp_module.MPModule):
               MPSetting('cropW', int, 0, 'crop width', range=(0,2000), increment=1, tab='GCS'),
               MPSetting('cropH', int, 0, 'crop height', range=(0,2000), increment=1, tab='GCS'),
               MPSetting('clock_sync', bool, False, 'GPS Clock Sync'),
+              MPSetting('flipV', bool, False, 'flip vertically'),
+              MPSetting('flipH', bool, False, 'flip horizontally'),
+              MPSetting('save_images', bool, False, 'save images'),
               MPSetting('min_width', int, 32, 'min delta width'),
-              MPSetting('m_bandwidth', int, 5000, 'max bandwidth on mavlink', increment=1, tab='GCS'),
+              MPSetting('m_bandwidth', int, 2000, 'max bandwidth on mavlink', increment=1, tab='GCS'),
               MPSetting('m_maxqueue', int, 20, 'Maximum images queue for mavlink', tab='GCS'),
               MPSetting('minspeed', int, 20, 'For airstart, minimum speed for capture to start'),
               MPSetting('minalt', int, 30, 'MinAltitude of images', range=(0,10000), increment=1),
@@ -120,7 +123,14 @@ class CameraAirModule(mp_module.MPModule):
         self.camera.capture(s, "jpeg")
         s.seek(0)
         data = numpy.fromstring(s.getvalue(), dtype=numpy.uint8)
-        return cv2.imdecode(data, 1)
+        img = cv2.imdecode(data, 1)
+        if self.camera_settings.flipV:
+            img = cv2.flip(img, 0)[:,:]
+        if self.camera_settings.flipH:
+            img = cv2.flip(img, 1)[:,:]
+        if self.camera_settings.save_images:
+            cv2.imwrite("img%u.jpg" % self.capture_count, img)
+        return img
             
     def capture_threadfunc(self):
         '''image capture thread'''
@@ -144,7 +154,10 @@ class CameraAirModule(mp_module.MPModule):
             self.encoder.report()
             if len(enc) == 0:
                 continue
-            priority = 10000
+            if self.capture_count == 0:
+                priority = 10000
+            else:
+                priority = 9000
             pkt = cuav_command.ImageDelta(tstamp_ms, enc, priority)
             if self.msend:
                 self.transmit_queue.put((pkt, priority, self.msend))
