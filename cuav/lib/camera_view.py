@@ -7,7 +7,6 @@ import numpy
 import cv2
 from MAVProxy.modules.lib import mp_image
 
-camera = picamera.PiCamera()
 viewer = mp_image.MPImage(title='Image', width=200, height=200, auto_size=True)
 
 def cap_image_CV():
@@ -25,6 +24,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--crop", type=str, default=None)
 ap.add_argument("--flipH", action='store_true', default=False)
 ap.add_argument("--flipV", action='store_true', default=False)
+ap.add_argument("--resX", type=int, default=1024)
+ap.add_argument("--resY", type=int, default=768)
 args = ap.parse_args()
 
 crop = None
@@ -33,6 +34,7 @@ if args.crop:
     if len(c) == 4:
         crop = (int(c[0]), int(c[1]), int(c[2]), int(c[3]))
         
+camera = picamera.PiCamera(resolution=(args.resX,args.resY))
 
 def crop_image(img):
     '''crop image as requested'''
