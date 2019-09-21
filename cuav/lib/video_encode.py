@@ -109,11 +109,8 @@ class VideoWriter(object):
             gray1 = cv2.cvtColor(self.last_image, cv2.COLOR_BGR2GRAY)
             gray2 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-            t1 = time.time()
             (score, diff) = compare_ssim(gray1, gray2, full=True)
             minvalue = numpy.amin(diff)
-            t2 = time.time()
-            print(t2-t1)
             if threshold is None:
                 threshold = min(1.05*(minvalue + 0.02), 0.9)
             elif minvalue > threshold or count > max_count:
