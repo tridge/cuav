@@ -28,28 +28,18 @@ class VideoReader(object):
         t.daemon = True
         t.start()
 
+    def convert_from_yuv(self, b):
+        '''convert an image from yuv format using convert subprocess'''
+        b = self.p.stdout.read(self.width*self.height*3/2)
+        cmd = "convert -interlace plane -depth 8 -sampling-factor 4:2:0 -size 300x300 yuv:- jpg:-".split()
+        p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        jpg, stderr = p.communicate(bytearray(b))
+        return cv2.imdecode(numpy.fromstring(jpg, dtype=numpy.uint8), -1)
 
     def decode_yuv(self):
         '''decode yuv422 from dec265 child'''
         b = self.p.stdout.read(self.width*self.height*3/2)
-        b = bytearray(b)
-        e = self.width*self.height
-        Y = b[0:e]
-        Y = numpy.reshape(Y, (self.height,self.width))
-
-        s = e
-        V = b[s::2]
-        V = numpy.repeat(V, 2, 0)
-        V = numpy.reshape(V, (self.height/2,self.width))
-        V = numpy.repeat(V, 2, 0)
-
-        U = b[s+1::2]
-        U = numpy.repeat(U, 2, 0)
-        U = numpy.reshape(U, (self.height/2,self.width))
-        U = numpy.repeat(U, 2, 0)
-
-        RGBMatrix = (numpy.dstack([Y,U,V])).astype(numpy.uint8)
-        img = cv2.cvtColor(RGBMatrix, cv2.COLOR_YUV2RGB, 3)
+        img = self.convert_from_yuv(b)
         self.q.put(img)
 
     def decode_loop(self):

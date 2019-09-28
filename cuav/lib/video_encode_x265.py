@@ -70,8 +70,9 @@ class VideoWriter(object):
         img = self.crop_image(img)
         yuv = self.convert_to_yuv(img)
         self.p.stdin.write(yuv)
+        self.p.stdin.flush()
         try:
-            ret = os.read(self.p.stdout.fileno(), 65*1024)
+            ret = os.read(self.p.stdout.fileno(), 1024)
         except Exception:
             return None
         return ret

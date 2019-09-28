@@ -75,6 +75,6 @@ while True:
     while img is not None:
         total_frames += 1
         viewer_out.set_image(img)
-        time.sleep(args.delay)
+        #time.sleep(args.delay/4)
         img = decoder.get_image(bytearray(''))
     print("%u bytes/frame" % (total_bytes//total_frames))
