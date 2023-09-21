@@ -11,17 +11,18 @@
 #include <stdio.h>
 #include <assert.h>
 
+#define MAX_DIMENSION 10
+
 /*
   create a matrix of any dimension. The return must be cast correctly.
 */
 void *any_matrix(uint8_t dimension, uint16_t el_size, uint32_t header_size, ...)
-{ 
-    #ifdef _MSC_VER
-        uint16_t *dims = (uint16_t *)_alloca(dimension);
-    #else
-        uint16_t dims[dimension];
-    #endif
-	void **mat;
+{
+        if (dimension > MAX_DIMENSION) {
+            return NULL;
+        }
+        uint16_t dims[MAX_DIMENSION];
+        void **mat;
 	void *ret;
 	uint32_t i,j,size,ptr_size,ppos,prod;
 	uint32_t padding;
