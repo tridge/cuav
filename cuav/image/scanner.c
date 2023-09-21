@@ -985,7 +985,8 @@ static void scale_scan_params_user(struct scan_params *scan_params, uint32_t hei
     scan_params->save_intermediate = dict_lookup(parm_dict, "SaveIntermediate", 0);
     scan_params->blue_emphasis = dict_lookup(parm_dict, "BlueEmphasis", 0);
     if (scan_params->save_intermediate) {
-        printf("mpp=%f mpp2=%f min_region_area=%u max_region_area=%u min_region_size_xy=%u max_region_size_xy=%u histogram_count_threshold=%u region_merge=%u\n",
+        printf("h=%u mpp=%f mpp2=%f min_region_area=%u max_region_area=%u min_region_size_xy=%u max_region_size_xy=%u histogram_count_threshold=%u region_merge=%u\n",
+               (unsigned)height,
                meters_per_pixel,
                meters_per_pixel2,
                scan_params->min_region_area,

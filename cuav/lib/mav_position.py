@@ -355,9 +355,13 @@ def exif_position(filename):
         m = re.search("\d", timestamp)
         if m :
             timestamp = timestamp[m.start():]
-        
-        frame_time = datetime.datetime.strptime(timestamp, "%Y%m%d%H%M%S%fZ")
-        frame_time = cuav_util.datetime_to_float(frame_time)
+
+        try:
+            frame_time = datetime.datetime.strptime(timestamp, "%Y%m%d%H%M%S%fZ")
+            frame_time = cuav_util.datetime_to_float(frame_time)
+        except ValueError:
+            st = os.stat(filename)
+            frame_time = st.st_mtime
         
         if _last_position is None:
             yaw = 0

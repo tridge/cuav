@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 import numpy, os, time, cv2, sys, math, sys, glob, argparse
 from gooey import Gooey, GooeyParser
@@ -66,7 +66,7 @@ def process(args):
   print("num_files=%u" % num_files)
   region_count = 0
 
-  slipmap = mp_slipmap.MPSlipMap(service=args.service, elevation=True, title='Map')
+  slipmap = mp_slipmap.MPSlipMap(service=args.service, elevation="SRTM3", title='Map')
   if args.vehicle_type == "Copter":
       icon = slipmap.icon('redcopter.png')
   else:

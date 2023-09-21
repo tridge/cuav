@@ -49,7 +49,7 @@ def process(args):
         boundary = None
 
     if args.mosaic:
-        slipmap = mp_slipmap.MPSlipMap(service='GoogleSat', elevation=True, title='Map')
+        slipmap = mp_slipmap.MPSlipMap(service='GoogleSat', elevation="SRTM3", title='Map')
         icon = slipmap.icon('redplane.png')
         slipmap.add_object(mp_slipmap.SlipIcon('plane', (0,0), icon, layer=3, rotation=0,
                                          follow=True,
