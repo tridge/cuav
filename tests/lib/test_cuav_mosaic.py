@@ -51,7 +51,7 @@ def test_ExtractThumbs():
    
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="Broken in Windows")   
 def test_Mosaic():
-    #slipmap = mp_slipmap.MPSlipMap(service='GoogleSat', elevation=True, title='Map')
+    #slipmap = mp_slipmap.MPSlipMap(service='GoogleSat', elevation="SRTM3", title='Map')
     #mocked_slipmap.return_value = 1
     #monkeypatch.setattr('slipmap', lambda x: 1)
     mocked_slipmap = mock.MagicMock(return_value=1)
