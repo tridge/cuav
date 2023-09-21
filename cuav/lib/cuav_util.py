@@ -432,15 +432,17 @@ def set_system_clock(time_seconds):
 def gps_ddtodms(latlon):
     dmsLatHem = 'N'
     dmsLongHem = 'E'
-    if latlon[0] < 0:
+    lat = latlon[0]
+    lon = latlon[1]
+    if lat < 0:
         dmsLatHem = 'S'
-        latlon[0] *= -1
-    if latlon[1] < 0:
+        lat *= -1
+    if lon < 0:
         dmsLongHem = 'W'
-        latlon[1] *= -1
+        lon *= -1
 
-    _lat = str(latlon[0])
-    _long = str(latlon[1])
+    _lat = str(lat)
+    _long = str(lon)
 
     # degrees
     ddLatVals = _lat.split('.')
