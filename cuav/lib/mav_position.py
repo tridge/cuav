@@ -345,7 +345,7 @@ def exif_position(filename):
                                       exif_dict["GPS"][piexif.GPSIFD.GPSLongitude][1],
                                       exif_dict["GPS"][piexif.GPSIFD.GPSLongitude][2],
                                       lng_ew)
-            altitude = float(exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][0])/float(exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][1])
+            altitude = float(exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][0])/float(exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][1]) - EleModel.GetElevation(latitude, longitude)
         else:
             latitude = 0
             longitude = 0
