@@ -188,7 +188,24 @@ def pixel_coordinates(xpos, ypos, latitude, longitude, height, pitch, roll, yaw,
 
     bearing = math.degrees(math.atan2(xofs, yofs))
     distance = math.sqrt(xofs**2 + yofs**2)
-    return gps_newpos(latitude, longitude, bearing, distance)
+    initial_pos = gps_newpos(latitude, longitude, bearing, distance)
+
+    from MAVProxy.modules.mavproxy_map import mp_elevation
+    EleModel = mp_elevation.ElevationModel()
+    ground_elevation = EleModel.GetElevation(latitude, longitude)
+
+    # Get the elevation of the estimated point
+    initial_elevation = EleModel.GetElevation(initial_pos[0], initial_pos[1])
+
+    # Recalculate the height difference and adjust the distance accordingly
+    height_diff = initial_elevation - ground_elevation
+    if height_diff < 0:
+        adjusted_distance = math.sqrt(distance**2 + height_diff**2)
+    else:
+        adjusted_distance = distance
+
+    # Recalculate the new position with the adjusted distance
+    return gps_newpos(latitude, longitude, bearing, adjusted_distance)
 
 def gps_position_from_xy(x, y, pos, C=None, altitude=None, shape=None):
     '''
