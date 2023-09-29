@@ -222,7 +222,7 @@ def process(args):
         pos = triggerpos.position(f)
       else:
         # get the position using EXIF data
-        pos = mav_position.exif_position(f)
+        pos = mav_position.exif_position(f, args.yaw)
         pos.time += args.time_offset
 
       # update the vehicle icon on the map
@@ -366,6 +366,7 @@ def parse_args_gooey():
     parser.add_argument("--pitch-offset", default=0, type=float, help="camera pitch offset from autopilot pitch (degrees)")
     parser.add_argument("--roll-offset", default=0, type=float, help="camera roll offset from autopilot pitch (degrees)")
     parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
+    parser.add_argument("--yaw", default=-1, type=float, help="yaw (-1 for auto)")
     parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
     parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")
     parser.add_argument("--map-thumbsize", default=60, type=int, help="map thumbnail size")
@@ -401,6 +402,7 @@ def parse_args():
     parser.add_argument("--pitch-offset", default=0, type=float, help="pitch offset from autopilot pitch")
     parser.add_argument("--roll-offset", default=0, type=float, help="roll offset from autopilot pitch")
     parser.add_argument("--altitude", default=0, type=float, help="altitude (0 for auto)")
+    parser.add_argument("--yaw", default=-1, type=float, help="yaw (-1 for auto)")
     parser.add_argument("--thumbsize", default=60, type=int, help="thumbnail size")
     parser.add_argument("--map-thumbsize", default=60, type=int, help="map thumbnail size")
     parser.add_argument("--mosaic-thumbsize", default=35, type=int, help="mosaic thumbnail size")

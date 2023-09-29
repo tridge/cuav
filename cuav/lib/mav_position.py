@@ -326,7 +326,7 @@ def decimal_to_dms(decimal):
 
 _last_position = None
 
-def exif_position(filename):
+def exif_position(filename, args_yaw=-1):
         '''get a MavPosition from exif tags
         '''
         import piexif
@@ -363,7 +363,9 @@ def exif_position(filename):
             st = os.stat(filename)
             frame_time = st.st_mtime
         
-        if _last_position is None:
+        if args_yaw >= 0:
+            yaw = args_yaw
+        elif _last_position is None:
             yaw = 0
         else:
             yaw = cuav_util.gps_bearing(_last_position.lat, _last_position.lon,
