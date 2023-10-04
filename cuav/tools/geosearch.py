@@ -238,6 +238,13 @@ def process(args):
       #im_orig = cuav_util.LoadImage(f, rotate180=camera_settings.rotate180)
       im_orig = cv2.imread(f)
 
+      if args.colormap is not None:
+          cmap = getattr(cv2, "COLORMAP_" + args.colormap, None)
+          if cmap is not None:
+              im_orig = cv2.cvtColor(im_orig, cv2.COLOR_BGR2GRAY)
+              im_orig = cv2.applyColorMap(im_orig, cmap)
+
+
       if im_orig is None:
         continue
       (w,h) = cuav_util.image_shape(im_orig)
@@ -379,6 +386,7 @@ def parse_args_gooey():
     parser.add_argument("--start", default=False, action='store_true', help="start straight away")
     parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
     parser.add_argument("--showlz", default=False, action='store_true', help="Show calculated landing zone from regions")
+    parser.add_argument("--colormap", default=None, help="Apply color map for greyscale images")
     return parser.parse_args()
 
 def parse_args():
@@ -416,6 +424,7 @@ def parse_args():
     parser.add_argument("--start", default=False, action='store_true', help="start straight away")
     parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
     parser.add_argument("--showlz", default=False, action='store_true', help="Show calculated landing zone from regions")
+    parser.add_argument("--colormap", default=None, help="Apply color map for greyscale images")
     return parser.parse_args()
 
 
