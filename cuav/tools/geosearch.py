@@ -224,6 +224,8 @@ def process(args):
         # get the position using EXIF data
         pos = mav_position.exif_position(f, args.yaw)
         pos.time += args.time_offset
+        if args.show_photo_pos:
+            slipmap.add_object(mp_slipmap.SlipIcon('icon - %s' % f, (float(pos.lat),float(pos.lon)), icon, layer=4, rotation=0, follow=False))
 
       # update the vehicle icon on the map
       if pos is not None:
@@ -387,6 +389,7 @@ def parse_args_gooey():
     parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
     parser.add_argument("--showlz", default=False, action='store_true', help="Show calculated landing zone from regions")
     parser.add_argument("--colormap", default=None, help="Apply color map for greyscale images")
+    parser.add_argument("--show-photo-pos", action='store_true', default=False, help="show locations of all images on map")
     return parser.parse_args()
 
 def parse_args():
@@ -425,6 +428,7 @@ def parse_args():
     parser.add_argument("--downsample", default=False, action='store_true', help="downsample image before scanning")
     parser.add_argument("--showlz", default=False, action='store_true', help="Show calculated landing zone from regions")
     parser.add_argument("--colormap", default=None, help="Apply color map for greyscale images")
+    parser.add_argument("--show-photo-pos", action='store_true', default=False, help="show locations of all images on map")
     return parser.parse_args()
 
 
