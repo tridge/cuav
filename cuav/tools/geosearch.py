@@ -279,6 +279,11 @@ def process(args):
       else:
         regions = scanner.scan(img_scan)
       regions = cuav_region.RegionsConvert(regions, cuav_util.image_shape(img_scan), cuav_util.image_shape(im_full))
+      if len(regions) == 0 and args.all_images:
+          (img_width,img_height) = cuav_util.image_shape(im_full)
+          midx = int(img_width/2)
+          midy = int(img_height/2)
+          regions.append(cuav_region.Region(midx-25, midy-25, midx+25, midy+25, (50,50), scan_score=0))
       count += 1
       t1=time.time()
 
@@ -390,6 +395,7 @@ def parse_args_gooey():
     parser.add_argument("--showlz", default=False, action='store_true', help="Show calculated landing zone from regions")
     parser.add_argument("--colormap", default=None, help="Apply color map for greyscale images")
     parser.add_argument("--show-photo-pos", action='store_true', default=False, help="show locations of all images on map")
+    parser.add_argument("--all-images", action='store_true', default=False, help="show all images even if no region found")
     return parser.parse_args()
 
 def parse_args():
@@ -429,6 +435,7 @@ def parse_args():
     parser.add_argument("--showlz", default=False, action='store_true', help="Show calculated landing zone from regions")
     parser.add_argument("--colormap", default=None, help="Apply color map for greyscale images")
     parser.add_argument("--show-photo-pos", action='store_true', default=False, help="show locations of all images on map")
+    parser.add_argument("--all-images", action='store_true', default=False, help="show all images even if no region found")
     return parser.parse_args()
 
 
