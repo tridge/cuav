@@ -273,11 +273,13 @@ def parse_frame_time(filename):
     m = re.search("\d", timestamp)
     if m :
         timestamp = timestamp[m.start():]
-    
-    frame_time = datetime.datetime.strptime(timestamp, "%Y%m%d%H%M%S%fZ")
-    t = datetime_to_float(frame_time)
-    
-    return t
+
+    try:
+        frame_time = datetime.datetime.strptime(timestamp, "%Y%m%d%H%M%S%fZ")
+        t = datetime_to_float(frame_time)
+        return t
+    except Exception:
+        return os.stat(filename).st_mtime
 
 
 def polygon_outside(P, V):
