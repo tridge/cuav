@@ -346,8 +346,12 @@ def exif_position(filename, args_yaw=-1):
                                       exif_dict["GPS"][piexif.GPSIFD.GPSLongitude][2],
                                       lng_ew)
             alt1 = float(exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][0])/float(exif_dict["GPS"][piexif.GPSIFD.GPSAltitude][1])
-            ealt = EleModel.GetElevation(latitude, longitude)
-            altitude = alt1 - ealt
+            ealt = EleModel.GetElevation(latitude, longitude, timeout=5)
+            if ealt is None:
+                print("WARNING: failed terrain lookup for %f %f" % (latitude, longitude))
+                altitude = alt1
+            else:
+                altitude = alt1 - ealt
         else:
             latitude = 0
             longitude = 0
